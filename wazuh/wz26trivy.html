@@ -1,0 +1,665 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Seguridad de imágenes de contenedor con Wazuh y Trivy</title>
+  <style>
+    :root {
+      --bg: #060606;
+      --panel: #111111;
+      --panel-2: #1a1a1a;
+      --text: #f5f5f5;
+      --muted: #b9b9b9;
+      --accent: #ff7a00;
+      --accent-2: #ff9a3d;
+      --border: #2b2b2b;
+      --code: #050505;
+      --success: #24b36b;
+      --shadow: 0 12px 30px rgba(0,0,0,.35);
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+      background: linear-gradient(180deg, #050505 0%, #0a0a0a 100%);
+      color: var(--text);
+      line-height: 1.6;
+    }
+
+    .container {
+      width: min(1100px, calc(100% - 32px));
+      margin: 0 auto;
+    }
+
+    header {
+      padding: 48px 0 28px;
+      border-bottom: 1px solid rgba(255,255,255,.06);
+      background:
+        radial-gradient(circle at top right, rgba(255,122,0,.16), transparent 30%),
+        radial-gradient(circle at top left, rgba(255,154,61,.10), transparent 20%),
+        linear-gradient(180deg, #080808 0%, #101010 100%);
+      z-index: 20;
+    }
+
+    .header-inner {
+      display: flex;
+      gap: 18px;
+      align-items: flex-start;
+      justify-content: space-between;
+      flex-wrap: wrap;
+    }
+
+    .header-brand {
+      display: flex;
+      gap: 18px;
+      align-items: center;
+      flex: 1 1 720px;
+    }
+
+    .channel-logo {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 18px;
+      padding: 0;
+      overflow: hidden;
+      border: 1px solid rgba(255,255,255,.08);
+      box-shadow: var(--shadow);
+      background: rgba(255,255,255,.03);
+      flex: 0 0 auto;
+    }
+
+    .channel-logo img {
+      display: block;
+      width: 200px;
+      height: auto;
+      object-fit: contain;
+    }
+
+    h1 {
+      font-size: clamp(1.8rem, 3vw, 3rem);
+      margin: 0;
+      line-height: 1.15;
+      color: var(--accent);
+    }
+
+    .brand {
+      margin-top: 8px;
+      font-weight: 700;
+      letter-spacing: .4px;
+      color: var(--accent-2);
+    }
+
+    .subtitle {
+      color: var(--muted);
+      margin: 10px 0 0;
+      max-width: 850px;
+    }
+
+    main { padding: 28px 0 64px; }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 260px 1fr;
+      gap: 24px;
+      align-items: start;
+    }
+
+    .toc {
+      position: sticky;
+      top: 20px;
+      width: 260px;
+      background: rgba(17,17,17,.92);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 18px;
+      box-shadow: var(--shadow);
+      margin: 0;
+    }
+
+    .toc h2 {
+      margin: 0 0 12px;
+      font-size: 1rem;
+      color: var(--accent);
+    }
+
+    .toc a {
+      display: block;
+      color: var(--muted);
+      text-decoration: none;
+      padding: 8px 10px;
+      border-radius: 10px;
+      transition: background .15s ease, color .15s ease;
+      font-size: .95rem;
+    }
+
+    .toc a:hover {
+      color: var(--text);
+      background: rgba(255,122,0,.08);
+    }
+
+    .content {
+      display: grid;
+      gap: 18px;
+    }
+
+    .card {
+      background: linear-gradient(180deg, rgba(17,17,17,.97), rgba(12,12,12,.97));
+      border: 1px solid var(--border);
+      border-radius: 22px;
+      padding: 24px;
+      box-shadow: var(--shadow);
+    }
+
+    .card h2 {
+      margin-top: 0;
+      font-size: 1.5rem;
+      color: var(--accent);
+    }
+
+    .card h3 {
+      margin-bottom: 10px;
+      margin-top: 22px;
+      font-size: 1.08rem;
+      color: #ffd1a8;
+    }
+
+    .muted { color: var(--muted); }
+    ul { margin-top: 10px; padding-left: 20px; }
+    li + li { margin-top: 6px; }
+
+    .note {
+      background: rgba(255,122,0,.08);
+      border: 1px solid rgba(255,122,0,.22);
+      border-radius: 14px;
+      padding: 14px 16px;
+      color: #ffe2c4;
+      margin-top: 14px;
+    }
+
+    .ok {
+      background: rgba(36,179,107,.10);
+      border: 1px solid rgba(36,179,107,.28);
+      border-radius: 14px;
+      padding: 14px 16px;
+      color: #d8ffe8;
+      margin-top: 14px;
+    }
+
+    .cmd {
+      margin-top: 14px;
+      border: 1px solid var(--border);
+      background: var(--code);
+      border-radius: 16px;
+      overflow: hidden;
+    }
+
+    .cmd-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 12px;
+      background: rgba(255,255,255,.03);
+      border-bottom: 1px solid rgba(255,255,255,.06);
+    }
+
+    .cmd-title {
+      font-size: .92rem;
+      color: var(--muted);
+      font-weight: 600;
+    }
+
+    .copy-btn {
+      border: 1px solid #6a3408;
+      background: linear-gradient(180deg, #ff7a00, #d76200);
+      color: #111;
+      border-radius: 10px;
+      padding: 8px 10px;
+      cursor: pointer;
+      font-size: .9rem;
+      font-weight: 800;
+      transition: .15s ease;
+    }
+
+    .copy-btn:hover { filter: brightness(1.06); }
+    .copy-btn.copied {
+      background: rgba(36,179,107,.18);
+      border-color: rgba(36,179,107,.45);
+      color: #d7ffe8;
+    }
+
+    pre {
+      margin: 0;
+      padding: 16px;
+      overflow-x: auto;
+      white-space: pre-wrap;
+      word-break: break-word;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      font-size: .94rem;
+      color: #ffbf85;
+    }
+
+    code.inline {
+      background: rgba(255,255,255,.06);
+      padding: 2px 8px;
+      border-radius: 8px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: .92em;
+      color: #ffd2aa;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 12px;
+      font-size: .95rem;
+    }
+
+    th, td {
+      border: 1px solid var(--border);
+      padding: 10px 12px;
+      text-align: left;
+      vertical-align: top;
+    }
+
+    th {
+      background: rgba(255,255,255,.04);
+      color: #ffd1a8;
+    }
+
+    footer {
+      margin-top: 24px;
+      color: var(--muted);
+      text-align: center;
+      font-size: .95rem;
+    }
+
+    @media (max-width: 920px) {
+      .layout { grid-template-columns: 1fr; }
+      .toc { position: static; width: 100%; }
+    }
+  </style>
+</head>
+<body>
+<header>
+  <div class="container header-inner">
+    <div class="header-brand">
+      <a class="channel-logo" href="https://www.youtube.com/c/ClockworkComputerIP" target="_blank" rel="noopener noreferrer" aria-label="Clockwork Computer">
+        <img src="https://blogger.googleusercontent.com/img/a/AVvXsEjuquj9lFaN9zfg8H5FofNIUKAHWWRiOUbDhHragpU14TfF6RYKxb5w62mfAClxDkDrzCMAilRatibcoWFbuqMnXMBh30p_sfbxp4D2gUny70NbjyHLrs42VXeBB4Qtc8NovIS_DqIU5iq3dMMx1TuNZkW70MeW8Ryemwk_tDv6iKZi9ngKfaskUG1yCWo=s1600" alt="Clockwork Computer"/>
+      </a>
+      <div>
+        <h1>Seguridad de imágenes de contenedor con Wazuh y Trivy</h1>
+        <div class="brand">Docker + Trivy + Wazuh Command module + decoders + reglas personalizadas</div>
+        <p class="subtitle">Documentación técnica para integrar Trivy con Wazuh siguiendo el flujo de instalación, configuración y validación de la práctica, manteniendo un ruleset personalizado con identificadores propios.</p>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main>
+  <div class="container layout">
+    <aside class="toc">
+      <h2>Contenido</h2>
+      <a href="#introduccion">1. Introducción</a>
+      <a href="#docker">2. Instalar Docker Engine y descargar imágenes</a>
+      <a href="#trivy">3. Instalar Trivy</a>
+      <a href="#script">4. Crear el script personalizado y configurar el módulo Command</a>
+      <a href="#agent-restart">5. Reiniciar el agente</a>
+      <a href="#manager">6. Crear decoders y reglas en el manager</a>
+      <a href="#manager-restart">7. Reiniciar el manager</a>
+      <a href="#logtest">8. Validación con wazuh-logtest</a>
+      <a href="#dashboard">9. Visualización en Wazuh dashboard</a>
+      <a href="#validacion-real">10. Validación con eventos reales</a>
+      <a href="#errores">11. Errores comunes</a>
+    </aside>
+
+    <div class="content">
+      <section class="card" id="introduccion">
+        <h2>1. Introducción</h2>
+        <p>Esta práctica integra <strong>Trivy</strong> con <strong>Wazuh</strong> para analizar vulnerabilidades en imágenes Docker. El endpoint Ubuntu ejecuta un script mediante el módulo <code class="inline">command</code>, genera una salida estructurada con el prefijo <code class="inline">Trivy:</code> y envía el resultado al manager para su decodificación y clasificación por severidad.</p>
+        <div class="note">La secuencia sigue el mismo orden operativo de la documentación técnica: primero el endpoint, después el manager y, finalmente, la validación con <code class="inline">wazuh-logtest</code> y con eventos reales.</div>
+      </section>
+
+      <section class="card" id="docker">
+        <h2>2. Instalar Docker Engine y descargar imágenes</h2>
+        <p>Los pasos siguientes instalan Docker Engine y despliegan un conjunto de imágenes base en el endpoint Ubuntu.</p>
+        <div class="note">Se requieren privilegios de <code class="inline">root</code> para ejecutar los comandos de esta sección.</div>
+
+        <h3>2.1 Actualizar paquetes e instalar cURL</h3>
+        <div class="cmd"><div class="cmd-head"><div class="cmd-title">Actualizar paquetes</div><button class="copy-btn" data-copy-target="cmd-1">Copiar</button></div><pre id="cmd-1">apt update && apt install curl -y</pre></div>
+
+        <h3>2.2 Descargar y ejecutar el instalador de Docker</h3>
+        <div class="cmd"><div class="cmd-head"><div class="cmd-title">Instalar Docker Engine</div><button class="copy-btn" data-copy-target="cmd-2">Copiar</button></div><pre id="cmd-2">curl -sSL https://get.docker.com/ | sh</pre></div>
+
+        <h3>2.3 Crear el directorio del entorno de contenedores</h3>
+        <div class="cmd"><div class="cmd-head"><div class="cmd-title">Crear y acceder al directorio /docker</div><button class="copy-btn" data-copy-target="cmd-3">Copiar</button></div><pre id="cmd-3">mkdir -p /docker && cd /docker</pre></div>
+
+        <h3>2.4 Crear el archivo docker-compose.yml</h3>
+        <div class="cmd"><div class="cmd-head"><div class="cmd-title">Editar docker-compose.yml</div><button class="copy-btn" data-copy-target="cmd-4">Copiar</button></div><pre id="cmd-4">nano /docker/docker-compose.yml</pre></div>
+
+        <div class="cmd"><div class="cmd-head"><div class="cmd-title">Contenido de docker-compose.yml</div><button class="copy-btn" data-copy-target="cmd-5">Copiar</button></div><pre id="cmd-5">services:
+  api:
+    image: python:3.9-alpine
+  db:
+    image: postgres:alpine
+  redis:
+    image: redis:alpine</pre></div>
+
+        <div class="note">La configuración define un entorno de prueba con tres servicios: una imagen base de Python, PostgreSQL y Redis. El objetivo es analizar las imágenes base <code class="inline">python:3.9-alpine</code>, <code class="inline">postgres:alpine</code> y <code class="inline">redis:alpine</code>.</div>
+
+        <h3>2.5 Descargar las imágenes con Docker Compose</h3>
+        <div class="cmd"><div class="cmd-head"><div class="cmd-title">Descargar imágenes</div><button class="copy-btn" data-copy-target="cmd-6">Copiar</button></div><pre id="cmd-6">cd /docker
+docker compose pull</pre></div>
+
+        <h3>2.6 Verificar que las imágenes están presentes</h3>
+        <div class="cmd"><div class="cmd-head"><div class="cmd-title">Listar imágenes Docker</div><button class="copy-btn" data-copy-target="cmd-7">Copiar</button></div><pre id="cmd-7">docker image ls</pre></div>
+
+        <div class="cmd"><div class="cmd-head"><div class="cmd-title">Salida esperada de ejemplo</div><button class="copy-btn" data-copy-target="cmd-8">Copiar</button></div><pre id="cmd-8">REPOSITORY   TAG           IMAGE ID        CREATED          SIZE
+postgres     alpine        2bf60600670f    8 days ago       278MB
+redis        alpine        ee33180a8437    5 weeks ago      41.4MB
+python       3.9-alpine    8831b2c8c07c    2 months ago     49.1MB</pre></div>
+      </section>
+
+      <section class="card" id="trivy">
+        <h2>3. Instalar Trivy</h2>
+        <p>Los pasos siguientes instalan Trivy en el endpoint Ubuntu.</p>
+
+        <h3>3.1 Instalar dependencias requeridas</h3>
+        <div class="cmd"><div class="cmd-head"><div class="cmd-title">Instalar dependencias</div><button class="copy-btn" data-copy-target="cmd-9">Copiar</button></div><pre id="cmd-9">apt-get install -y wget apt-transport-https gnupg lsb-release</pre></div>
+
+        <h3>3.2 Importar la clave del repositorio de Trivy</h3>
+        <div class="cmd"><div class="cmd-head"><div class="cmd-title">Importar clave GPG</div><button class="copy-btn" data-copy-target="cmd-10">Copiar</button></div><pre id="cmd-10">wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | gpg --dearmor | tee /usr/share/keyrings/trivy.gpg > /dev/null</pre></div>
+
+        <h3>3.3 Añadir el repositorio APT de Trivy</h3>
+        <div class="cmd"><div class="cmd-head"><div class="cmd-title">Añadir repositorio</div><button class="copy-btn" data-copy-target="cmd-11">Copiar</button></div><pre id="cmd-11">echo "deb [signed-by=/usr/share/keyrings/trivy.gpg] https://aquasecurity.github.io/trivy-repo/deb generic main" | tee -a /etc/apt/sources.list.d/trivy.list</pre></div>
+
+        <h3>3.4 Actualizar índices de paquetes</h3>
+        <div class="cmd"><div class="cmd-head"><div class="cmd-title">Actualizar repositorios</div><button class="copy-btn" data-copy-target="cmd-12">Copiar</button></div><pre id="cmd-12">apt-get update</pre></div>
+
+        <h3>3.5 Instalar Trivy</h3>
+        <div class="cmd"><div class="cmd-head"><div class="cmd-title">Instalar paquete Trivy</div><button class="copy-btn" data-copy-target="cmd-13">Copiar</button></div><pre id="cmd-13">apt-get install trivy</pre></div>
+
+        <h3>3.6 Verificar la instalación</h3>
+        <div class="cmd"><div class="cmd-head"><div class="cmd-title">Comprobar versión de Trivy</div><button class="copy-btn" data-copy-target="cmd-14">Copiar</button></div><pre id="cmd-14">trivy --version</pre></div>
+
+        <div class="cmd"><div class="cmd-head"><div class="cmd-title">Salida esperada de ejemplo</div><button class="copy-btn" data-copy-target="cmd-15">Copiar</button></div><pre id="cmd-15">Version: 0.59.1</pre></div>
+      </section>
+
+      <section class="card" id="script">
+        <h2>4. Crear el script personalizado y configurar el módulo Command</h2>
+        <p>El script detecta las imágenes existentes en el endpoint y ejecuta un análisis de vulnerabilidades con Trivy sobre cada una. El módulo <code class="inline">command</code> ejecuta el script periódicamente y Wazuh trata su salida como contenido de log para su análisis posterior.</p>
+
+        <h3>4.1 Crear el directorio y editar el script</h3>
+        <div class="cmd"><div class="cmd-head"><div class="cmd-title">Crear directorio y editar trivy_scan.sh</div><button class="copy-btn" data-copy-target="cmd-16">Copiar</button></div><pre id="cmd-16">mkdir -p /var/ossec/custom-script/ && nano /var/ossec/custom-script/trivy_scan.sh</pre></div>
+
+        <h3>4.2 Contenido de /var/ossec/custom-script/trivy_scan.sh</h3>
+        <div class="cmd"><div class="cmd-head"><div class="cmd-title">Script completo</div><button class="copy-btn" data-copy-target="cmd-17">Copiar</button></div><pre id="cmd-17">#!/bin/bash
+# Copyright (C) 2015-2025, Wazuh Inc.
+# Directory to save the custom output template
+TEMPLATE_DIR="/tmp"
+TEMPLATE_FILE="$TEMPLATE_DIR/trivy-custom.tmpl"
+
+# Create the custom output template
+cat <<EOL > "$TEMPLATE_FILE"
+"Package","Version Installed","Vulnerability ID","Severity"
+{{- range \$ri, \$r := . }}
+{{- range \$vi, \$v := .Vulnerabilities }}
+"{{ $v.PkgName }}","{{$v.InstalledVersion }}","{{ $v.VulnerabilityID }}","{{$v.Severity }}","{{$v.Title }}"
+{{- end}}
+{{- end }}
+EOL
+
+# Retrieve list of container images (including both repository and tag)
+images=$(docker images --format "{{.Repository}}:{{.Tag}}")
+if [ -z "$images" ]; then
+  echo "No images found. Exiting..."
+  exit 1
+fi
+
+# Loop through each container image and run Trivy scan
+for image in $images; do
+  # Run Trivy scan on the current image using the custom output template
+  trivy_output=$(trivy --scanners vuln i -q --format template --template "@/tmp/trivy-custom.tmpl" "$image")
+
+  # Check if the scan was successful
+  if [ $? -ne 0 ]; then
+    echo "Error running Trivy scan on image $image. Skipping..."
+    continue
+  fi
+
+  # Process Trivy output for the current image
+  while IFS= read -r line; do
+    # Prepend image name with "Trivy:", followed by image name and a comma
+    formatted_line="Trivy:\"$image\",$line"
+    # Print the formatted line with quoted image name
+    echo "$formatted_line"
+  done <<< "$trivy_output"
+done
+
+# Clean up the custom output template
+rm -f "$TEMPLATE_FILE"</pre></div>
+
+        <div class="note">El script crea una plantilla temporal de salida para Trivy, obtiene la lista de imágenes, ejecuta un escaneo sobre cada una, añade el prefijo <code class="inline">Trivy:</code> al inicio de cada línea y elimina la plantilla temporal al finalizar.</div>
+
+        <h3>4.3 Asignar permisos de ejecución</h3>
+        <div class="cmd"><div class="cmd-head"><div class="cmd-title">Permisos del script</div><button class="copy-btn" data-copy-target="cmd-18">Copiar</button></div><pre id="cmd-18">chmod 750 /var/ossec/custom-script/trivy_scan.sh</pre></div>
+
+        <h3>4.4 Ajustar propietario del script y su directorio</h3>
+        <div class="cmd"><div class="cmd-head"><div class="cmd-title">Propietario del directorio y script</div><button class="copy-btn" data-copy-target="cmd-19">Copiar</button></div><pre id="cmd-19">chown root:wazuh /var/ossec/custom-script/ -R</pre></div>
+
+        <h3>4.5 Probar el script manualmente en el agente</h3>
+        <div class="cmd"><div class="cmd-head"><div class="cmd-title">Ejecución manual del script</div><button class="copy-btn" data-copy-target="cmd-20">Copiar</button></div><pre id="cmd-20">/var/ossec/custom-script/trivy_scan.sh | head -n 20</pre></div>
+
+        <div class="ok">Una salida válida debe comenzar con líneas en formato <code class="inline">Trivy:"imagen","paquete","version","CVE","severity","titulo"</code>.</div>
+
+        <h3>4.6 Editar la configuración del agente</h3>
+        <div class="cmd"><div class="cmd-head"><div class="cmd-title">Editar ossec.conf del agente</div><button class="copy-btn" data-copy-target="cmd-21">Copiar</button></div><pre id="cmd-21">nano /var/ossec/etc/ossec.conf</pre></div>
+
+        <h3>4.7 Añadir el bloque del módulo Command</h3>
+        <div class="cmd"><div class="cmd-head"><div class="cmd-title">Bloque wodle command</div><button class="copy-btn" data-copy-target="cmd-22">Copiar</button></div><pre id="cmd-22">&lt;!-- Trivy container vulnerability scanner script --&gt;
+&lt;wodle name="command"&gt;
+  &lt;disabled&gt;no&lt;/disabled&gt;
+  &lt;command&gt;/var/ossec/custom-script/trivy_scan.sh&lt;/command&gt;
+  &lt;interval&gt;3d&lt;/interval&gt;
+  &lt;ignore_output&gt;no&lt;/ignore_output&gt;
+  &lt;run_on_start&gt;yes&lt;/run_on_start&gt;
+  &lt;timeout&gt;0&lt;/timeout&gt;
+&lt;/wodle&gt;</pre></div>
+
+        <h3>4.8 Significado de los parámetros del módulo Command</h3>
+        <table>
+          <thead><tr><th>Parámetro</th><th>Función</th></tr></thead>
+          <tbody>
+            <tr><td><code class="inline">disabled</code></td><td>Indica si la configuración del módulo está activa. El valor <code class="inline">no</code> mantiene habilitada la ejecución.</td></tr>
+            <tr><td><code class="inline">command</code></td><td>Define la ruta del script <code class="inline">trivy_scan.sh</code> que se ejecutará en el endpoint.</td></tr>
+            <tr><td><code class="inline">interval</code></td><td>Establece el intervalo de ejecución del script. En esta configuración se ejecuta cada 3 días.</td></tr>
+            <tr><td><code class="inline">ignore_output</code></td><td>Determina si la salida del comando se ignora o se procesa. El valor <code class="inline">no</code> permite que Wazuh la procese y la registre.</td></tr>
+            <tr><td><code class="inline">run_on_start</code></td><td>Ejecuta la configuración del módulo inmediatamente después del arranque del servicio del agente.</td></tr>
+            <tr><td><code class="inline">timeout</code></td><td>Define el tiempo máximo de ejecución. El valor <code class="inline">0</code> permite la ejecución sin restricciones de tiempo impuestas por el módulo.</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section class="card" id="agent-restart">
+        <h2>5. Reiniciar el agente</h2>
+        <p>El reinicio del agente aplica la configuración del módulo <code class="inline">command</code> y permite la ejecución inmediata del script si <code class="inline">run_on_start</code> está habilitado.</p>
+        <div class="cmd"><div class="cmd-head"><div class="cmd-title">Reiniciar wazuh-agent</div><button class="copy-btn" data-copy-target="cmd-23">Copiar</button></div><pre id="cmd-23">systemctl restart wazuh-agent</pre></div>
+      </section>
+
+      <section class="card" id="manager">
+        <h2>6. Crear decoders y reglas en el manager</h2>
+        <div class="note">Las acciones de esta sección se realizan en el Wazuh server. Se requieren privilegios de <code class="inline">root</code>.</div>
+
+        <h3>6.1 Crear el archivo de decoders</h3>
+        <div class="cmd"><div class="cmd-head"><div class="cmd-title">Editar trivy_decoders.xml</div><button class="copy-btn" data-copy-target="cmd-24">Copiar</button></div><pre id="cmd-24">nano /var/ossec/etc/decoders/trivy_decoders.xml</pre></div>
+
+        <h3>6.2 Añadir los decoders personalizados</h3>
+        <div class="cmd"><div class="cmd-head"><div class="cmd-title">Contenido de trivy_decoders.xml</div><button class="copy-btn" data-copy-target="cmd-25">Copiar</button></div><pre id="cmd-25">&lt;decoder name="trivy-decoder"&gt;
+  &lt;prematch&gt;^Trivy:&lt;/prematch&gt;
+&lt;/decoder&gt;
+
+&lt;decoder name="trivy-decoder-fields"&gt;
+  &lt;parent&gt;trivy-decoder&lt;/parent&gt;
+  &lt;regex offset="after_parent"&gt;"(\.+)","(\.+)","(\.+)","(\.+)","(\.+)","(\.+)"&lt;/regex&gt;
+  &lt;order&gt;image, package, version, vulnerability_id, severity, description&lt;/order&gt;
+&lt;/decoder&gt;</pre></div>
+
+        <h3>6.3 Crear el archivo de reglas</h3>
+        <div class="cmd"><div class="cmd-head"><div class="cmd-title">Editar trivy_rules.xml</div><button class="copy-btn" data-copy-target="cmd-26">Copiar</button></div><pre id="cmd-26">nano /var/ossec/etc/rules/trivy_rules.xml</pre></div>
+
+        <h3>6.4 Añadir las reglas personalizadas</h3>
+        <div class="cmd"><div class="cmd-head"><div class="cmd-title">Contenido de trivy_rules.xml</div><button class="copy-btn" data-copy-target="cmd-27">Copiar</button></div><pre id="cmd-27">&lt;group name="trivy,"&gt;
+  &lt;rule id="100250" level="0"&gt;
+    &lt;decoded_as&gt;trivy-decoder&lt;/decoded_as&gt;
+    &lt;description&gt;Trivy alert detected.&lt;/description&gt;
+  &lt;/rule&gt;
+
+  &lt;rule id="100251" level="14"&gt;
+    &lt;if_sid&gt;100250&lt;/if_sid&gt;
+    &lt;field name="severity"&gt;CRITICAL&lt;/field&gt;
+    &lt;description&gt;Trivy alert [CRITICAL]: Vulnerabilty '$(vulnerability_id)' detected in package '$(package)' version '$(version)' on container image '$(image)'.&lt;/description&gt;
+  &lt;/rule&gt;
+
+  &lt;rule id="100252" level="12"&gt;
+    &lt;if_sid&gt;100250&lt;/if_sid&gt;
+    &lt;field name="severity"&gt;HIGH&lt;/field&gt;
+    &lt;description&gt;Trivy alert [HIGH]: Vulnerabilty '$(vulnerability_id)' detected in package '$(package)' version '$(version)' on container image '$(image)'.&lt;/description&gt;
+  &lt;/rule&gt;
+
+  &lt;rule id="100253" level="7"&gt;
+    &lt;if_sid&gt;100250&lt;/if_sid&gt;
+    &lt;field name="severity"&gt;MEDIUM&lt;/field&gt;
+    &lt;description&gt;Trivy alert [MEDIUM]: Vulnerabilty '$(vulnerability_id)' detected in package '$(package)' version '$(version)' on container image '$(image)'.&lt;/description&gt;
+  &lt;/rule&gt;
+
+  &lt;rule id="100254" level="4"&gt;
+    &lt;if_sid&gt;100250&lt;/if_sid&gt;
+    &lt;field name="severity"&gt;LOW&lt;/field&gt;
+    &lt;description&gt;Trivy alert [LOW]: Vulnerabilty '$(vulnerability_id)' detected in package '$(package)' version '$(version)' on container image '$(image)'.&lt;/description&gt;
+  &lt;/rule&gt;
+
+  &lt;rule id="100255" level="7"&gt;
+    &lt;if_sid&gt;100250&lt;/if_sid&gt;
+    &lt;field name="severity"&gt;UNKNOWN&lt;/field&gt;
+    &lt;description&gt;Trivy alert [UNKNOWN]: Vulnerabilty '$(vulnerability_id)' detected in package '$(package)' version '$(version)' on container image '$(image)'.&lt;/description&gt;
+  &lt;/rule&gt;
+&lt;/group&gt;</pre></div>
+
+        <h3>6.5 Significado de los Rule ID utilizados</h3>
+        <table>
+          <thead><tr><th>Rule ID</th><th>Función</th></tr></thead>
+          <tbody>
+            <tr><td><code class="inline">100250</code></td><td>Detecta la salida del escaneo de Trivy. Esta regla no genera alertas visibles en el dashboard al tener nivel 0.</td></tr>
+            <tr><td><code class="inline">100251</code></td><td>Detecta vulnerabilidades con severidad <code class="inline">CRITICAL</code>.</td></tr>
+            <tr><td><code class="inline">100252</code></td><td>Detecta vulnerabilidades con severidad <code class="inline">HIGH</code>.</td></tr>
+            <tr><td><code class="inline">100253</code></td><td>Detecta vulnerabilidades con severidad <code class="inline">MEDIUM</code>.</td></tr>
+            <tr><td><code class="inline">100254</code></td><td>Detecta vulnerabilidades con severidad <code class="inline">LOW</code>.</td></tr>
+            <tr><td><code class="inline">100255</code></td><td>Detecta vulnerabilidades con severidad <code class="inline">UNKNOWN</code>.</td></tr>
+          </tbody>
+        </table>
+
+        <h3>6.6 Ajustar propietario y permisos</h3>
+        <div class="cmd"><div class="cmd-head"><div class="cmd-title">Propietario y permisos de decoders y reglas</div><button class="copy-btn" data-copy-target="cmd-28">Copiar</button></div><pre id="cmd-28">chown wazuh:wazuh /var/ossec/etc/rules/trivy_rules.xml /var/ossec/etc/decoders/trivy_decoders.xml
+chmod 660 /var/ossec/etc/rules/trivy_rules.xml /var/ossec/etc/decoders/trivy_decoders.xml</pre></div>
+      </section>
+
+      <section class="card" id="manager-restart">
+        <h2>7. Reiniciar el manager</h2>
+        <p>El reinicio del manager aplica los nuevos decoders y reglas.</p>
+        <div class="cmd"><div class="cmd-head"><div class="cmd-title">Reiniciar wazuh-manager</div><button class="copy-btn" data-copy-target="cmd-29">Copiar</button></div><pre id="cmd-29">systemctl restart wazuh-manager</pre></div>
+      </section>
+
+      <section class="card" id="logtest">
+        <h2>8. Validación con wazuh-logtest</h2>
+        <p>La validación con <code class="inline">wazuh-logtest</code> permite comprobar que el decoder extrae los campos esperados y que la regla correspondiente se activará según la severidad del evento.</p>
+        <div class="cmd"><div class="cmd-head"><div class="cmd-title">Ejecutar wazuh-logtest</div><button class="copy-btn" data-copy-target="cmd-30">Copiar</button></div><pre id="cmd-30">/var/ossec/bin/wazuh-logtest</pre></div>
+        <div class="cmd"><div class="cmd-head"><div class="cmd-title">Evento de prueba</div><button class="copy-btn" data-copy-target="cmd-31">Copiar</button></div><pre id="cmd-31">Trivy:"python:3.9-alpine","jaraco.context","5.3.0","CVE-2026-23949","HIGH","jaraco.context: jaraco.context: Path traversal via malicious tar archives"</pre></div>
+        <div class="cmd"><div class="cmd-head"><div class="cmd-title">Resultado esperado</div><button class="copy-btn" data-copy-target="cmd-32">Copiar</button></div><pre id="cmd-32">Phase 2:
+  name: 'trivy-decoder'
+  image: 'python:3.9-alpine'
+  package: 'jaraco.context'
+  version: '5.3.0'
+  vulnerability_id: 'CVE-2026-23949'
+  severity: 'HIGH'
+  description: 'jaraco.context: jaraco.context: Path traversal via malicious tar archives'
+
+Phase 3:
+  id: '100252'
+  description: 'Trivy alert [HIGH]: Vulnerabilty ...'
+  groups: '['trivy']'
+  Alert to be generated.</pre></div>
+      </section>
+
+      <section class="card" id="dashboard">
+        <h2>9. Visualización en Wazuh dashboard</h2>
+        <p>Tras una ejecución real del agente, las alertas pueden revisarse en los archivos del manager y en Discover o en los paneles del dashboard.</p>
+        <div class="cmd"><div class="cmd-head"><div class="cmd-title">Comprobar alerts.json</div><button class="copy-btn" data-copy-target="cmd-33">Copiar</button></div><pre id="cmd-33">grep 'Trivy alert' /var/ossec/logs/alerts/alerts.json | tail -n 20
+grep '"id":"10025' /var/ossec/logs/alerts/alerts.json | tail -n 20</pre></div>
+        <div class="cmd"><div class="cmd-head"><div class="cmd-title">Comprobar archives.json</div><button class="copy-btn" data-copy-target="cmd-34">Copiar</button></div><pre id="cmd-34">grep 'Trivy:' /var/ossec/logs/archives/archives.json | tail -n 20</pre></div>
+        <div class="note">En el dashboard pueden utilizarse búsquedas como <code class="inline">rule.groups:trivy</code>, <code class="inline">rule.id:100252</code> o el nombre de la imagen analizada.</div>
+      </section>
+
+      <section class="card" id="validacion-real">
+        <h2>10. Validación con eventos reales</h2>
+        <h3>10.1 Reiniciar el agente para lanzar el wodle</h3>
+        <div class="cmd"><div class="cmd-head"><div class="cmd-title">Reiniciar el agente</div><button class="copy-btn" data-copy-target="cmd-35">Copiar</button></div><pre id="cmd-35">systemctl restart wazuh-agent</pre></div>
+        <h3>10.2 Confirmar la presencia de eventos y alertas</h3>
+        <div class="cmd"><div class="cmd-head"><div class="cmd-title">Revisar archivos del manager</div><button class="copy-btn" data-copy-target="cmd-36">Copiar</button></div><pre id="cmd-36">grep 'Trivy:' /var/ossec/logs/archives/archives.json | tail -n 10
+grep 'Trivy alert' /var/ossec/logs/alerts/alerts.json | tail -n 10</pre></div>
+        <h3>10.3 Reiniciar Filebeat si las alertas no se visualizan</h3>
+        <div class="cmd"><div class="cmd-head"><div class="cmd-title">Reiniciar Filebeat</div><button class="copy-btn" data-copy-target="cmd-37">Copiar</button></div><pre id="cmd-37">systemctl restart filebeat
+systemctl status filebeat
+tail -f /var/log/filebeat/filebeat</pre></div>
+      </section>
+
+      <section class="card" id="errores">
+        <h2>11. Errores comunes</h2>
+        <table>
+          <thead><tr><th>Problema</th><th>Causa probable</th><th>Solución</th></tr></thead>
+          <tbody>
+            <tr><td>El script no devuelve vulnerabilidades</td><td>Trivy no puede descargar la base de datos o no existen imágenes locales</td><td>Comprobar conectividad, validar la descarga de la base de datos y revisar <code class="inline">docker image ls</code>.</td></tr>
+            <tr><td>El evento aparece en archives.json pero no en alerts.json</td><td>Las reglas no casan o el ruleset no está cargado</td><td>Validar con <code class="inline">wazuh-logtest</code> y reiniciar <code class="inline">wazuh-manager</code>.</td></tr>
+            <tr><td>El dashboard no muestra alertas</td><td>Las alertas no se han indexado todavía o los filtros no coinciden</td><td>Comprobar primero <code class="inline">alerts.json</code>, reiniciar <code class="inline">filebeat</code> y revisar los filtros del dashboard.</td></tr>
+            <tr><td>El agente no puede ejecutar el script</td><td>Permisos insuficientes sobre el script o sobre Docker</td><td>Revisar permisos, propietario y acceso al motor Docker.</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <footer>
+        Documentación técnica para integrar Trivy con Wazuh y visualizar vulnerabilidades de imágenes Docker mediante reglas personalizadas.
+      </footer>
+    </div>
+  </div>
+</main>
+
+<script>
+  async function copyText(text, button) {
+    try {
+      await navigator.clipboard.writeText(text);
+      const original = button.textContent;
+      button.textContent = 'Copiado';
+      button.classList.add('copied');
+      setTimeout(() => {
+        button.textContent = original;
+        button.classList.remove('copied');
+      }, 1400);
+    } catch (err) {
+      alert('No se pudo copiar automáticamente.');
+    }
+  }
+
+  document.querySelectorAll('.copy-btn').forEach(button => {
+    button.addEventListener('click', () => {
+      const targetId = button.getAttribute('data-copy-target');
+      const target = document.getElementById(targetId);
+      if (!target) return;
+      copyText(target.innerText.trim(), button);
+    });
+  });
+</script>
+</body>
+</html>
