@@ -1,0 +1,834 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Wazuh · Detección de malware con listas CDB y Active Response</title>
+  <style>
+    :root {
+      --bg: #060606;
+      --panel: #111111;
+      --panel-2: #1a1a1a;
+      --text: #f5f5f5;
+      --muted: #b9b9b9;
+      --accent: #ff7a00;
+      --accent-2: #ff9a3d;
+      --border: #2b2b2b;
+      --code: #050505;
+      --success: #24b36b;
+      --shadow: 0 12px 30px rgba(0,0,0,.35);
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+      background: linear-gradient(180deg, #050505 0%, #0a0a0a 100%);
+      color: var(--text);
+      line-height: 1.6;
+    }
+
+    .container {
+      width: min(1100px, calc(100% - 32px));
+      margin: 0 auto;
+    }
+
+    header {
+      padding: 48px 0 28px;
+      border-bottom: 1px solid rgba(255,255,255,.06);
+      background: radial-gradient(circle at top right, rgba(255,122,0,.16), transparent 30%),
+                  radial-gradient(circle at top left, rgba(255,154,61,.10), transparent 20%),
+                  linear-gradient(180deg, #080808 0%, #101010 100%);
+      
+      z-index: 20;
+    }
+
+    .header-inner {
+      display: flex;
+      gap: 18px;
+      align-items: flex-start;
+      justify-content: space-between;
+      flex-wrap: wrap;
+    }
+
+    .header-brand {
+      display: flex;
+      gap: 18px;
+      align-items: center;
+      flex: 1 1 720px;
+    }
+    .channel-logo {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 18px; padding:0;
+      overflow: hidden;
+      border: 1px solid rgba(255,255,255,.08);
+      box-shadow: var(--shadow);
+      background: rgba(255,255,255,.03);
+      flex: 0 0 auto;
+    }
+
+    .channel-logo img {
+      display: block;
+      width: 200px;
+      height: auto;
+      object-fit: contain;
+    }
+
+    h1 {
+      font-size: clamp(1.8rem, 3vw, 3rem);
+      margin: 0;
+      line-height: 1.15;
+      color: var(--accent);
+    }
+
+    .brand {
+      margin-top: 8px;
+      font-weight: 700;
+      letter-spacing: .4px;
+      color: var(--accent-2);
+    }
+
+    .subtitle {
+      color: var(--muted);
+      margin: 10px 0 0;
+      max-width: 850px;
+    }
+
+    .actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      border: 1px solid #4a2a0f;
+      background: linear-gradient(180deg, #2a190d, #1a120d);
+      color: var(--text);
+      padding: 10px 14px;
+      border-radius: 12px;
+      text-decoration: none;
+      cursor: pointer;
+      box-shadow: var(--shadow);
+      transition: transform .15s ease, border-color .15s ease, background .15s ease;
+      font-weight: 600;
+    }
+
+    .btn:hover {
+      transform: translateY(-1px);
+      border-color: var(--accent);
+      background: linear-gradient(180deg, #3a220f, #22150d);
+    }
+
+    main { padding: 28px 0 64px; }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 260px 1fr;
+      gap: 24px;
+      align-items: start;
+    }
+
+    .toc {
+      position: sticky;
+      top: 20px;
+      width: 260px;
+      background: rgba(17,17,17,.92);
+      border: 1px solid var(--border);
+      border-radius: 18px; padding:0;
+      padding: 18px;
+      box-shadow: var(--shadow);
+      margin: 0;
+    }
+
+    .toc h2 {
+      margin: 0 0 12px;
+      font-size: 1rem;
+      color: var(--accent);
+    }
+
+    .toc a {
+      display: block;
+      color: var(--muted);
+      text-decoration: none;
+      padding: 8px 10px;
+      border-radius: 10px;
+      transition: background .15s ease, color .15s ease;
+      font-size: .95rem;
+    }
+
+    .toc a:hover {
+      color: var(--text);
+      background: rgba(255,122,0,.08);
+    }
+
+    .content {
+      margin-left: 0;
+      margin-top: 0;
+      padding-top: 0;
+      display: grid;
+      gap: 18px;
+    }
+
+    .card {
+      background: linear-gradient(180deg, rgba(17,17,17,.97), rgba(12,12,12,.97));
+      border: 1px solid var(--border);
+      border-radius: 22px;
+      padding: 24px;
+      box-shadow: var(--shadow);
+    }
+
+    .card h2 {
+      margin-top: 0;
+      font-size: 1.5rem;
+      color: var(--accent);
+    }
+
+    .card h3 {
+      margin-bottom: 10px;
+      margin-top: 22px;
+      font-size: 1.08rem;
+      color: #ffd1a8;
+    }
+
+    .muted { color: var(--muted); }
+    ul { margin-top: 10px; padding-left: 20px; }
+    li + li { margin-top: 6px; }
+
+    .note {
+      background: rgba(255,122,0,.08);
+      border: 1px solid rgba(255,122,0,.22);
+      border-radius: 14px;
+      padding: 14px 16px;
+      color: #ffe2c4;
+      margin-top: 14px;
+    }
+
+    .ok {
+      background: rgba(36,179,107,.10);
+      border: 1px solid rgba(36,179,107,.28);
+      border-radius: 14px;
+      padding: 14px 16px;
+      color: #d8ffe8;
+      margin-top: 14px;
+    }
+
+    .cmd {
+      margin-top: 14px;
+      border: 1px solid var(--border);
+      background: var(--code);
+      border-radius: 16px;
+      overflow: hidden;
+    }
+
+    .cmd-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 12px;
+      background: rgba(255,255,255,.03);
+      border-bottom: 1px solid rgba(255,255,255,.06);
+    }
+
+    .cmd-title {
+      font-size: .92rem;
+      color: var(--muted);
+      font-weight: 600;
+    }
+
+    .copy-btn {
+      border: 1px solid #6a3408;
+      background: linear-gradient(180deg, #ff7a00, #d76200);
+      color: #111;
+      border-radius: 10px;
+      padding: 8px 10px;
+      cursor: pointer;
+      font-size: .9rem;
+      font-weight: 800;
+      transition: .15s ease;
+    }
+
+    .copy-btn:hover { filter: brightness(1.06); }
+    .copy-btn.copied {
+      background: rgba(36,179,107,.18);
+      border-color: rgba(36,179,107,.45);
+      color: #d7ffe8;
+    }
+
+    pre {
+      margin: 0;
+      padding: 16px;
+      overflow-x: auto;
+      white-space: pre-wrap;
+      word-break: break-word;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      font-size: .94rem;
+      color: #ffbf85;
+    }
+
+    code.inline {
+      background: rgba(255,255,255,.06);
+      padding: 2px 8px;
+      border-radius: 8px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: .92em;
+      color: #ffd2aa;
+    }
+
+    .two-col {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 12px;
+      font-size: .95rem;
+    }
+
+    th, td {
+      border: 1px solid var(--border);
+      padding: 10px 12px;
+      text-align: left;
+      vertical-align: top;
+    }
+
+    th {
+      background: rgba(255,255,255,.04);
+      color: #ffd1a8;
+    }
+
+    footer {
+      margin-top: 24px;
+      color: var(--muted);
+      text-align: center;
+      font-size: .95rem;
+    }
+
+    @media (max-width: 920px) {
+      .layout { grid-template-columns: 1fr; }
+      .toc { position: static; width: 100%; }
+      .content { margin-left: 0; }
+    }
+      .content { margin-left: 0; }
+    }
+      .toc { position: static; }
+      header { position: static; }
+      .two-col { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="container header-inner">
+      <div class="header-brand">
+        <a class="channel-logo" href="https://www.youtube.com/c/ClockworkComputerIP" target="_blank" rel="noopener noreferrer" aria-label="Canal de YouTube Clockwork Computer">
+          <img src="https://blogger.googleusercontent.com/img/a/AVvXsEjuquj9lFaN9zfg8H5FofNIUKAHWWRiOUbDhHragpU14TfF6RYKxb5w62mfAClxDkDrzCMAilRatibcoWFbuqMnXMBh30p_sfbxp4D2gUny70NbjyHLrs42VXeBB4Qtc8NovIS_DqIU5iq3dMMx1TuNZkW70MeW8Ryemwk_tDv6iKZi9ngKfaskUG1yCWo=s1600" alt="Clockwork Computer" />
+        </a>
+        <div>
+          <h1>Wazuh · Detección de malware con listas CDB y Active Response</h1>
+          <div class="brand">Guía técnica · CLOCKWORK COMPUTER</div>
+        <p class="subtitle">Documentación paso a paso para monitorizar un directorio con FIM, detectar el fichero EICAR mediante una lista CDB en el manager y eliminarlo automáticamente con Active Response. Incluye explicación teórica, comandos listos para copiar y verificaciones visuales para seguirla a la vez que el vídeo.</p>
+        </div>
+      </div>
+      
+    </div>
+  </header>
+
+  <main class="container">
+    <div class="layout">
+      <nav class="toc" aria-label="Tabla de contenidos">
+        <h2>Contenido</h2>
+        <a href="#introduccion">1. Introducción</a>
+        <a href="#arquitectura">2. Arquitectura y flujo</a>
+        <a href="#conceptos">3. Conceptos clave</a>
+        <a href="#requisitos">4. Requisitos</a>
+        <a href="#paso-1">5. Preparar el directorio</a>
+        <a href="#paso-2">6. Configurar FIM en el agente</a>
+        <a href="#paso-3">7. Crear la lista CDB</a>
+        <a href="#paso-4">8. Declarar la lista en el manager</a>
+        <a href="#paso-5">9. Crear la regla 100300</a>
+        <a href="#paso-6">10. Reiniciar y validar la carga</a>
+        <a href="#paso-7">11. Descargar EICAR y probar</a>
+        <a href="#paso-8">12. Añadir Active Response</a>
+        <a href="#paso-9">13. Crear el script remove-threat.sh</a>
+        <a href="#paso-10">14. Probar la eliminación automática</a>
+        <a href="#visualizacion">15. Visualización en tiempo real</a>
+        <a href="#validacion">16. Qué deberías ver</a>
+        <a href="#errores">17. Errores comunes</a>
+        
+      </nav>
+
+      <div class="content">
+        <section class="card" id="introduccion">
+          <h2>1. Introducción</h2>
+          <p>En esta práctica vamos a construir una detección completa en Wazuh usando <strong>File Integrity Monitoring (FIM)</strong>, una <strong>lista CDB</strong> y <strong>Active Response</strong>.</p>
+          <p>El objetivo es muy didáctico: monitorizar un directorio en un endpoint Linux, detectar el archivo de prueba <strong>EICAR</strong> por su hash <strong>SHA256</strong> y, cuando la detección sea positiva, eliminar el archivo automáticamente desde el propio agente.</p>
+          <div class="note">Esta práctica está pensada para laboratorio y demostración. EICAR no es malware real; es un fichero de prueba estándar usado para validar soluciones de seguridad.</div>
+        </section>
+
+        <section class="card" id="arquitectura">
+          <h2>2. Arquitectura y flujo de la práctica</h2>
+          <div class="cmd">
+            <div class="cmd-head">
+              <span class="cmd-title">Flujo lógico</span>
+              <button class="copy-btn" data-copy-target="cmd-arch">Copiar</button>
+            </div>
+            <pre id="cmd-arch">[Agente Ubuntu]
+   ↓
+FIM monitoriza /tmp/cdb-demo
+   ↓
+Se crea eicar.com.txt
+   ↓
+El agente calcula hashes y envía el evento
+   ↓
+[Wazuh Manager]
+   ↓
+La regla 100300 compara el SHA256 con la lista CDB
+   ↓
+Coincidencia positiva
+   ↓
+Alerta 100300
+   ↓
+Active Response ejecuta remove-threat.sh en el agente
+   ↓
+El archivo se elimina automáticamente</pre>
+          </div>
+        </section>
+
+        <section class="card" id="conceptos">
+          <h2>3. Conceptos clave</h2>
+          <h3>3.1 File Integrity Monitoring (FIM)</h3>
+          <p>FIM es el módulo de Wazuh que monitoriza cambios en archivos y directorios. Puede detectar creación, modificación y borrado de archivos, además de calcular hashes como <code class="inline">MD5</code>, <code class="inline">SHA1</code> y <code class="inline">SHA256</code>.</p>
+
+          <h3>3.2 Listas CDB</h3>
+          <p>Una lista CDB es una base de datos de búsqueda rápida que Wazuh usa para comprobar si un valor existe o no en una lista. El formato es muy simple: <code class="inline">clave:valor</code>. En esta práctica, la clave será el hash SHA256 de EICAR y el valor será una etiqueta descriptiva.</p>
+
+          <h3>3.3 Active Response</h3>
+          <p>Active Response permite que Wazuh ejecute una acción automática cuando se cumple una regla. En este caso, cuando se dispare la regla <code class="inline">100300</code>, se ejecutará un script personalizado en el agente para borrar el fichero.</p>
+
+          <h3>3.4 Por qué usamos SHA256</h3>
+          <p>En esta demo usamos <strong>SHA256</strong> para alinear la detección con una práctica más robusta al trabajar con hashes en listas CDB. Además, Wazuh puede comparar directamente el campo <code class="inline">sha256</code> de los eventos FIM con la lista.</p>
+        </section>
+
+        <section class="card" id="requisitos">
+          <h2>4. Requisitos</h2>
+          <ul>
+            <li>Un <strong>Wazuh Manager</strong> operativo.</li>
+            <li>Un <strong>agente Linux</strong> registrado en el manager.</li>
+            <li>Acceso administrativo en ambos sistemas.</li>
+            <li>Conectividad desde el agente para descargar EICAR, o alternativa con <code class="inline">printf</code>.</li>
+            <li>Paquete <code class="inline">jq</code> instalado en el agente para el script de Active Response.</li>
+          </ul>
+          
+        </section>
+
+        <section class="card" id="paso-1">
+          <h2>5. Preparar el directorio de laboratorio en el agente</h2>
+          <p>Vamos a usar un directorio simple y limpio para que la práctica sea fácil de seguir y depurar.</p>
+          <div class="cmd">
+            <div class="cmd-head">
+              <span class="cmd-title">Crear el directorio de pruebas</span>
+              <button class="copy-btn" data-copy-target="cmd-1">Copiar</button>
+            </div>
+            <pre id="cmd-1">mkdir -p /tmp/cdb-demo
+ls -ld /tmp/cdb-demo</pre>
+          </div>
+        </section>
+
+        <section class="card" id="paso-2">
+          <h2>6. Configurar FIM en el agente</h2>
+          <p>Edita el archivo <code class="inline">/var/ossec/etc/ossec.conf</code> del agente y añade o ajusta el bloque <code class="inline">syscheck</code> para monitorizar <code class="inline">/tmp/cdb-demo</code> en tiempo real.</p>
+          <div class="cmd">
+            <div class="cmd-head">
+              <span class="cmd-title">Editar ossec.conf del agente</span>
+              <button class="copy-btn" data-copy-target="cmd-2">Copiar</button>
+            </div>
+            <pre id="cmd-2">nano /var/ossec/etc/ossec.conf</pre>
+          </div>
+          <div class="cmd">
+            <div class="cmd-head">
+              <span class="cmd-title">Bloque syscheck recomendado</span>
+              <button class="copy-btn" data-copy-target="cmd-3">Copiar</button>
+            </div>
+            <pre id="cmd-3">&lt;syscheck&gt;
+  &lt;disabled&gt;no&lt;/disabled&gt;
+  &lt;directories check_all="yes" realtime="yes"&gt;/tmp/cdb-demo&lt;/directories&gt;
+&lt;/syscheck&gt;</pre>
+          </div>
+          <p><code class="inline">check_all=&quot;yes&quot;</code> hace que Wazuh calcule atributos y hashes del archivo. <code class="inline">realtime=&quot;yes&quot;</code> permite detectar el cambio en cuanto se crea o modifica el fichero.</p>
+          <div class="cmd">
+            <div class="cmd-head">
+              <span class="cmd-title">Reiniciar el agente</span>
+              <button class="copy-btn" data-copy-target="cmd-4">Copiar</button>
+            </div>
+            <pre id="cmd-4">systemctl restart wazuh-agent</pre>
+          </div>
+        </section>
+
+        <section class="card" id="paso-3">
+          <h2>7. Crear la lista CDB en el manager</h2>
+          <p>Las listas CDB se crean y se cargan en el <strong>manager</strong>, no en el agente. En esta práctica almacenaremos el SHA256 de EICAR.</p>
+          <div class="cmd">
+            <div class="cmd-head">
+              <span class="cmd-title">Crear la lista malware-hashes</span>
+              <button class="copy-btn" data-copy-target="cmd-5">Copiar</button>
+            </div>
+            <pre id="cmd-5">mkdir -p /var/ossec/etc/lists
+cat &gt; /var/ossec/etc/lists/malware-hashes &lt;&lt; 'EOF'
+275a021bbfb648564fd2b7f4b43406a1611acd2524bb265fc95c65dbf20c1f55:eicar
+EOF
+chown wazuh:wazuh /var/ossec/etc/lists/malware-hashes
+chmod 660 /var/ossec/etc/lists/malware-hashes</pre>
+          </div>
+          <div class="note">Ese valor <code class="inline">275a021bbfb648564fd2b7f4b43406a1611acd2524bb265fc95c65dbf20c1f55</code> es el SHA256 correcto del fichero EICAR sin salto de línea adicional.</div>
+        </section>
+
+        <section class="card" id="paso-4">
+          <h2>8. Declarar la lista en el manager</h2>
+          <p>Ahora hay que decirle a Wazuh que cargue la lista dentro del bloque <code class="inline">ruleset</code> de <code class="inline">/var/ossec/etc/ossec.conf</code>.</p>
+          <div class="cmd">
+            <div class="cmd-head">
+              <span class="cmd-title">Editar ossec.conf del manager</span>
+              <button class="copy-btn" data-copy-target="cmd-6">Copiar</button>
+            </div>
+            <pre id="cmd-6">nano /var/ossec/etc/ossec.conf</pre>
+          </div>
+          <div class="cmd">
+            <div class="cmd-head">
+              <span class="cmd-title">Añadir la lista dentro de &lt;ruleset&gt;</span>
+              <button class="copy-btn" data-copy-target="cmd-7">Copiar</button>
+            </div>
+            <pre id="cmd-7">&lt;list&gt;etc/lists/malware-hashes&lt;/list&gt;</pre>
+          </div>
+        </section>
+
+        <section class="card" id="paso-5">
+          <h2>9. Crear la regla 100300 en local_rules.xml</h2>
+          <p>Para esta práctica usaremos <code class="inline">local_rules.xml</code> porque es la opción más simple y clara para laboratorio. La regla se apoyará en los eventos FIM <code class="inline">550</code> y <code class="inline">554</code>, y comparará el campo <code class="inline">sha256</code> con la lista CDB.</p>
+          <div class="cmd">
+            <div class="cmd-head">
+              <span class="cmd-title">Editar local_rules.xml</span>
+              <button class="copy-btn" data-copy-target="cmd-8">Copiar</button>
+            </div>
+            <pre id="cmd-8">nano /var/ossec/etc/rules/local_rules.xml</pre>
+          </div>
+          <div class="cmd">
+            <div class="cmd-head">
+              <span class="cmd-title">Regla 100300</span>
+              <button class="copy-btn" data-copy-target="cmd-9">Copiar</button>
+            </div>
+            <pre id="cmd-9">&lt;group name="syscheck,malware,cdb,"&gt;
+
+  &lt;rule id="100300" level="12"&gt;
+    &lt;if_sid&gt;554,550&lt;/if_sid&gt;
+    &lt;list field="sha256" lookup="match_key"&gt;etc/lists/malware-hashes&lt;/list&gt;
+    &lt;description&gt;CDB - Hash malicioso detectado: $(file)&lt;/description&gt;
+  &lt;/rule&gt;
+
+&lt;/group&gt;</pre>
+          </div>
+          
+        </section>
+
+        <section class="card" id="paso-6">
+          <h2>10. Reiniciar y validar la carga</h2>
+          <p>Después de crear o modificar una lista CDB, es obligatorio reiniciar el manager para que Wazuh la compile y la cargue. Luego conviene verificar que exista el archivo <code class="inline">.cdb</code>.</p>
+          <div class="cmd">
+            <div class="cmd-head">
+              <span class="cmd-title">Reiniciar manager y comprobar la compilación</span>
+              <button class="copy-btn" data-copy-target="cmd-10">Copiar</button>
+            </div>
+            <pre id="cmd-10">systemctl restart wazuh-manager
+ls -l /var/ossec/etc/lists/malware-hashes*</pre>
+          </div>
+          <p>Deberías ver dos archivos:</p>
+          <ul>
+            <li><code class="inline">/var/ossec/etc/lists/malware-hashes</code></li>
+            <li><code class="inline">/var/ossec/etc/lists/malware-hashes.cdb</code></li>
+          </ul>
+          <div class="ok">Si el archivo <code class="inline">.cdb</code> existe, la lista se ha compilado correctamente.</div>
+        </section>
+
+        <section class="card" id="paso-7">
+          <h2>11. Descargar EICAR y probar la detección</h2>
+          <p>Ahora generaremos el evento real en el agente creando el archivo de prueba EICAR dentro del directorio monitorizado.</p>
+          <div class="cmd">
+            <div class="cmd-head">
+              <span class="cmd-title">Descargar EICAR y comprobar el SHA256</span>
+              <button class="copy-btn" data-copy-target="cmd-11">Copiar</button>
+            </div>
+            <pre id="cmd-11">rm -f /tmp/cdb-demo/eicar.com.txt
+wget https://secure.eicar.org/eicar.com.txt -O /tmp/cdb-demo/eicar.com.txt
+sha256sum /tmp/cdb-demo/eicar.com.txt</pre>
+          </div>
+          <p>El resultado esperado del hash es:</p>
+          <div class="cmd">
+            <div class="cmd-head">
+              <span class="cmd-title">SHA256 esperado</span>
+              <button class="copy-btn" data-copy-target="cmd-12">Copiar</button>
+            </div>
+            <pre id="cmd-12">275a021bbfb648564fd2b7f4b43406a1611acd2524bb265fc95c65dbf20c1f55  /tmp/cdb-demo/eicar.com.txt</pre>
+          </div>
+          <div class="note">Si el SHA256 no coincide, normalmente hay un salto de línea o un contenido distinto. En ese caso, la regla 100300 no disparará.</div>
+        </section>
+
+        <section class="card" id="paso-8">
+          <h2>12. Añadir Active Response en el manager</h2>
+          <p>Como en este laboratorio no estaba disponible el ejecutable nativo <code class="inline">remove-threat</code>, vamos a usar un script personalizado llamado <code class="inline">remove-threat.sh</code>.</p>
+          <p>En el <strong>manager</strong>, dentro de <code class="inline">/var/ossec/etc/ossec.conf</code> y siempre <strong>dentro de &lt;ossec_config&gt;</strong>, añade estos bloques:</p>
+          <div class="cmd">
+            <div class="cmd-head">
+              <span class="cmd-title">Bloques command y active-response</span>
+              <button class="copy-btn" data-copy-target="cmd-13">Copiar</button>
+            </div>
+            <pre id="cmd-13">&lt;command&gt;
+  &lt;name&gt;remove-threat&lt;/name&gt;
+  &lt;executable&gt;remove-threat.sh&lt;/executable&gt;
+  &lt;timeout_allowed&gt;no&lt;/timeout_allowed&gt;
+&lt;/command&gt;
+
+&lt;active-response&gt;
+  &lt;disabled&gt;no&lt;/disabled&gt;
+  &lt;command&gt;remove-threat&lt;/command&gt;
+  &lt;location&gt;local&lt;/location&gt;
+  &lt;rules_id&gt;100300&lt;/rules_id&gt;
+&lt;/active-response&gt;</pre>
+          </div>
+          <div class="note">Se puede colocar al final del archivo, pero siempre antes de <code class="inline">&lt;/ossec_config&gt;</code>.</div>
+        </section>
+
+        <section class="card" id="paso-9">
+          <h2>13. Crear el script remove-threat.sh en el agente</h2>
+          <p>Este script leerá el JSON que envía Wazuh, extraerá la ruta del archivo desde <code class="inline">parameters.alert.syscheck.path</code> y lo eliminará.</p>
+          <div class="cmd">
+            <div class="cmd-head">
+              <span class="cmd-title">Instalar jq</span>
+              <button class="copy-btn" data-copy-target="cmd-14">Copiar</button>
+            </div>
+            <pre id="cmd-14">apt update
+apt -y install jq</pre>
+          </div>
+          <div class="cmd">
+            <div class="cmd-head">
+              <span class="cmd-title">Crear remove-threat.sh</span>
+              <button class="copy-btn" data-copy-target="cmd-15">Copiar</button>
+            </div>
+            <pre id="cmd-15">cat &gt; /var/ossec/active-response/bin/remove-threat.sh &lt;&lt; 'EOF'
+#!/bin/bash
+
+LOCAL=$(dirname "$0")
+cd "$LOCAL/.." || exit 1
+PWD=$(pwd)
+
+read INPUT_JSON
+
+COMMAND=$(echo "$INPUT_JSON" | jq -r .command)
+FILENAME=$(echo "$INPUT_JSON" | jq -r .parameters.alert.syscheck.path)
+LOG_FILE="${PWD}/../logs/active-responses.log"
+
+if [ "$COMMAND" = "add" ]; then
+  printf '{"version":1,"origin":{"name":"remove-threat","module":"active-response"},"command":"check_keys","parameters":{"keys":[]}}\n'
+  read RESPONSE
+  COMMAND2=$(echo "$RESPONSE" | jq -r .command)
+
+  if [ "$COMMAND2" != "continue" ]; then
+    echo "$(date '+%Y/%m/%d %H:%M:%S') $0: $INPUT_JSON Active response abortada" &gt;&gt; "${LOG_FILE}"
+    exit 0
+  fi
+fi
+
+rm -f "$FILENAME"
+
+if [ $? -eq 0 ]; then
+  echo "$(date '+%Y/%m/%d %H:%M:%S') $0: $INPUT_JSON Archivo eliminado correctamente" &gt;&gt; "${LOG_FILE}"
+else
+  echo "$(date '+%Y/%m/%d %H:%M:%S') $0: $INPUT_JSON Error eliminando archivo" &gt;&gt; "${LOG_FILE}"
+fi
+
+exit 0
+EOF
+
+chmod 750 /var/ossec/active-response/bin/remove-threat.sh
+chown root:wazuh /var/ossec/active-response/bin/remove-threat.sh</pre>
+          </div>
+          <div class="note">El script se crea en el agente, no en el manager, porque la eliminación debe ejecutarse donde existe realmente el fichero.</div>
+        </section>
+
+        <section class="card" id="paso-10">
+          <h2>14. Probar la eliminación automática</h2>
+          <p>Una vez añadida la configuración y creado el script, reinicia manager y agente.</p>
+          <div class="cmd">
+            <div class="cmd-head">
+              <span class="cmd-title">Reiniciar servicios</span>
+              <button class="copy-btn" data-copy-target="cmd-16">Copiar</button>
+            </div>
+            <pre id="cmd-16"># En el manager
+systemctl restart wazuh-manager
+
+# En el agente
+systemctl restart wazuh-agent</pre>
+          </div>
+          <p>Ahora repite la descarga del fichero EICAR:</p>
+          <div class="cmd">
+            <div class="cmd-head">
+              <span class="cmd-title">Lanzar la prueba final</span>
+              <button class="copy-btn" data-copy-target="cmd-17">Copiar</button>
+            </div>
+            <pre id="cmd-17">rm -f /tmp/cdb-demo/eicar.com.txt
+wget https://secure.eicar.org/eicar.com.txt -O /tmp/cdb-demo/eicar.com.txt</pre>
+          </div>
+          <p>Si todo está bien, el archivo se creará y se eliminará automáticamente casi al instante.</p>
+        </section>
+
+        <section class="card" id="visualizacion">
+          <h2>15. Visualización en tiempo real</h2>
+          <p>Esta parte queda muy bien tanto para validación como para grabación del vídeo. Usa varias terminales para verlo todo a la vez.</p>
+          <div class="two-col">
+            <div class="cmd">
+              <div class="cmd-head">
+                <span class="cmd-title">Terminal 1 · Ver el directorio en vivo</span>
+                <button class="copy-btn" data-copy-target="cmd-18">Copiar</button>
+              </div>
+              <pre id="cmd-18">watch -n 1 ls -l /tmp/cdb-demo</pre>
+            </div>
+            <div class="cmd">
+              <div class="cmd-head">
+                <span class="cmd-title">Terminal 2 · Ver active-responses.log</span>
+                <button class="copy-btn" data-copy-target="cmd-19">Copiar</button>
+              </div>
+              <pre id="cmd-19">tail -f /var/ossec/logs/active-responses.log</pre>
+            </div>
+          </div>
+          <div class="cmd">
+            <div class="cmd-head">
+              <span class="cmd-title">Terminal 3 · Lanzar la descarga</span>
+              <button class="copy-btn" data-copy-target="cmd-20">Copiar</button>
+            </div>
+            <pre id="cmd-20">wget https://secure.eicar.org/eicar.com.txt -O /tmp/cdb-demo/eicar.com.txt</pre>
+          </div>
+          <div class="note">El comando <code class="inline">watch</code> conviene ejecutarlo en una terminal separada, dejándolo abierto mientras haces la descarga en otra sesión.</div>
+        </section>
+
+        <section class="card" id="validacion">
+          <h2>16. Qué deberías ver al final</h2>
+          <table>
+            <thead>
+              <tr>
+                <th>Componente</th>
+                <th>Resultado esperado</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Manager</td>
+                <td>Alerta <strong>100300</strong> con el texto <em>CDB - Hash malicioso detectado</em>.</td>
+              </tr>
+              <tr>
+                <td>Dashboard</td>
+                <td>Evento de Active Response indicando que se ejecutó <code class="inline">remove-threat.sh</code>.</td>
+              </tr>
+              <tr>
+                <td>Agente</td>
+                <td>El archivo aparece y desaparece del directorio <code class="inline">/tmp/cdb-demo</code>.</td>
+              </tr>
+              <tr>
+                <td>active-responses.log</td>
+                <td>Registro con el JSON de la acción y el mensaje de eliminación correcta.</td>
+              </tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section class="card" id="errores">
+          <h2>17. Errores comunes y cómo resolverlos</h2>
+          <table>
+            <thead>
+              <tr>
+                <th>Problema</th>
+                <th>Causa habitual</th>
+                <th>Solución</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>No salta la 100300</td>
+                <td>El hash del archivo no coincide con el de la lista</td>
+                <td>Validar con <code class="inline">sha256sum</code> que sea <code class="inline">275a021bbfb648564fd2b7f4b43406a1611acd2524bb265fc95c65dbf20c1f55</code>.</td>
+              </tr>
+              <tr>
+                <td>No se genera el .cdb</td>
+                <td>La lista no se cargó o no se reinició el manager</td>
+                <td>Revisar permisos, reiniciar <code class="inline">wazuh-manager</code> y comprobar el archivo compilado.</td>
+              </tr>
+              <tr>
+                <td>No hay eventos FIM</td>
+                <td>El directorio no está monitorizado o no se reinició el agente</td>
+                <td>Comprobar <code class="inline">syscheck</code> y reiniciar <code class="inline">wazuh-agent</code>.</td>
+              </tr>
+              <tr>
+                <td>No se borra el fichero</td>
+                <td>El script no existe o tiene permisos incorrectos</td>
+                <td>Verificar que <code class="inline">/var/ossec/active-response/bin/remove-threat.sh</code> tenga <code class="inline">750</code> y propietario <code class="inline">root:wazuh</code>.</td>
+              </tr>
+              <tr>
+                <td>XML inválido en ossec.conf</td>
+                <td>Bloques <code class="inline">command</code> o <code class="inline">active-response</code> fuera de <code class="inline">ossec_config</code></td>
+                <td>Asegurarse de añadirlos antes de <code class="inline">&lt;/ossec_config&gt;</code>.</td>
+              </tr>
+            </tbody>
+          </table>
+        </section>
+
+        
+
+        <footer>
+          Guía preparada por CLOCKWORK COMPUTER para prácticas de Wazuh con listas CDB, FIM y Active Response.
+        </footer>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    async function copyText(text, button) {
+      try {
+        await navigator.clipboard.writeText(text);
+        const original = button.textContent;
+        button.textContent = 'Copiado';
+        button.classList.add('copied');
+        setTimeout(() => {
+          button.textContent = original;
+          button.classList.remove('copied');
+        }, 1400);
+      } catch (err) {
+        alert('No se pudo copiar automáticamente.');
+      }
+    }
+
+    document.querySelectorAll('.copy-btn').forEach(button => {
+      button.addEventListener('click', () => {
+        const targetId = button.getAttribute('data-copy-target');
+        const target = document.getElementById(targetId);
+        if (!target) return;
+        copyText(target.innerText.trim(), button);
+      });
+    });
+
+    async function copyAllCommands() {
+      const blocks = [...document.querySelectorAll('pre')].map(pre => pre.innerText.trim());
+      const all = blocks.join('\n\n');
+      try {
+        await navigator.clipboard.writeText(all);
+        alert('Se han copiado todos los comandos.');
+      } catch (err) {
+        alert('No se pudieron copiar todos los comandos automáticamente.');
+      }
+    }
+  </script>
+</body>
+</html>
