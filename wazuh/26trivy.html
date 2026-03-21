@@ -400,7 +400,9 @@ python       3.9-alpine    8831b2c8c07c    2 months ago     49.1MB</pre></div>
 
         <h3>4.2 Contenido de /var/ossec/custom-script/trivy_scan.sh</h3>
         <div class="cmd"><div class="cmd-head"><div class="cmd-title">Script completo</div><button class="copy-btn" data-copy-target="cmd-17">Copiar</button></div><pre id="cmd-17">#!/bin/bash
+#!/bin/bash
 # Copyright (C) 2015-2025, Wazuh Inc.
+
 # Directory to save the custom output template
 TEMPLATE_DIR="/tmp"
 TEMPLATE_FILE="$TEMPLATE_DIR/trivy-custom.tmpl"
@@ -432,7 +434,7 @@ for image in $images; do
     echo "Error running Trivy scan on image $image. Skipping..."
     continue
   fi
-
+ 
   # Process Trivy output for the current image
   while IFS= read -r line; do
     # Prepend image name with "Trivy:", followed by image name and a comma
