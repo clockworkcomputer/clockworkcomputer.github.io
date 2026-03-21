@@ -407,10 +407,10 @@ TEMPLATE_DIR="/tmp"
 TEMPLATE_FILE="$TEMPLATE_DIR/trivy-custom.tmpl"
 
 # Create the custom output template
-cat <<EOL > "$TEMPLATE_FILE"
+cat <<'EOL' > "$TEMPLATE_FILE"
 "Package","Version Installed","Vulnerability ID","Severity"
-{{- range \$ri, \$r := . }}
-{{- range \$vi, \$v := .Vulnerabilities }}
+{{- range $ri, $r := . }}
+{{- range $vi, $v := .Vulnerabilities }}
 "{{ $v.PkgName }}","{{$v.InstalledVersion }}","{{ $v.VulnerabilityID }}","{{$v.Severity }}","{{$v.Title }}"
 {{- end}}
 {{- end }}
@@ -433,7 +433,7 @@ for image in $images; do
     echo "Error running Trivy scan on image $image. Skipping..."
     continue
   fi
- 
+
   # Process Trivy output for the current image
   while IFS= read -r line; do
     # Prepend image name with "Trivy:", followed by image name and a comma
