@@ -1,0 +1,814 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Teleport con Docker: Bastión SSH + Agente</title>
+  <style>
+    :root {
+      --bg: #060606;
+      --panel: #111111;
+      --panel-2: #1a1a1a;
+      --text: #f5f5f5;
+      --muted: #b9b9b9;
+      --accent: #ff7a00;
+      --accent-2: #ff9a3d;
+      --border: #2b2b2b;
+      --code: #050505;
+      --success: #24b36b;
+      --shadow: 0 12px 30px rgba(0,0,0,.35);
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+      background: linear-gradient(180deg, #050505 0%, #0a0a0a 100%);
+      color: var(--text);
+      line-height: 1.6;
+    }
+
+    .container {
+      width: min(1100px, calc(100% - 32px));
+      margin: 0 auto;
+    }
+
+    header {
+      padding: 48px 0 28px;
+      border-bottom: 1px solid rgba(255,255,255,.06);
+      background:
+        radial-gradient(circle at top right, rgba(255,122,0,.16), transparent 30%),
+        radial-gradient(circle at top left, rgba(255,154,61,.10), transparent 20%),
+        linear-gradient(180deg, #080808 0%, #101010 100%);
+      z-index: 20;
+    }
+
+    .header-inner {
+      display: flex;
+      gap: 18px;
+      align-items: flex-start;
+      justify-content: space-between;
+      flex-wrap: wrap;
+    }
+
+    .header-brand {
+      display: flex;
+      gap: 18px;
+      align-items: center;
+      flex: 1 1 720px;
+    }
+
+    .channel-logo {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 18px;
+      padding: 0;
+      overflow: hidden;
+      border: 1px solid rgba(255,255,255,.08);
+      box-shadow: var(--shadow);
+      background: rgba(255,255,255,.03);
+      flex: 0 0 auto;
+    }
+
+    .channel-logo img {
+      display: block;
+      width: 200px;
+      height: auto;
+      object-fit: contain;
+    }
+
+    h1 {
+      font-size: clamp(1.8rem, 3vw, 3rem);
+      margin: 0;
+      line-height: 1.15;
+      color: var(--accent);
+    }
+
+    .brand {
+      margin-top: 8px;
+      font-weight: 700;
+      letter-spacing: .4px;
+      color: var(--accent-2);
+    }
+
+    .subtitle {
+      color: var(--muted);
+      margin: 10px 0 0;
+      max-width: 850px;
+    }
+
+    main { padding: 28px 0 64px; }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 260px 1fr;
+      gap: 24px;
+      align-items: start;
+    }
+
+    .toc {
+      position: sticky;
+      top: 20px;
+      width: 260px;
+      background: rgba(17,17,17,.92);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 18px;
+      box-shadow: var(--shadow);
+      margin: 0;
+    }
+
+    .toc h2 {
+      margin: 0 0 12px;
+      font-size: 1rem;
+      color: var(--accent);
+    }
+
+    .toc a {
+      display: block;
+      color: var(--muted);
+      text-decoration: none;
+      padding: 8px 10px;
+      border-radius: 10px;
+      transition: background .15s ease, color .15s ease;
+      font-size: .95rem;
+    }
+
+    .toc a:hover {
+      color: var(--text);
+      background: rgba(255,122,0,.08);
+    }
+
+    .content {
+      display: grid;
+      gap: 18px;
+    }
+
+    .card {
+      background: linear-gradient(180deg, rgba(17,17,17,.97), rgba(12,12,12,.97));
+      border: 1px solid var(--border);
+      border-radius: 22px;
+      padding: 24px;
+      box-shadow: var(--shadow);
+    }
+
+    .card h2 {
+      margin-top: 0;
+      font-size: 1.5rem;
+      color: var(--accent);
+    }
+
+    .card h3 {
+      margin-bottom: 10px;
+      margin-top: 22px;
+      font-size: 1.08rem;
+      color: #ffd1a8;
+    }
+
+    .muted { color: var(--muted); }
+    ul { margin-top: 10px; padding-left: 20px; }
+    li + li { margin-top: 6px; }
+
+    .note {
+      background: rgba(255,122,0,.08);
+      border: 1px solid rgba(255,122,0,.22);
+      border-radius: 14px;
+      padding: 14px 16px;
+      color: #ffe2c4;
+      margin-top: 14px;
+    }
+
+    .ok {
+      background: rgba(36,179,107,.10);
+      border: 1px solid rgba(36,179,107,.28);
+      border-radius: 14px;
+      padding: 14px 16px;
+      color: #d8ffe8;
+      margin-top: 14px;
+    }
+
+    .cmd {
+      margin-top: 14px;
+      border: 1px solid var(--border);
+      background: var(--code);
+      border-radius: 16px;
+      overflow: hidden;
+    }
+
+    .cmd-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 12px;
+      background: rgba(255,255,255,.03);
+      border-bottom: 1px solid rgba(255,255,255,.06);
+    }
+
+    .cmd-title {
+      font-size: .92rem;
+      color: var(--muted);
+      font-weight: 600;
+    }
+
+    .copy-btn {
+      border: 1px solid #6a3408;
+      background: linear-gradient(180deg, #ff7a00, #d76200);
+      color: #111;
+      border-radius: 10px;
+      padding: 8px 10px;
+      cursor: pointer;
+      font-size: .9rem;
+      font-weight: 800;
+      transition: .15s ease;
+    }
+
+    .copy-btn:hover { filter: brightness(1.06); }
+    .copy-btn.copied {
+      background: rgba(36,179,107,.18);
+      border-color: rgba(36,179,107,.45);
+      color: #d7ffe8;
+    }
+
+    pre {
+      margin: 0;
+      padding: 16px;
+      overflow-x: auto;
+      white-space: pre-wrap;
+      word-break: break-word;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      font-size: .94rem;
+      color: #ffbf85;
+    }
+
+    code.inline {
+      background: rgba(255,255,255,.06);
+      padding: 2px 8px;
+      border-radius: 8px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: .92em;
+      color: #ffd2aa;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 12px;
+      font-size: .95rem;
+    }
+
+    th, td {
+      border: 1px solid var(--border);
+      padding: 10px 12px;
+      text-align: left;
+      vertical-align: top;
+    }
+
+    th {
+      background: rgba(255,255,255,.04);
+      color: #ffd1a8;
+    }
+
+    footer {
+      margin-top: 24px;
+      color: var(--muted);
+      text-align: center;
+      font-size: .95rem;
+    }
+
+    @media (max-width: 920px) {
+      .layout { grid-template-columns: 1fr; }
+      .toc { position: static; width: 100%; }
+    }
+  </style>
+</head>
+<body>
+<header>
+  <div class="container header-inner">
+    <div class="header-brand">
+      <a class="channel-logo" href="https://www.youtube.com/c/ClockworkComputerIP" target="_blank" rel="noopener noreferrer" aria-label="Clockwork Computer">
+        <img src="https://blogger.googleusercontent.com/img/a/AVvXsEjuquj9lFaN9zfg8H5FofNIUKAHWWRiOUbDhHragpU14TfF6RYKxb5w62mfAClxDkDrzCMAilRatibcoWFbuqMnXMBh30p_sfbxp4D2gUny70NbjyHLrs42VXeBB4Qtc8NovIS_DqIU5iq3dMMx1TuNZkW70MeW8Ryemwk_tDv6iKZi9ngKfaskUG1yCWo=s1600" alt="Clockwork Computer"/>
+      </a>
+      <div>
+        <h1>Teleport con Docker: Bastión SSH + Agente</h1>
+        <div class="brand">Docker + certificado autofirmado + MFA/OTP + acceso SSH auditado</div>
+        <p class="subtitle">Guía técnica para desplegar Teleport como bastión SSH en Docker y unir un segundo servidor como agente/nodo, con login local y segundo factor.</p>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main>
+  <div class="container layout">
+    <aside class="toc">
+      <h2>Contenido</h2>
+      <a href="#introduccion">1. Introducción</a>
+      <a href="#variables">2. Variables de esta guía</a>
+      <a href="#arquitectura">3. Arquitectura y flujo</a>
+      <a href="#requisitos">4. Requisitos</a>
+      <a href="#paso-1">5. Estructura de carpetas</a>
+      <a href="#paso-2">6. Configurar teleport.yaml</a>
+      <a href="#paso-3">7. Configurar docker-compose.yml</a>
+      <a href="#paso-4">8. Firewall del bastión</a>
+      <a href="#paso-5">9. Levantar el contenedor</a>
+      <a href="#paso-6">10. Crear el usuario administrador</a>
+      <a href="#paso-7">11. Instalar el cliente tsh</a>
+      <a href="#paso-8">12. Instalar Teleport en el nodo</a>
+      <a href="#paso-9">13. Generar el token de unión</a>
+      <a href="#paso-10">14. Configurar el agente</a>
+      <a href="#paso-11">15. Arrancar y verificar el nodo</a>
+      <a href="#paso-12">16. Dar acceso SSH al usuario</a>
+      <a href="#paso-13">17. Probar la conexión</a>
+      <a href="#chuleta">18. Chuleta de comandos</a>
+      <a href="#insecure">19. Por qué usamos "--insecure"</a>
+      <a href="#errores">20. Errores comunes</a>
+      <a href="#produccion">21. Notas para producción</a>
+    </aside>
+
+    <div class="content">
+      <section class="card" id="introduccion">
+        <h2>1. Introducción</h2>
+        <p>Esta guía despliega <strong>Teleport</strong> como bastión SSH usando Docker en un primer servidor, y une un segundo servidor como <strong>agente/nodo</strong> para poder conectarse a él por SSH a través del bastión, con usuarios nominales, MFA y sesiones auditadas.</p>
+        <div class="note">El montaje utiliza certificado <strong>autofirmado</strong> (sin dominio) para simplificar el laboratorio. La sección 19 explica en detalle por qué aparece el aviso de certificado no confiable y qué cambia en un entorno de producción.</div>
+      </section>
+
+      <section class="card" id="variables">
+        <h2>2. Variables de esta guía</h2>
+        <p>Todos los comandos usan los siguientes marcadores en <strong>MAYÚSCULAS</strong>. Sustitúyelos por los valores reales de tu propia red antes de ejecutar cada bloque — tu IP, tu nombre de nodo y tus tokens serán distintos a los de este ejemplo.</p>
+        <table>
+          <thead>
+            <tr><th>Marcador</th><th>Qué es</th><th>Dónde se obtiene</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><code class="inline">IP_BASTION_WAN</code></td><td>IP del bastión en la red desde la que te conectas (navegador / tsh)</td><td>La IP de esa interfaz de red en tu servidor bastión</td></tr>
+            <tr><td><code class="inline">IP_BASTION_LAN</code></td><td>IP del bastión en la red donde están los servidores a proteger</td><td>La IP de la segunda interfaz de tu servidor bastión</td></tr>
+            <tr><td><code class="inline">NOMBRE_NODO</code></td><td>Hostname con el que el nodo se registra en Teleport</td><td>Lo defines tú al instalar el agente (por defecto, el hostname del sistema)</td></tr>
+            <tr><td><code class="inline">LOGIN_SISTEMA</code></td><td>Usuario del sistema operativo que ya existe en el nodo</td><td>El usuario con el que sueles entrar por SSH a esa máquina</td></tr>
+            <tr><td><code class="inline">TOKEN_NODO</code></td><td>Token de invitación de un solo uso, caduca en el tiempo indicado</td><td>Lo genera el bastión con <code class="inline">tctl tokens add</code></td></tr>
+            <tr><td><code class="inline">CA_PIN</code></td><td>Huella (fingerprint) de la CA del clúster Teleport</td><td>Se muestra junto al token al generarlo</td></tr>
+            <tr><td><code class="inline">VERSION_TELEPORT</code></td><td>Versión exacta de Teleport instalada en el bastión</td><td>Se consulta con <code class="inline">docker exec teleport teleport version</code></td></tr>
+          </tbody>
+        </table>
+        <div class="note">Usa <strong>la misma versión exacta</strong> de Teleport en el bastión y en el nodo. Mezclar versiones distintas puede impedir el registro del agente.</div>
+      </section>
+
+      <section class="card" id="arquitectura">
+        <h2>3. Arquitectura y flujo</h2>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Resumen visual</div>
+            <button class="copy-btn" data-copy-target="cmd-arch">Copiar</button>
+          </div>
+          <pre id="cmd-arch">[Red de acceso]  IP_BASTION_WAN
+        │
+        ▼  https://IP_BASTION_WAN:3080  (UI web + tsh)
+[BASTIÓN — Docker]
+  Teleport auth + proxy
+  Interfaz de acceso: IP_BASTION_WAN
+  Interfaz hacia servidores: IP_BASTION_LAN
+        │
+        ▲  el nodo se conecta hacia IP_BASTION_LAN:3025 (auth service)
+[Red de servidores]
+  NODO / AGENTE (NOMBRE_NODO)
+  No necesita puertos entrantes</pre>
+        </div>
+        <p>El nodo inicia la conexión hacia el bastión (túnel saliente), así que no hace falta abrir ningún puerto entrante en el servidor que se quiere proteger. El cliente (navegador o <code class="inline">tsh</code>) siempre entra por <code class="inline">IP_BASTION_WAN</code>, y el nodo siempre se une usando <code class="inline">IP_BASTION_LAN</code>.</p>
+      </section>
+
+      <section class="card" id="requisitos">
+        <h2>4. Requisitos</h2>
+        <ul>
+          <li>Dos servidores <strong>Ubuntu Server</strong> (22.04 o 24.04) actualizados.</li>
+          <li>Servidor bastión con Docker Engine y Docker Compose plugin instalados (<code class="inline">docker compose version</code>).</li>
+          <li>Acceso <code class="inline">sudo</code>/root en ambos servidores.</li>
+          <li>El servidor bastión debe ser alcanzable, con al menos una dirección accesible para el cliente (<code class="inline">IP_BASTION_WAN</code>) y una dirección alcanzable desde la red del nodo (<code class="inline">IP_BASTION_LAN</code>). Si solo tienes una IP, usa la misma dirección en ambos casos.</li>
+          <li>Puertos <strong>3080/tcp</strong> y <strong>3025/tcp</strong> abiertos en el firewall del bastión.</li>
+        </ul>
+      </section>
+
+      <section class="card" id="paso-1">
+        <h2>5. Estructura de carpetas (en el bastión)</h2>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Crear carpeta de trabajo</div>
+            <button class="copy-btn" data-copy-target="cmd-1">Copiar</button>
+          </div>
+          <pre id="cmd-1">mkdir -p /docker/teleport/data
+cd /docker/teleport</pre>
+        </div>
+      </section>
+
+      <section class="card" id="paso-2">
+        <h2>6. Configurar teleport.yaml</h2>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Crear el fichero de configuración</div>
+            <button class="copy-btn" data-copy-target="cmd-2">Copiar</button>
+          </div>
+          <pre id="cmd-2">nano /docker/teleport/teleport.yaml</pre>
+        </div>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Contenido de teleport.yaml</div>
+            <button class="copy-btn" data-copy-target="cmd-3">Copiar</button>
+          </div>
+          <pre id="cmd-3">version: v3
+teleport:
+  nodename: bastion
+  data_dir: /var/lib/teleport
+  log:
+    output: stderr
+    severity: INFO
+
+auth_service:
+  enabled: true
+  listen_addr: 0.0.0.0:3025
+  proxy_listener_mode: multiplex
+  authentication:
+    type: local
+    second_factor: otp
+    local_auth: true
+
+proxy_service:
+  enabled: true
+  web_listen_addr: 0.0.0.0:3080
+  public_addr:
+    - "IP_BASTION_WAN:3080"
+    - "IP_BASTION_LAN:3080"
+
+ssh_service:
+  enabled: false</pre>
+        </div>
+        <div class="note"><code class="inline">proxy_listener_mode</code> se declara dentro de <code class="inline">auth_service</code>, no en <code class="inline">proxy_service</code>. Al no indicar ningún certificado propio, Teleport genera uno autofirmado válido para las direcciones listadas en <code class="inline">public_addr</code>: por eso conviene incluir tanto la IP de acceso como la IP hacia la red de servidores.</div>
+      </section>
+
+      <section class="card" id="paso-3">
+        <h2>7. Configurar docker-compose.yml</h2>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Crear el fichero de Compose</div>
+            <button class="copy-btn" data-copy-target="cmd-4">Copiar</button>
+          </div>
+          <pre id="cmd-4">nano /docker/teleport/docker-compose.yml</pre>
+        </div>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Contenido de docker-compose.yml</div>
+            <button class="copy-btn" data-copy-target="cmd-5">Copiar</button>
+          </div>
+          <pre id="cmd-5">services:
+  teleport:
+    image: public.ecr.aws/gravitational/teleport-distroless:18
+    container_name: teleport
+    restart: unless-stopped
+    ports:
+      - "3080:3080"
+      - "3025:3025"
+    volumes:
+      - ./data:/var/lib/teleport
+      - ./teleport.yaml:/etc/teleport/teleport.yaml:ro</pre>
+        </div>
+        <div class="note">La imagen distroless de Teleport busca la configuración en <code class="inline">/etc/teleport/teleport.yaml</code> (con subcarpeta). No es necesario indicar ningún <code class="inline">command</code>: el entrypoint de la imagen ya arranca Teleport con esa configuración.</div>
+      </section>
+
+      <section class="card" id="paso-4">
+        <h2>8. Firewall del bastión</h2>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Reglas ufw</div>
+            <button class="copy-btn" data-copy-target="cmd-6">Copiar</button>
+          </div>
+          <pre id="cmd-6">sudo ufw allow 3080/tcp
+sudo ufw allow 3025/tcp
+sudo ufw allow OpenSSH
+sudo ufw enable
+sudo ufw status</pre>
+        </div>
+        <div class="note">Si el bastión separa el tráfico por interfaz o red, restringe el origen de cada regla a la red correspondiente (acceso por <code class="inline">IP_BASTION_WAN</code> y unión de nodos por <code class="inline">IP_BASTION_LAN</code>) en lugar de abrir los puertos a cualquier origen.</div>
+      </section>
+
+      <section class="card" id="paso-5">
+        <h2>9. Levantar el contenedor</h2>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Arrancar Teleport</div>
+            <button class="copy-btn" data-copy-target="cmd-7">Copiar</button>
+          </div>
+          <pre id="cmd-7">cd /docker/teleport
+docker compose up -d
+docker compose logs -f teleport</pre>
+        </div>
+        <div class="ok">Arranque correcto cuando aparecen líneas como <code class="inline">Auth service is starting</code>, <code class="inline">Starting web proxy service</code> y <code class="inline">Starting SSH proxy service</code> sin errores posteriores.</div>
+      </section>
+
+      <section class="card" id="paso-6">
+        <h2>10. Crear el usuario administrador</h2>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Alta del primer usuario</div>
+            <button class="copy-btn" data-copy-target="cmd-8">Copiar</button>
+          </div>
+          <pre id="cmd-8">docker exec teleport tctl users add admin \
+  --roles=editor,access,auditor \
+  --logins=LOGIN_SISTEMA</pre>
+        </div>
+        <p>El comando devuelve una URL de invitación con este formato:</p>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">URL de invitación (ejemplo de formato)</div>
+            <button class="copy-btn" data-copy-target="cmd-9">Copiar</button>
+          </div>
+          <pre id="cmd-9">https://IP_BASTION_WAN:3080/web/invite/TOKEN_DE_INVITACION</pre>
+        </div>
+        <div class="note">Ábrela en el navegador, acepta el aviso de certificado autofirmado, define la contraseña y escanea el código QR con Google Authenticator o Authy para registrar el segundo factor (OTP).</div>
+      </section>
+
+      <section class="card" id="paso-7">
+        <h2>11. Instalar el cliente tsh</h2>
+        <h3>Windows</h3>
+        <p>Descarga el instalador desde <code class="inline">https://goteleport.com/download</code> y ejecútalo.</p>
+        <h3>Linux / macOS</h3>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Instalar tsh (misma versión que el bastión)</div>
+            <button class="copy-btn" data-copy-target="cmd-10">Copiar</button>
+          </div>
+          <pre id="cmd-10">curl https://goteleport.com/static/install.sh | sudo bash -s VERSION_TELEPORT
+tsh version</pre>
+        </div>
+      </section>
+
+      <section class="card" id="paso-8">
+        <h2>12. Instalar Teleport en el nodo</h2>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Consultar la versión exacta del bastión</div>
+            <button class="copy-btn" data-copy-target="cmd-11">Copiar</button>
+          </div>
+          <pre id="cmd-11">docker exec teleport teleport version</pre>
+        </div>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Instalar esa misma versión en el nodo</div>
+            <button class="copy-btn" data-copy-target="cmd-12">Copiar</button>
+          </div>
+          <pre id="cmd-12">curl https://goteleport.com/static/install.sh | sudo bash -s VERSION_TELEPORT
+teleport version</pre>
+        </div>
+      </section>
+
+      <section class="card" id="paso-9">
+        <h2>13. Generar el token de unión</h2>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Generar token (válido 1 hora) — ejecutar en el bastión</div>
+            <button class="copy-btn" data-copy-target="cmd-13">Copiar</button>
+          </div>
+          <pre id="cmd-13">docker exec teleport tctl tokens add --type=node --ttl=1h</pre>
+        </div>
+        <p>La salida incluye el token y el <code class="inline">ca-pin</code> (huella de la CA) que se usan en el siguiente paso. Anota ambos valores.</p>
+        <div class="note">El token caduca en el tiempo indicado. Si tarda más en generar uno nuevo antes de usarlo.</div>
+      </section>
+
+      <section class="card" id="paso-10">
+        <h2>14. Configurar el agente (en el nodo)</h2>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Generar la configuración inicial</div>
+            <button class="copy-btn" data-copy-target="cmd-14">Copiar</button>
+          </div>
+          <pre id="cmd-14">sudo teleport node configure \
+  --output=file:///etc/teleport.yaml \
+  --proxy=IP_BASTION_LAN:3080 \
+  --token=TOKEN_NODO \
+  --ca-pin=CA_PIN</pre>
+        </div>
+        <p>Después, edita el fichero generado y sustituye <code class="inline">proxy_server</code> por <code class="inline">auth_server</code> apuntando al puerto <strong>3025</strong>:</p>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Editar la configuración del nodo</div>
+            <button class="copy-btn" data-copy-target="cmd-15">Copiar</button>
+          </div>
+          <pre id="cmd-15">sudo nano /etc/teleport.yaml</pre>
+        </div>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Contenido final de /etc/teleport.yaml (nodo)</div>
+            <button class="copy-btn" data-copy-target="cmd-16">Copiar</button>
+          </div>
+          <pre id="cmd-16">version: v3
+teleport:
+  nodename: NOMBRE_NODO
+  data_dir: /var/lib/teleport
+  join_params:
+    token_name: TOKEN_NODO
+    method: token
+  auth_server: IP_BASTION_LAN:3025
+  log:
+    output: stderr
+    severity: INFO
+    format:
+      output: text
+  ca_pin: CA_PIN
+  diag_addr: ""
+auth_service:
+  enabled: "no"
+ssh_service:
+  enabled: "yes"
+proxy_service:
+  enabled: "no"
+  https_keypairs: []
+  https_keypairs_reload_interval: 0s
+  acme: {}</pre>
+        </div>
+        <div class="note">Usar <code class="inline">auth_server</code> en el puerto <strong>3025</strong> en lugar de <code class="inline">proxy_server</code> en el puerto 3080 evita el error de validación TLS del certificado autofirmado: el registro del nodo se autentica mediante el token y el <code class="inline">ca_pin</code>, no mediante una cadena de certificados HTTPS confiable. Más detalle en la sección 19.</div>
+      </section>
+
+      <section class="card" id="paso-11">
+        <h2>15. Arrancar y verificar el nodo</h2>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Arrancar el servicio (en el nodo)</div>
+            <button class="copy-btn" data-copy-target="cmd-17">Copiar</button>
+          </div>
+          <pre id="cmd-17">sudo systemctl enable teleport --now
+sudo systemctl status teleport</pre>
+        </div>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Verificar el registro (en el bastión)</div>
+            <button class="copy-btn" data-copy-target="cmd-18">Copiar</button>
+          </div>
+          <pre id="cmd-18">docker exec teleport tctl nodes ls</pre>
+        </div>
+        <div class="ok">El nodo debe aparecer en la lista con el hostname <code class="inline">NOMBRE_NODO</code>. En los logs del nodo, la señal de éxito es <code class="inline">Successfully registered instance client</code> seguido de <code class="inline">SSH Service is starting</code>.</div>
+      </section>
+
+      <section class="card" id="paso-12">
+        <h2>16. Dar acceso SSH al usuario</h2>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Asociar el login del sistema al usuario Teleport</div>
+            <button class="copy-btn" data-copy-target="cmd-19">Copiar</button>
+          </div>
+          <pre id="cmd-19">docker exec teleport tctl users update admin --set-logins=LOGIN_SISTEMA</pre>
+        </div>
+        <div class="note"><code class="inline">LOGIN_SISTEMA</code> debe ser un usuario que ya exista en el nodo (por ejemplo, el que usas habitualmente para entrar por SSH a esa máquina).</div>
+      </section>
+
+      <section class="card" id="paso-13">
+        <h2>17. Probar la conexión de extremo a extremo</h2>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Login, listado y conexión SSH desde el cliente</div>
+            <button class="copy-btn" data-copy-target="cmd-20">Copiar</button>
+          </div>
+          <pre id="cmd-20">tsh login --proxy=IP_BASTION_WAN:3080 --insecure --user=admin
+tsh ls
+tsh ssh LOGIN_SISTEMA@NOMBRE_NODO</pre>
+        </div>
+        <p>También puedes conectarte desde la interfaz web abriendo <code class="inline">https://IP_BASTION_WAN:3080</code>, localizando el nodo en <em>Resources</em> y pulsando <em>Connect</em>.</p>
+        <div class="ok">Si obtienes el prompt del nodo, la instalación está completa y funcionando de extremo a extremo.</div>
+      </section>
+
+      <section class="card" id="chuleta">
+        <h2>18. Chuleta de comandos</h2>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Bastión</div>
+            <button class="copy-btn" data-copy-target="cmd-21">Copiar</button>
+          </div>
+          <pre id="cmd-21">docker compose -f /docker/teleport/docker-compose.yml ps
+docker compose -f /docker/teleport/docker-compose.yml logs -f teleport
+
+docker exec teleport tctl status
+docker exec teleport tctl users ls
+docker exec teleport tctl users add USUARIO --roles=access,editor,auditor --logins=LOGIN_SISTEMA
+docker exec teleport tctl users update USUARIO --set-logins=LOGIN_SISTEMA
+docker exec teleport tctl users rm USUARIO
+
+docker exec teleport tctl nodes ls
+docker exec teleport tctl tokens add --type=node --ttl=1h</pre>
+        </div>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Cliente (tsh)</div>
+            <button class="copy-btn" data-copy-target="cmd-22">Copiar</button>
+          </div>
+          <pre id="cmd-22">tsh login --proxy=IP_BASTION_WAN:3080 --insecure --user=USUARIO
+tsh ls
+tsh ssh LOGIN_SISTEMA@NOMBRE_NODO
+tsh logout</pre>
+        </div>
+      </section>
+
+      <section class="card" id="insecure">
+        <h2>19. Por qué usamos "--insecure" y certificado autofirmado</h2>
+        <p>Al no configurar un dominio con Let's Encrypt, Teleport genera automáticamente un certificado <strong>autofirmado</strong> para la interfaz web. Ese certificado no está emitido por una autoridad reconocida por el sistema operativo ni por el navegador, así que ambos avisan de "certificado no confiable".</p>
+        <ul>
+          <li>El flag <code class="inline">--insecure</code> en <code class="inline">tsh</code> le indica que continúe la conexión aunque no pueda validar la cadena de certificación, algo razonable en un laboratorio controlado, pero desaconsejable en producción porque expone la conexión a un posible ataque de intermediario si el atacante puede interceptar el tráfico.</li>
+          <li>El registro de nuevos nodos, en cambio, no depende de <code class="inline">--insecure</code>: se protege con el <strong>token de invitación</strong> (de un solo uso y caducidad corta) y el <strong>ca-pin</strong> (huella criptográfica de la CA del clúster), que el nodo verifica antes de confiar en el bastión.</li>
+          <li>Por eso el nodo se une usando el puerto del <strong>auth service (3025)</strong> en lugar del proxy web (3080): evita la validación de certificado HTTPS del navegador, pero mantiene la autenticación fuerte mediante token + ca-pin.</li>
+        </ul>
+        <div class="note">En producción, la recomendación es usar un dominio propio con <strong>Let's Encrypt</strong> (Teleport lo gestiona de forma nativa con ACME). Así desaparecen los avisos de certificado y deja de ser necesario el flag <code class="inline">--insecure</code>.</div>
+      </section>
+
+      <section class="card" id="errores">
+        <h2>20. Errores comunes y cómo resolverlos</h2>
+        <table>
+          <thead>
+            <tr><th>Problema</th><th>Causa probable</th><th>Solución</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code class="inline">unexpected teleport</code> / <code class="inline">unexpected start</code></td>
+              <td>Se indicó un <code class="inline">command</code> en el compose que repite el entrypoint de la imagen</td>
+              <td>Eliminar la línea <code class="inline">command</code> del <code class="inline">docker-compose.yml</code></td>
+            </tr>
+            <tr>
+              <td><code class="inline">path '/etc/teleport/teleport.yaml' does not exist</code></td>
+              <td>El volumen se montó en <code class="inline">/etc/teleport.yaml</code> en lugar de la ruta con subcarpeta</td>
+              <td>Montar el volumen en <code class="inline">/etc/teleport/teleport.yaml</code></td>
+            </tr>
+            <tr>
+              <td><code class="inline">field proxy_listener_mode not found in type config.Proxy</code></td>
+              <td>El campo se colocó en <code class="inline">proxy_service</code></td>
+              <td>Mover <code class="inline">proxy_listener_mode</code> a <code class="inline">auth_service</code></td>
+            </tr>
+            <tr>
+              <td><code class="inline">cannot disable multi-factor authentication</code></td>
+              <td>Se intentó usar <code class="inline">second_factor: off</code></td>
+              <td>Usar <code class="inline">second_factor: otp</code></td>
+            </tr>
+            <tr>
+              <td><code class="inline">missing required webauthn configuration</code></td>
+              <td>Se usó <code class="inline">second_factor: optional</code> sin configurar WebAuthn</td>
+              <td>Usar <code class="inline">second_factor: otp</code></td>
+            </tr>
+            <tr>
+              <td><code class="inline">x509: certificate signed by unknown authority</code> al unir el nodo</td>
+              <td>El nodo intenta unirse por el proxy web (3080) y rechaza el certificado autofirmado</td>
+              <td>Unir el nodo usando <code class="inline">auth_server</code> en el puerto <strong>3025</strong></td>
+            </tr>
+            <tr>
+              <td><code class="inline">Failed to launch: user: unknown user ...</code></td>
+              <td>El login configurado en Teleport no existe como usuario del sistema en el nodo</td>
+              <td>Ejecutar <code class="inline">tctl users update USUARIO --set-logins=LOGIN_SISTEMA</code> con un usuario real del nodo</td>
+            </tr>
+            <tr>
+              <td>El desplegable de logins en la UI web muestra un valor antiguo</td>
+              <td>Caché del navegador o sesión activa</td>
+              <td>Recargar con caché vacía o cerrar sesión y volver a entrar</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section class="card" id="produccion">
+        <h2>21. Notas para producción</h2>
+        <p>Este montaje es válido para laboratorio y demostraciones. Para un entorno de producción se recomienda:</p>
+        <ul>
+          <li><strong>Dominio propio + Let's Encrypt</strong> en <code class="inline">proxy_service</code>, para eliminar el certificado autofirmado y el flag <code class="inline">--insecure</code>.</li>
+          <li>Exponer Teleport detrás de una <strong>VPN o túnel</strong> en lugar de exposición directa a internet, cuando sea posible.</li>
+          <li>Sustituir OTP por <strong>WebAuthn / llave de hardware</strong>, o por SSO corporativo (Google Workspace, GitHub, SAML), para revocación instantánea de acceso.</li>
+          <li>Revisar periódicamente el <strong>audit log</strong> y la <strong>grabación de sesiones SSH</strong>, incluidos en Teleport Community.</li>
+          <li>Restringir en el firewall de cada nodo el acceso SSH directo, dejando la conexión solo a través del bastión.</li>
+        </ul>
+      </section>
+
+      <footer>
+        Guía técnica para desplegar Teleport en Docker como bastión SSH y unir servidores como agentes/nodos con acceso auditado.
+      </footer>
+    </div>
+  </div>
+</main>
+
+<script>
+  async function copyText(text, button) {
+    try {
+      await navigator.clipboard.writeText(text);
+      const original = button.textContent;
+      button.textContent = 'Copiado';
+      button.classList.add('copied');
+      setTimeout(() => {
+        button.textContent = original;
+        button.classList.remove('copied');
+      }, 1400);
+    } catch (err) {
+      alert('No se pudo copiar automáticamente.');
+    }
+  }
+
+  document.querySelectorAll('.copy-btn').forEach(button => {
+    button.addEventListener('click', () => {
+      const targetId = button.getAttribute('data-copy-target');
+      const target = document.getElementById(targetId);
+      if (!target) return;
+      copyText(target.innerText.trim(), button);
+    });
+  });
+</script>
+</body>
+</html>
