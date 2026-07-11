@@ -1,0 +1,1014 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Integracion Sophos Firewall (SFOS) con Wazuh SIEM</title>
+  <link rel="icon" type="image/png" href="https://blogger.googleusercontent.com/img/a/AVvXsEjuquj9lFaN9zfg8H5FofNIUKAHWWRiOUbDhHragpU14TfF6RYKxb5w62mfAClxDkDrzCMAilRatibcoWFbuqMnXMBh30p_sfbxp4D2gUny70NbjyHLrs42VXeBB4Qtc8NovIS_DqIU5iq3dMMx1TuNZkW70MeW8Ryemwk_tDv6iKZi9ngKfaskUG1yCWo=s1600"/>
+  <style>
+    :root {
+      --bg: #060606;
+      --panel: #111111;
+      --panel-2: #1a1a1a;
+      --text: #f5f5f5;
+      --muted: #b9b9b9;
+      --accent: #ff7a00;
+      --accent-2: #ff9a3d;
+      --border: #2b2b2b;
+      --code: #050505;
+      --success: #24b36b;
+      --shadow: 0 12px 30px rgba(0,0,0,.35);
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+      background: linear-gradient(180deg, #050505 0%, #0a0a0a 100%);
+      color: var(--text);
+      line-height: 1.6;
+    }
+
+    .container {
+      width: min(1100px, calc(100% - 32px));
+      margin: 0 auto;
+    }
+
+    header {
+      padding: 48px 0 28px;
+      border-bottom: 1px solid rgba(255,255,255,.06);
+      background:
+        radial-gradient(circle at top right, rgba(255,122,0,.16), transparent 30%),
+        radial-gradient(circle at top left, rgba(255,154,61,.10), transparent 20%),
+        linear-gradient(180deg, #080808 0%, #101010 100%);
+      z-index: 20;
+    }
+
+    .header-inner {
+      display: flex;
+      gap: 18px;
+      align-items: flex-start;
+      justify-content: space-between;
+      flex-wrap: wrap;
+    }
+
+    .header-brand {
+      display: flex;
+      gap: 18px;
+      align-items: center;
+      flex: 1 1 720px;
+    }
+
+    .channel-logo {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 18px;
+      padding: 0;
+      overflow: hidden;
+      border: 1px solid rgba(255,255,255,.08);
+      box-shadow: var(--shadow);
+      background: rgba(255,255,255,.03);
+      flex: 0 0 auto;
+    }
+
+    .channel-logo img {
+      display: block;
+      width: 200px;
+      height: auto;
+      object-fit: contain;
+    }
+
+    h1 {
+      font-size: clamp(1.8rem, 3vw, 3rem);
+      margin: 0;
+      line-height: 1.15;
+      color: var(--accent);
+    }
+
+    .brand {
+      margin-top: 8px;
+      font-weight: 700;
+      letter-spacing: .4px;
+      color: var(--accent-2);
+    }
+
+    .subtitle {
+      color: var(--muted);
+      margin: 10px 0 0;
+      max-width: 850px;
+    }
+
+    main { padding: 28px 0 64px; }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 260px 1fr;
+      gap: 24px;
+      align-items: start;
+    }
+
+    .toc {
+      position: sticky;
+      top: 20px;
+      width: 260px;
+      background: rgba(17,17,17,.92);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 18px;
+      box-shadow: var(--shadow);
+      margin: 0;
+    }
+
+    .toc h2 {
+      margin: 0 0 12px;
+      font-size: 1rem;
+      color: var(--accent);
+    }
+
+    .toc a {
+      display: block;
+      color: var(--muted);
+      text-decoration: none;
+      padding: 8px 10px;
+      border-radius: 10px;
+      transition: background .15s ease, color .15s ease;
+      font-size: .95rem;
+    }
+
+    .toc a:hover {
+      color: var(--text);
+      background: rgba(255,122,0,.08);
+    }
+
+    .content {
+      display: grid;
+      gap: 18px;
+    }
+
+    .card {
+      background: linear-gradient(180deg, rgba(17,17,17,.97), rgba(12,12,12,.97));
+      border: 1px solid var(--border);
+      border-radius: 22px;
+      padding: 24px;
+      box-shadow: var(--shadow);
+    }
+
+    .card h2 {
+      margin-top: 0;
+      font-size: 1.5rem;
+      color: var(--accent);
+    }
+
+    .card h3 {
+      margin-bottom: 10px;
+      margin-top: 22px;
+      font-size: 1.08rem;
+      color: #ffd1a8;
+    }
+
+    .muted { color: var(--muted); }
+    ul { margin-top: 10px; padding-left: 20px; }
+    li + li { margin-top: 6px; }
+
+    .note {
+      background: rgba(255,122,0,.08);
+      border: 1px solid rgba(255,122,0,.22);
+      border-radius: 14px;
+      padding: 14px 16px;
+      color: #ffe2c4;
+      margin-top: 14px;
+    }
+
+    .ok {
+      background: rgba(36,179,107,.10);
+      border: 1px solid rgba(36,179,107,.28);
+      border-radius: 14px;
+      padding: 14px 16px;
+      color: #d8ffe8;
+      margin-top: 14px;
+    }
+
+    .cmd {
+      margin-top: 14px;
+      border: 1px solid var(--border);
+      background: var(--code);
+      border-radius: 16px;
+      overflow: hidden;
+    }
+
+    .cmd-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 12px;
+      background: rgba(255,255,255,.03);
+      border-bottom: 1px solid rgba(255,255,255,.06);
+    }
+
+    .cmd-title {
+      font-size: .92rem;
+      color: var(--muted);
+      font-weight: 600;
+    }
+
+    .copy-btn {
+      border: 1px solid #6a3408;
+      background: linear-gradient(180deg, #ff7a00, #d76200);
+      color: #111;
+      border-radius: 10px;
+      padding: 8px 10px;
+      cursor: pointer;
+      font-size: .9rem;
+      font-weight: 800;
+      transition: .15s ease;
+    }
+
+    .copy-btn:hover { filter: brightness(1.06); }
+    .copy-btn.copied {
+      background: rgba(36,179,107,.18);
+      border-color: rgba(36,179,107,.45);
+      color: #d7ffe8;
+    }
+
+    pre {
+      margin: 0;
+      padding: 16px;
+      overflow-x: auto;
+      white-space: pre-wrap;
+      word-break: break-word;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      font-size: .94rem;
+      color: #ffbf85;
+    }
+
+    code.inline {
+      background: rgba(255,255,255,.06);
+      padding: 2px 8px;
+      border-radius: 8px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: .92em;
+      color: #ffd2aa;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 12px;
+      font-size: .95rem;
+    }
+
+    th, td {
+      border: 1px solid var(--border);
+      padding: 10px 12px;
+      text-align: left;
+      vertical-align: top;
+    }
+
+    th {
+      background: rgba(255,255,255,.04);
+      color: #ffd1a8;
+    }
+
+    footer {
+      margin-top: 24px;
+      color: var(--muted);
+      text-align: center;
+      font-size: .95rem;
+    }
+
+    @media (max-width: 920px) {
+      .layout { grid-template-columns: 1fr; }
+      .toc { position: static; width: 100%; }
+    }
+  </style>
+</head>
+<body>
+<header>
+  <div class="container header-inner">
+    <div class="header-brand">
+      <a class="channel-logo" href="https://www.youtube.com/c/ClockworkComputerIP" target="_blank" rel="noopener noreferrer" aria-label="Clockwork Computer">
+        <img src="https://blogger.googleusercontent.com/img/a/AVvXsEjuquj9lFaN9zfg8H5FofNIUKAHWWRiOUbDhHragpU14TfF6RYKxb5w62mfAClxDkDrzCMAilRatibcoWFbuqMnXMBh30p_sfbxp4D2gUny70NbjyHLrs42VXeBB4Qtc8NovIS_DqIU5iq3dMMx1TuNZkW70MeW8Ryemwk_tDv6iKZi9ngKfaskUG1yCWo=s1600" alt="Clockwork Computer"/>
+      </a>
+      <div>
+        <h1>Integracion Sophos Firewall (SFOS) con Wazuh SIEM</h1>
+        <div class="brand">Syslog + decoder + reglas personalizadas + verificacion con wazuh-logtest</div>
+        <p class="subtitle">Guia tecnica para enviar los logs de un Sophos Firewall (SFOS) a Wazuh por syslog, decodificarlos, generar alertas y verlas en el Wazuh Dashboard.</p>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main>
+  <div class="container layout">
+    <aside class="toc">
+      <h2>Contenido</h2>
+      <a href="#introduccion">1. Introduccion</a>
+      <a href="#variables">2. Variables de esta guia</a>
+      <a href="#arquitectura">3. Arquitectura y flujo</a>
+      <a href="#requisitos">4. Requisitos</a>
+      <a href="#paso-1">5. Servidor de syslog en Sophos</a>
+      <a href="#paso-2">6. Seleccionar los registros a enviar</a>
+      <a href="#paso-3">7. Registrar trafico por regla</a>
+      <a href="#paso-4">8. Wazuh Manager: recibir syslog</a>
+      <a href="#paso-5">9. Decoder personalizado</a>
+      <a href="#paso-6">10. Reglas personalizadas</a>
+      <a href="#paso-7">11. Verificar con wazuh-logtest</a>
+      <a href="#paso-8">12. Ver las alertas en el Dashboard</a>
+      <a href="#paso-9">13. Generar trafico de prueba controlado</a>
+      <a href="#paso-10">14. Reducir el ruido</a>
+      <a href="#errores">15. Errores comunes</a>
+      <a href="#produccion">16. Notas de ampliacion</a>
+    </aside>
+
+    <div class="content">
+      <section class="card" id="introduccion">
+        <h2>1. Introduccion</h2>
+        <p>Esta guia integra un <strong>Sophos Firewall (SFOS)</strong>, series XG/XGS, con <strong>Wazuh SIEM</strong> mediante syslog. El firewall envia sus logs de red al Wazuh Manager, que los decodifica con un decoder personalizado, los evalua contra un conjunto de reglas propio, y genera alertas visibles en el Wazuh Dashboard.</p>
+        <div class="note">Esta guia usa el formato <strong>Device standard format (legacy)</strong> de Sophos, un formato de pares clave=valor. Sophos avisa que en el futuro dejara de soportarlo en favor del protocolo de syslog estandar; mientras ese cambio no se produzca, es el formato que permite construir un decoder simple y legible.</div>
+      </section>
+
+      <section class="card" id="variables">
+        <h2>2. Variables de esta guia</h2>
+        <p>Todos los bloques de configuracion usan los siguientes marcadores en <strong>MAYUSCULAS</strong>. Sustituyelos por los valores reales de la red donde se aplique esta guia.</p>
+        <table>
+          <thead>
+            <tr><th>Marcador</th><th>Que es</th><th>Donde se obtiene</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><code class="inline">IP_WAZUH_MANAGER</code></td><td>IP del servidor donde corre el Wazuh Manager</td><td>La interfaz de red de ese servidor</td></tr>
+            <tr><td><code class="inline">IP_SOPHOS_ORIGEN</code></td><td>IP desde la que el Sophos envia los logs al Wazuh Manager</td><td>La interfaz del firewall en esa red</td></tr>
+            <tr><td><code class="inline">ZONA_ORIGEN</code></td><td>Zona de Sophos donde reside el Wazuh Manager (normalmente LAN)</td><td>Network &gt; Zones en Sophos</td></tr>
+            <tr><td><code class="inline">NOMBRE_DISPOSITIVO</code></td><td>Hostname configurado en el Sophos (campo <code class="inline">device_name</code> del log)</td><td>Se ve en cualquier log capturado; es configurable y no afecta al funcionamiento del decoder</td></tr>
+            <tr><td><code class="inline">IP_DESTINO_PRUEBA</code></td><td>Direccion reservada para documentacion (TEST-NET-3), nunca es una IP real</td><td>Fija: <code class="inline">203.0.113.99</code></td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section class="card" id="arquitectura">
+        <h2>3. Arquitectura y flujo</h2>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Resumen visual</div>
+            <button class="copy-btn" data-copy-target="cmd-arch">Copiar</button>
+          </div>
+          <pre id="cmd-arch">[SOPHOS FIREWALL - SFOS]
+  Syslog server: IP_WAZUH_MANAGER : 514 (UDP)
+  Formato: Device standard format (legacy)
+        |
+        v   syslog UDP/TCP 514
+[WAZUH MANAGER]   IP_WAZUH_MANAGER
+  Decoder + reglas personalizadas
+        |
+        v
+[WAZUH INDEXER]   (OpenSearch, almacena las alertas)
+        |
+        v
+[WAZUH DASHBOARD]
+  Discover / Threat hunting</pre>
+        </div>
+        <p>El firewall envia los logs por syslog directamente al Wazuh Manager, sin pasar por un agente. Por eso, en el Dashboard, estos eventos aparecen asociados al propio manager (<code class="inline">agent.id: "000"</code>) y no a un agente independiente con nombre "Sophos".</p>
+      </section>
+
+      <section class="card" id="requisitos">
+        <h2>4. Requisitos</h2>
+        <ul>
+          <li>Sophos Firewall (SFOS), series XG/XGS, version 19, 20 o 21.</li>
+          <li>Wazuh Manager 4.14.x instalado y en ejecucion.</li>
+          <li>Conectividad de red entre el Sophos y el Wazuh Manager.</li>
+          <li>Puerto <strong>514/udp</strong> abierto en el sistema operativo del Wazuh Manager.</li>
+          <li>Acceso administrador tanto al panel de Sophos como al servidor Wazuh (<code class="inline">sudo</code>/root).</li>
+        </ul>
+      </section>
+
+      <section class="card" id="paso-1">
+        <h2>5. Configurar el servidor de syslog en Sophos</h2>
+        <p><strong>Menu:</strong> <code class="inline">System services &gt; Log settings</code>, boton <em>Add</em>.</p>
+        <table>
+          <thead><tr><th>Campo</th><th>Valor</th></tr></thead>
+          <tbody>
+            <tr><td>Nombre</td><td><code class="inline">SIEM</code> (o cualquier nombre descriptivo)</td></tr>
+            <tr><td>Direccion IP / Dominio</td><td><code class="inline">IP_WAZUH_MANAGER</code></td></tr>
+            <tr><td>Transmision de registro segura</td><td>Desactivada, salvo que se configure TLS aparte</td></tr>
+            <tr><td>Puerto</td><td><code class="inline">514</code></td></tr>
+            <tr><td>Recurso</td><td><code class="inline">DAEMON</code></td></tr>
+            <tr><td>Nivel de Gravedad</td><td><code class="inline">Depuracion</code> mientras se verifica el montaje; puede subirse despues</td></tr>
+            <tr><td>Formato</td><td><strong>Device standard format (legacy)</strong></td></tr>
+          </tbody>
+        </table>
+        <div class="note">El formato importa: el decoder de esta guia espera pares <code class="inline">clave="valor"</code> (por ejemplo <code class="inline">device_name="..."</code>). Si se selecciona <em>Standard syslog protocol</em> en su lugar, la estructura del mensaje es distinta y el decoder no encuentra los campos.</div>
+      </section>
+
+      <section class="card" id="paso-2">
+        <h2>6. Seleccionar los registros que se envian</h2>
+        <p>En la misma pagina de <code class="inline">Log settings</code>, columna <strong>SIEM</strong>, se decide que categorias de log se envian al servidor de syslog recien creado. No todas las categorias aportan valor de forma continua; muchas generan ruido de fondo sin relacion con el trafico que interesa monitorizar.</p>
+        <table>
+          <thead><tr><th>Categoria (dentro de "Firewall")</th><th>Recomendacion</th></tr></thead>
+          <tbody>
+            <tr><td>Reglas de firewall</td><td>Activar &mdash; es la categoria imprescindible, cubre trafico permitido y denegado por las reglas</td></tr>
+            <tr><td>Trafico no valido</td><td>Activar (opcional) &mdash; util para detectar trafico malformado o fuera de estado</td></tr>
+            <tr><td>ACL locales</td><td>Desactivar &mdash; suele generar avisos constantes de trafico de difusion (broadcast) de la propia red hacia la interfaz del firewall, sin valor de seguridad práctico</td></tr>
+            <tr><td>Ataque DoS, paquetes ICMP/origen/fragmentados descartados, filtrado MAC, par IP-MAC, anti-suplantacion, tunel VPN SSL, servidor de aplicaciones protegidas, mensaje de error ICMP, ACL puente</td><td>Desactivar salvo que se este monitorizando ese caso especifico &mdash; generan volumen sin aportar señal relevante en un montaje basico</td></tr>
+            <tr><td>Heartbeat</td><td>Desactivar &mdash; genera eventos periodicos constantes de estado de salud, no relacionados con trafico de red</td></tr>
+            <tr><td>IPS (Anomalia, Firmas)</td><td>Activar (opcional) &mdash; señal de seguridad real, no ruido</td></tr>
+          </tbody>
+        </table>
+        <div class="note">Aun reduciendo las categorias activas, puede seguir llegando algo de trafico de difusion ocasional. La seccion 14 explica como filtrarlo desde el lado de Wazuh sin perder eventos relevantes.</div>
+      </section>
+
+      <section class="card" id="paso-3">
+        <h2>7. Activar el registro de trafico por regla</h2>
+        <p><strong>Menu:</strong> <code class="inline">Rules and policies &gt; Firewall rules</code>.</p>
+        <p>Ademas de seleccionar las categorias de log en el paso anterior, cada regla de firewall necesita tener activada individualmente la opcion <strong>"Log firewall traffic"</strong> (Registrar trafico de firewall). Sin este paso, el trafico que coincide con esa regla no se registra en ningun sitio, aunque las categorias esten bien configuradas.</p>
+        <div class="note">Este es uno de los pasos que mas facilmente se pasa por alto: la configuracion global de logs y el registro por regla son controles independientes, y ambos tienen que estar activos para que un evento concreto llegue a Wazuh.</div>
+      </section>
+
+      <section class="card" id="paso-4">
+        <h2>8. Configurar el Wazuh Manager para recibir syslog</h2>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Editar la configuracion del manager</div>
+            <button class="copy-btn" data-copy-target="cmd-1">Copiar</button>
+          </div>
+          <pre id="cmd-1">sudo nano /var/ossec/etc/ossec.conf</pre>
+        </div>
+        <p>Añadir este bloque dentro de <code class="inline">&lt;ossec_config&gt;</code>:</p>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Bloque &lt;remote&gt;</div>
+            <button class="copy-btn" data-copy-target="cmd-2">Copiar</button>
+          </div>
+          <pre id="cmd-2">&lt;remote&gt;
+  &lt;connection&gt;syslog&lt;/connection&gt;
+  &lt;port&gt;514&lt;/port&gt;
+  &lt;protocol&gt;udp&lt;/protocol&gt;
+  &lt;allowed-ips&gt;IP_SOPHOS_ORIGEN&lt;/allowed-ips&gt;
+  &lt;local_ip&gt;IP_WAZUH_MANAGER&lt;/local_ip&gt;
+&lt;/remote&gt;</pre>
+        </div>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Reiniciar el manager</div>
+            <button class="copy-btn" data-copy-target="cmd-3">Copiar</button>
+          </div>
+          <pre id="cmd-3">sudo systemctl restart wazuh-manager</pre>
+        </div>
+        <div class="note">Los logs recibidos por syslog directo, sin agente, quedan asociados al propio manager (<code class="inline">agent.id: "000"</code>), no a un agente independiente. Al filtrar en el Dashboard por nombre de agente no va a aparecer un agente "Sophos"; hay que filtrar por <code class="inline">agent.id: "000"</code> o por el grupo de la regla.</div>
+      </section>
+
+      <section class="card" id="paso-5">
+        <h2>9. Crear el decoder personalizado</h2>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Crear el archivo del decoder</div>
+            <button class="copy-btn" data-copy-target="cmd-4">Copiar</button>
+          </div>
+          <pre id="cmd-4">sudo nano /var/ossec/etc/decoders/sophos_decoder.xml</pre>
+        </div>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Contenido de sophos_decoder.xml</div>
+            <button class="copy-btn" data-copy-target="cmd-5">Copiar</button>
+          </div>
+          <pre id="cmd-5">&lt;decoder name="sophos_firewall"&gt;
+    &lt;prematch&gt;device_name="&lt;/prematch&gt;
+&lt;/decoder&gt;
+
+&lt;decoder name="sophos_firewall_child"&gt;
+    &lt;parent&gt;sophos_firewall&lt;/parent&gt;
+    &lt;regex&gt;device_name="(\.*)"&lt;/regex&gt;
+    &lt;order&gt;device_name&lt;/order&gt;
+&lt;/decoder&gt;
+
+&lt;decoder name="sophos_firewall_child"&gt;
+    &lt;parent&gt;sophos_firewall&lt;/parent&gt;
+    &lt;regex&gt;timestamp="(\.*)"&lt;/regex&gt;
+    &lt;order&gt;timestamp&lt;/order&gt;
+&lt;/decoder&gt;
+
+&lt;decoder name="sophos_firewall_child"&gt;
+    &lt;parent&gt;sophos_firewall&lt;/parent&gt;
+    &lt;regex&gt;device_model="(\.*)"&lt;/regex&gt;
+    &lt;order&gt;device_model&lt;/order&gt;
+&lt;/decoder&gt;
+
+&lt;decoder name="sophos_firewall_child"&gt;
+    &lt;parent&gt;sophos_firewall&lt;/parent&gt;
+    &lt;regex&gt;device_serial_id="(\.*)"&lt;/regex&gt;
+    &lt;order&gt;device_serial_id&lt;/order&gt;
+&lt;/decoder&gt;
+
+&lt;decoder name="sophos_firewall_child"&gt;
+    &lt;parent&gt;sophos_firewall&lt;/parent&gt;
+    &lt;regex&gt;log_type="(\.*)"&lt;/regex&gt;
+    &lt;order&gt;log_type&lt;/order&gt;
+&lt;/decoder&gt;
+
+&lt;decoder name="sophos_firewall_child"&gt;
+    &lt;parent&gt;sophos_firewall&lt;/parent&gt;
+    &lt;regex&gt;log_component="(\.*)"&lt;/regex&gt;
+    &lt;order&gt;log_component&lt;/order&gt;
+&lt;/decoder&gt;
+
+&lt;decoder name="sophos_firewall_child"&gt;
+    &lt;parent&gt;sophos_firewall&lt;/parent&gt;
+    &lt;regex&gt;log_subtype="(\.*)"&lt;/regex&gt;
+    &lt;order&gt;log_subtype&lt;/order&gt;
+&lt;/decoder&gt;
+
+&lt;decoder name="sophos_firewall_child"&gt;
+    &lt;parent&gt;sophos_firewall&lt;/parent&gt;
+    &lt;regex&gt;severity="(\.*)"&lt;/regex&gt;
+    &lt;order&gt;severity&lt;/order&gt;
+&lt;/decoder&gt;
+
+&lt;decoder name="sophos_firewall_child"&gt;
+    &lt;parent&gt;sophos_firewall&lt;/parent&gt;
+    &lt;regex&gt;fw_rule_id="(\.*)"&lt;/regex&gt;
+    &lt;order&gt;fw_rule_id&lt;/order&gt;
+&lt;/decoder&gt;
+
+&lt;decoder name="sophos_firewall_child"&gt;
+    &lt;parent&gt;sophos_firewall&lt;/parent&gt;
+    &lt;regex&gt;fw_rule_name="(\.*)"&lt;/regex&gt;
+    &lt;order&gt;fw_rule_name&lt;/order&gt;
+&lt;/decoder&gt;
+
+&lt;decoder name="sophos_firewall_child"&gt;
+    &lt;parent&gt;sophos_firewall&lt;/parent&gt;
+    &lt;regex&gt;fw_rule_type="(\.*)"&lt;/regex&gt;
+    &lt;order&gt;fw_rule_type&lt;/order&gt;
+&lt;/decoder&gt;
+
+&lt;decoder name="sophos_firewall_child"&gt;
+    &lt;parent&gt;sophos_firewall&lt;/parent&gt;
+    &lt;regex&gt;in_interface="(\.*)"&lt;/regex&gt;
+    &lt;order&gt;in_interface&lt;/order&gt;
+&lt;/decoder&gt;
+
+&lt;decoder name="sophos_firewall_child"&gt;
+    &lt;parent&gt;sophos_firewall&lt;/parent&gt;
+    &lt;regex&gt;src_mac="(\.*)"&lt;/regex&gt;
+    &lt;order&gt;src_mac&lt;/order&gt;
+&lt;/decoder&gt;
+
+&lt;decoder name="sophos_firewall_child"&gt;
+    &lt;parent&gt;sophos_firewall&lt;/parent&gt;
+    &lt;regex&gt;src_ip="(\.*)"&lt;/regex&gt;
+    &lt;order&gt;src_ip&lt;/order&gt;
+&lt;/decoder&gt;
+
+&lt;decoder name="sophos_firewall_child"&gt;
+    &lt;parent&gt;sophos_firewall&lt;/parent&gt;
+    &lt;regex&gt;src_country="(\.*)"&lt;/regex&gt;
+    &lt;order&gt;src_country&lt;/order&gt;
+&lt;/decoder&gt;
+
+&lt;decoder name="sophos_firewall_child"&gt;
+    &lt;parent&gt;sophos_firewall&lt;/parent&gt;
+    &lt;regex&gt;dst_ip="(\.*)"&lt;/regex&gt;
+    &lt;order&gt;dst_ip&lt;/order&gt;
+&lt;/decoder&gt;
+
+&lt;decoder name="sophos_firewall_child"&gt;
+    &lt;parent&gt;sophos_firewall&lt;/parent&gt;
+    &lt;regex&gt;dst_country="(\.*)"&lt;/regex&gt;
+    &lt;order&gt;dst_country&lt;/order&gt;
+&lt;/decoder&gt;
+
+&lt;decoder name="sophos_firewall_child"&gt;
+    &lt;parent&gt;sophos_firewall&lt;/parent&gt;
+    &lt;regex&gt;protocol="(\.*)"&lt;/regex&gt;
+    &lt;order&gt;protocol&lt;/order&gt;
+&lt;/decoder&gt;
+
+&lt;decoder name="sophos_firewall_child"&gt;
+    &lt;parent&gt;sophos_firewall&lt;/parent&gt;
+    &lt;regex&gt;src_port=(\.*) &lt;/regex&gt;
+    &lt;order&gt;src_port&lt;/order&gt;
+&lt;/decoder&gt;
+
+&lt;decoder name="sophos_firewall_child"&gt;
+    &lt;parent&gt;sophos_firewall&lt;/parent&gt;
+    &lt;regex&gt;dst_port=(\.*) &lt;/regex&gt;
+    &lt;order&gt;dst_port&lt;/order&gt;
+&lt;/decoder&gt;
+
+&lt;decoder name="sophos_firewall_child"&gt;
+    &lt;parent&gt;sophos_firewall&lt;/parent&gt;
+    &lt;regex&gt;app_resolved_by="(\.*)"&lt;/regex&gt;
+    &lt;order&gt;app_resolved_by&lt;/order&gt;
+&lt;/decoder&gt;
+
+&lt;decoder name="sophos_firewall_child"&gt;
+    &lt;parent&gt;sophos_firewall&lt;/parent&gt;
+    &lt;regex&gt;app_name="(\.*)"&lt;/regex&gt;
+    &lt;order&gt;app_name&lt;/order&gt;
+&lt;/decoder&gt;
+
+&lt;decoder name="sophos_firewall_child"&gt;
+    &lt;parent&gt;sophos_firewall&lt;/parent&gt;
+    &lt;regex&gt;app_risk=(\.*) &lt;/regex&gt;
+    &lt;order&gt;app_risk&lt;/order&gt;
+&lt;/decoder&gt;
+
+&lt;decoder name="sophos_firewall_child"&gt;
+    &lt;parent&gt;sophos_firewall&lt;/parent&gt;
+    &lt;regex&gt;app_category="(\.*)"&lt;/regex&gt;
+    &lt;order&gt;app_category&lt;/order&gt;
+&lt;/decoder&gt;
+
+&lt;decoder name="sophos_firewall_child"&gt;
+    &lt;parent&gt;sophos_firewall&lt;/parent&gt;
+    &lt;regex&gt;duration=(\.*) &lt;/regex&gt;
+    &lt;order&gt;duration&lt;/order&gt;
+&lt;/decoder&gt;
+
+&lt;decoder name="sophos_firewall_child"&gt;
+    &lt;parent&gt;sophos_firewall&lt;/parent&gt;
+    &lt;regex&gt;bytes_sent=(\.*) &lt;/regex&gt;
+    &lt;order&gt;bytes_sent&lt;/order&gt;
+&lt;/decoder&gt;
+
+&lt;decoder name="sophos_firewall_child"&gt;
+    &lt;parent&gt;sophos_firewall&lt;/parent&gt;
+    &lt;regex&gt;bytes_received=(\.*) &lt;/regex&gt;
+    &lt;order&gt;bytes_received&lt;/order&gt;
+&lt;/decoder&gt;
+
+&lt;decoder name="sophos_firewall_child"&gt;
+    &lt;parent&gt;sophos_firewall&lt;/parent&gt;
+    &lt;regex&gt;user_name="(\.*)"&lt;/regex&gt;
+    &lt;order&gt;user_name&lt;/order&gt;
+&lt;/decoder&gt;
+
+&lt;decoder name="sophos_firewall_child"&gt;
+    &lt;parent&gt;sophos_firewall&lt;/parent&gt;
+    &lt;regex&gt;src_zone_type="(\.*)"&lt;/regex&gt;
+    &lt;order&gt;src_zone_type&lt;/order&gt;
+&lt;/decoder&gt;
+
+&lt;decoder name="sophos_firewall_child"&gt;
+    &lt;parent&gt;sophos_firewall&lt;/parent&gt;
+    &lt;regex&gt;src_zone="(\.*)"&lt;/regex&gt;
+    &lt;order&gt;src_zone&lt;/order&gt;
+&lt;/decoder&gt;
+
+&lt;decoder name="sophos_firewall_child"&gt;
+    &lt;parent&gt;sophos_firewall&lt;/parent&gt;
+    &lt;regex&gt;dst_zone_type="(\.*)"&lt;/regex&gt;
+    &lt;order&gt;dst_zone_type&lt;/order&gt;
+&lt;/decoder&gt;
+
+&lt;decoder name="sophos_firewall_child"&gt;
+    &lt;parent&gt;sophos_firewall&lt;/parent&gt;
+    &lt;regex&gt;dst_zone="(\.*)"&lt;/regex&gt;
+    &lt;order&gt;dst_zone&lt;/order&gt;
+&lt;/decoder&gt;
+
+&lt;decoder name="sophos_firewall_child"&gt;
+    &lt;parent&gt;sophos_firewall&lt;/parent&gt;
+    &lt;regex&gt;url="(\.*)"&lt;/regex&gt;
+    &lt;order&gt;url&lt;/order&gt;
+&lt;/decoder&gt;
+
+&lt;decoder name="sophos_firewall_child"&gt;
+    &lt;parent&gt;sophos_firewall&lt;/parent&gt;
+    &lt;regex&gt;domain="(\.*)"&lt;/regex&gt;
+    &lt;order&gt;domain&lt;/order&gt;
+&lt;/decoder&gt;
+
+&lt;decoder name="sophos_firewall_child"&gt;
+    &lt;parent&gt;sophos_firewall&lt;/parent&gt;
+    &lt;regex&gt;http_category="(\.*)"&lt;/regex&gt;
+    &lt;order&gt;http_category&lt;/order&gt;
+&lt;/decoder&gt;
+
+&lt;decoder name="sophos_firewall_child"&gt;
+    &lt;parent&gt;sophos_firewall&lt;/parent&gt;
+    &lt;regex&gt;http_status="(\.*)"&lt;/regex&gt;
+    &lt;order&gt;http_status&lt;/order&gt;
+&lt;/decoder&gt;
+
+&lt;decoder name="sophos_firewall_child"&gt;
+    &lt;parent&gt;sophos_firewall&lt;/parent&gt;
+    &lt;regex&gt;message="(\.*)"&lt;/regex&gt;
+    &lt;order&gt;message&lt;/order&gt;
+&lt;/decoder&gt;</pre>
+        </div>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Ajustar permisos</div>
+            <button class="copy-btn" data-copy-target="cmd-6">Copiar</button>
+          </div>
+          <pre id="cmd-6">sudo chown wazuh:wazuh /var/ossec/etc/decoders/sophos_decoder.xml\nsudo chmod 660 /var/ossec/etc/decoders/sophos_decoder.xml</pre>
+        </div>
+        <div class="note">En la sintaxis de decoders de Wazuh (OSRegex), <code class="inline">\.</code> significa "cualquier caracter" y un punto sin barra significa "punto literal" &mdash; es lo opuesto a la convencion de un regex estandar (PCRE). Por eso <code class="inline">(\.*)</code> captura cualquier valor hasta el siguiente caracter fijo del patron (la comilla de cierre).</div>
+        <div class="note"><strong>Error habitual al construir este tipo de decoder:</strong> usar como <code class="inline">prematch</code> un valor que en realidad es el hostname configurado en un ejemplo concreto (por ejemplo, si un log de referencia trae <code class="inline">device_name="SFW"</code>, tomar literalmente <code class="inline">SFW</code> como prematch). Ese valor es el nombre que alguien le puso a su propio firewall, no un identificador fijo de Sophos, asi que en cualquier otro firewall con otro hostname el decoder nunca coincidiria. El prematch correcto es un fragmento de la estructura del log que siempre esta presente, como <code class="inline">device_name="</code>, independientemente de como se llame el dispositivo.</div>
+      </section>
+
+      <section class="card" id="paso-6">
+        <h2>10. Crear las reglas personalizadas</h2>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Crear el archivo de reglas</div>
+            <button class="copy-btn" data-copy-target="cmd-7">Copiar</button>
+          </div>
+          <pre id="cmd-7">sudo nano /var/ossec/etc/rules/sophos_rules.xml</pre>
+        </div>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Contenido de sophos_rules.xml</div>
+            <button class="copy-btn" data-copy-target="cmd-8">Copiar</button>
+          </div>
+          <pre id="cmd-8">&lt;group name="sophos,"&gt;
+
+    &lt;!-- Regla base: todo evento decodificado como Sophos --&gt;
+    &lt;rule id="100500" level="0"&gt;
+        &lt;decoded_as&gt;sophos_firewall&lt;/decoded_as&gt;
+        &lt;description&gt;Sophos Firewall event&lt;/description&gt;
+        &lt;group&gt;firewall,&lt;/group&gt;
+    &lt;/rule&gt;
+
+    &lt;!-- Conexiones permitidas --&gt;
+    &lt;rule id="100501" level="3"&gt;
+        &lt;if_sid&gt;100500&lt;/if_sid&gt;
+        &lt;field name="log_subtype"&gt;Allowed&lt;/field&gt;
+        &lt;description&gt;Sophos Firewall - $(log_component): conexion permitida ($(src_ip) -&gt; $(dst_ip))&lt;/description&gt;
+        &lt;group&gt;firewall,allowed,&lt;/group&gt;
+    &lt;/rule&gt;
+
+    &lt;!-- Conexiones denegadas --&gt;
+    &lt;rule id="100502" level="5"&gt;
+        &lt;if_sid&gt;100500&lt;/if_sid&gt;
+        &lt;field name="log_subtype"&gt;Denied&lt;/field&gt;
+        &lt;description&gt;Sophos Firewall - $(log_component): conexion denegada ($(src_ip) -&gt; $(dst_ip))&lt;/description&gt;
+        &lt;group&gt;firewall,denied,&lt;/group&gt;
+    &lt;/rule&gt;
+
+    &lt;!-- Multiples denegaciones desde el mismo origen: posible escaneo/ataque --&gt;
+    &lt;rule id="100503" level="8" frequency="10" timeframe="300"&gt;
+        &lt;if_matched_sid&gt;100502&lt;/if_matched_sid&gt;
+        &lt;same_source_ip /&gt;
+        &lt;description&gt;Sophos Firewall - Multiples conexiones denegadas ($(firedtimes)) desde $(src_ip) en 5 minutos&lt;/description&gt;
+        &lt;group&gt;firewall,denied,multiple_attempts,&lt;/group&gt;
+    &lt;/rule&gt;
+
+    &lt;!-- Severidad critica reportada por el propio Sophos --&gt;
+    &lt;rule id="100504" level="10"&gt;
+        &lt;if_sid&gt;100500&lt;/if_sid&gt;
+        &lt;field name="severity"&gt;Critical&lt;/field&gt;
+        &lt;description&gt;Sophos Firewall - CRITICO: evento de $(log_component)&lt;/description&gt;
+        &lt;group&gt;firewall,critical,&lt;/group&gt;
+    &lt;/rule&gt;
+
+    &lt;!-- Contenido web bloqueado --&gt;
+    &lt;rule id="100505" level="5"&gt;
+        &lt;if_sid&gt;100500&lt;/if_sid&gt;
+        &lt;field name="log_component"&gt;HTTP&lt;/field&gt;
+        &lt;field name="log_subtype"&gt;Denied&lt;/field&gt;
+        &lt;description&gt;Sophos Firewall - Filtrado web: $(url) bloqueado&lt;/description&gt;
+        &lt;group&gt;firewall,content_filtering,denied,&lt;/group&gt;
+    &lt;/rule&gt;
+
+    &lt;!-- Protocolos de alto riesgo (RDP, SMB, Telnet...) --&gt;
+    &lt;rule id="100506" level="6"&gt;
+        &lt;if_sid&gt;100500&lt;/if_sid&gt;
+        &lt;field name="dst_port"&gt;23|135|139|445|1433|3389&lt;/field&gt;
+        &lt;description&gt;Sophos Firewall - Conexion a protocolo de alto riesgo hacia $(dst_ip):$(dst_port)&lt;/description&gt;
+        &lt;group&gt;firewall,high_risk_protocol,&lt;/group&gt;
+    &lt;/rule&gt;
+
+    &lt;!-- Ruido de broadcast LAN hacia la propia interfaz del firewall: no accionable --&gt;
+    &lt;rule id="100507" level="2"&gt;
+        &lt;if_sid&gt;100502&lt;/if_sid&gt;
+        &lt;field name="log_component"&gt;Appliance Access&lt;/field&gt;
+        &lt;field name="dst_ip"&gt;255.255.255.255|224.0.0.1|0.0.0.0&lt;/field&gt;
+        &lt;description&gt;Sophos Firewall - Ruido de broadcast LAN descartado (no accionable)&lt;/description&gt;
+        &lt;group&gt;firewall,noise,&lt;/group&gt;
+    &lt;/rule&gt;
+
+&lt;/group&gt;</pre>
+        </div>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Ajustar permisos y reiniciar</div>
+            <button class="copy-btn" data-copy-target="cmd-9">Copiar</button>
+          </div>
+          <pre id="cmd-9">sudo chown wazuh:wazuh /var/ossec/etc/rules/sophos_rules.xml\nsudo chmod 660 /var/ossec/etc/rules/sophos_rules.xml\nsudo systemctl restart wazuh-manager</pre>
+        </div>
+        <p>Esta base cubre conexiones permitidas y denegadas, deteccion de multiples intentos desde un mismo origen, eventos de severidad critica, filtrado web y protocolos de alto riesgo. La regla <code class="inline">100507</code> es la que silencia el ruido de difusion (broadcast) mencionado en el paso 6: no elimina el evento, solo le baja el nivel para que no aparezca como alerta.</p>
+      </section>
+
+      <section class="card" id="paso-7">
+        <h2>11. Verificar la decodificacion con wazuh-logtest</h2>
+        <p>Antes de comprobar el resultado en el Dashboard, conviene validar que el decoder y las reglas funcionan sobre una linea de log real.</p>
+        <h3>Capturar una linea limpia</h3>
+        <p>Es preferible evitar <code class="inline">tcpdump</code> para esto: la opcion <code class="inline">-A</code> mezcla bytes binarios de las cabeceras IP/UDP con el mensaje real, lo que ensucia cualquier copia. Es mas fiable activar temporalmente el archivo de eventos completo del manager:</p>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Activar el archivo de eventos (temporal, solo para depurar)</div>
+            <button class="copy-btn" data-copy-target="cmd-10">Copiar</button>
+          </div>
+          <pre id="cmd-10">sudo nano /var/ossec/etc/ossec.conf</pre>
+        </div>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Bloque &lt;global&gt;</div>
+            <button class="copy-btn" data-copy-target="cmd-11">Copiar</button>
+          </div>
+          <pre id="cmd-11">&lt;global&gt;
+  &lt;logall&gt;yes&lt;/logall&gt;
+  &lt;logall_json&gt;yes&lt;/logall_json&gt;
+&lt;/global&gt;</pre>
+        </div>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Reiniciar y observar en vivo</div>
+            <button class="copy-btn" data-copy-target="cmd-12">Copiar</button>
+          </div>
+          <pre id="cmd-12">sudo systemctl restart wazuh-manager\nsudo tail -f /var/ossec/logs/archives/archives.log</pre>
+        </div>
+        <p>La linea que aparece aqui, generada por trafico real del firewall, es la que hay que copiar &mdash; sin basura binaria, exactamente como la procesa el motor de analisis. Conviene desactivar <code class="inline">logall</code>/<code class="inline">logall_json</code> una vez terminada la verificacion, ya que generan bastante volumen de disco si se dejan activos.</p>
+        <h3>Probar con wazuh-logtest</h3>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Ejecutar la herramienta</div>
+            <button class="copy-btn" data-copy-target="cmd-13">Copiar</button>
+          </div>
+          <pre id="cmd-13">sudo /var/ossec/bin/wazuh-logtest</pre>
+        </div>
+        <p>Al pegar una linea como la siguiente:</p>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Ejemplo de linea de log</div>
+            <button class="copy-btn" data-copy-target="cmd-14">Copiar</button>
+          </div>
+          <pre id="cmd-14">&lt;30&gt;device_name="NOMBRE_DISPOSITIVO" timestamp="2026-07-11T07:45:40+0200" device_model="SFVH" device_serial_id="V01001JVVBRGP65" log_id="010302602002" log_type="Firewall" log_component="Appliance Access" log_subtype="Denied" log_version=1 severity="Information" fw_rule_id="N/A" nat_rule_id="0" fw_rule_type="NETWORK" ether_type="IPv4 (0x0800)" in_interface="Port2" src_mac="24:0a:c4:40:5f:b8" src_ip="192.168.1.211" src_country="R1" dst_ip="255.255.255.255" dst_country="R1" protocol="UDP" src_port=55555 dst_port=55555 hb_status="No Heartbeat" app_resolved_by="Signature" app_is_cloud="FALSE" qualifier="New" in_display_interface="Port2" log_occurrence="1"</pre>
+        </div>
+        <p>La salida deberia mostrar la decodificacion completa y la regla disparada:</p>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Salida esperada (resumida)</div>
+            <button class="copy-btn" data-copy-target="cmd-15">Copiar</button>
+          </div>
+          <pre id="cmd-15">**Phase 2: Completed decoding.
+        name: 'sophos_firewall'
+        device_name: 'NOMBRE_DISPOSITIVO'
+        log_component: 'Appliance Access'
+        log_subtype: 'Denied'
+        src_ip: '192.168.1.211'
+        dst_ip: '255.255.255.255'
+        ...
+
+**Phase 3: Completed filtering (rules).
+        id: '100502'
+        level: '5'
+        description: 'Sophos Firewall - Appliance Access: conexion denegada (192.168.1.211 -&gt; 255.255.255.255)'
+        groups: '[\'sophos\', \'firewall\', \'denied\']'</pre>
+        </div>
+        <div class="ok">Si en la Fase 2 no aparece <code class="inline">name: 'sophos_firewall'</code>, el decoder no esta coincidiendo (revisar el formato elegido en Sophos y el <code class="inline">prematch</code> del decoder). Si la Fase 2 funciona pero la Fase 3 no dispara ninguna regla, comparar los valores de <code class="inline">field</code> de las reglas contra lo que realmente llego &mdash; mayusculas y minusculas importan.</div>
+      </section>
+
+      <section class="card" id="paso-8">
+        <h2>12. Consultar las alertas en el Wazuh Dashboard</h2>
+        <ul>
+          <li>Ir a <strong>Explore &gt; Discover</strong> (o <em>Threat hunting</em>, segun la version del Dashboard) y filtrar por <code class="inline">rule.groups: firewall</code>.</li>
+          <li>Como el log llega directo por syslog, sin agente, los eventos aparecen asociados al propio manager. Si no aparece nada al buscar por nombre de agente, filtrar por <code class="inline">agent.id: "000"</code>.</li>
+        </ul>
+      </section>
+
+      <section class="card" id="paso-9">
+        <h2>13. Generar trafico de prueba controlado</h2>
+        <p>Para comprobar que una alerta concreta llega de extremo a extremo, sin depender de que se produzca trafico real bloqueado en ese momento, es util crear una regla de firewall dedicada exclusivamente a pruebas, apuntando a una direccion reservada para documentacion que nunca es una IP real (<code class="inline">203.0.113.99</code>, rango TEST-NET-3). El bloqueo resultante es inofensivo y 100% reproducible.</p>
+        <p><strong>Menu:</strong> <code class="inline">Rules and policies &gt; Firewall rules &gt; Add firewall rule &gt; New firewall rule</code>.</p>
+        <table>
+          <thead><tr><th>Campo</th><th>Valor</th></tr></thead>
+          <tbody>
+            <tr><td>Nombre de regla</td><td><code class="inline">Demo-Block-Test</code></td></tr>
+            <tr><td>Accion</td><td><strong>Rechazar</strong> (el cliente recibe respuesta inmediata; "Descartar" tambien es valido pero es silencioso)</td></tr>
+            <tr><td>Registrar trafico de firewall</td><td>Activar</td></tr>
+            <tr><td>Posicion de regla</td><td><strong>Arriba</strong>, para que se evalue antes que la regla general de salida a Internet</td></tr>
+            <tr><td>Zonas de origen</td><td><code class="inline">ZONA_ORIGEN</code> (la zona donde esta el Wazuh Manager)</td></tr>
+            <tr><td>Dispositivos y redes de origen</td><td>Cualquiera</td></tr>
+            <tr><td>Zonas de destino</td><td>WAN</td></tr>
+            <tr><td>Redes de destino</td><td><code class="inline">IP_DESTINO_PRUEBA</code> (<code class="inline">203.0.113.99</code>)</td></tr>
+            <tr><td>Servicios</td><td>Cualquiera</td></tr>
+          </tbody>
+        </table>
+        <p>Desde cualquier host situado en la zona de origen configurada, se puede disparar la regla con:</p>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Generar el trafico bloqueado</div>
+            <button class="copy-btn" data-copy-target="cmd-16">Copiar</button>
+          </div>
+          <pre id="cmd-16">curl -m 3 http://IP_DESTINO_PRUEBA\n# o bien\nping -c 3 IP_DESTINO_PRUEBA</pre>
+        </div>
+        <div class="ok">La alerta correspondiente deberia aparecer en Discover en cuestion de segundos, con la descripcion generada dinamicamente por la regla 100502 ("Sophos Firewall - Firewall Rule: conexion denegada...").</div>
+      </section>
+
+      <section class="card" id="paso-10">
+        <h2>14. Reducir el ruido en el Dashboard</h2>
+        <div class="note">Bajar el "Nivel de Gravedad" del servidor de syslog en Sophos (de Depuracion a algo superior) no es la palanca correcta para reducir ruido en este caso: tanto el trafico irrelevante como las conexiones denegadas que si interesan suelen llegar marcadas con la misma severidad ("Information"). Subir el umbral silenciaria ambos tipos de evento por igual.</div>
+        <p>Las palancas que si funcionan:</p>
+        <ol>
+          <li>En Sophos, limitar que categorias de log se envian al SIEM (ver la tabla del paso 6): mantener solo <em>Reglas de firewall</em> y, opcionalmente, <em>Trafico no valido</em> e <em>IPS</em>; desactivar el resto.</li>
+          <li>En Wazuh, usar una regla de silenciado como la <code class="inline">100507</code> del paso 10, que reduce el nivel de eventos de ruido conocido sin borrar el evento &mdash; sigue disponible para analisis forense, pero deja de generar alertas visibles en el Dashboard.</li>
+        </ol>
+        <p>Combinando ambos ajustes, el Dashboard queda con las conexiones denegadas reales y las alertas generadas de forma deliberada, sin el ruido de fondo de trafico de difusion o eventos periodicos de estado.</p>
+      </section>
+
+      <section class="card" id="errores">
+        <h2>15. Errores comunes y como resolverlos</h2>
+        <table>
+          <thead>
+            <tr><th>Problema</th><th>Causa probable</th><th>Solucion</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>No llega nada al Wazuh Manager</td>
+              <td>Puerto 514 cerrado en el sistema operativo del manager, o redes sin ruta entre ambos equipos</td>
+              <td><code class="inline">ss -tulnp | grep 514</code>; revisar el firewall del propio sistema operativo y la conectividad de red</td>
+            </tr>
+            <tr>
+              <td>Llega trafico pero wazuh-logtest no decodifica</td>
+              <td>Formato incorrecto en Sophos, o <code class="inline">prematch</code> del decoder atado a un valor variable como el hostname</td>
+              <td>Usar <em>Device standard format (legacy)</em> en Sophos; usar <code class="inline">&lt;prematch&gt;device_name="&lt;/prematch&gt;</code>, nunca un valor fijo como un nombre de dispositivo concreto</td>
+            </tr>
+            <tr>
+              <td>Decodifica pero no dispara ninguna regla</td>
+              <td>Los <code class="inline">&lt;field&gt;</code> de las reglas no coinciden exactamente con el valor recibido</td>
+              <td>Comparar el resultado de wazuh-logtest campo a campo con el XML de las reglas; revisar mayusculas y minusculas</td>
+            </tr>
+            <tr>
+              <td>Solo se ven eventos de sistema, no trafico normal</td>
+              <td>Falta activar "Log firewall traffic" en las reglas de Sophos</td>
+              <td>Activarlo por regla en <code class="inline">Rules and policies</code></td>
+            </tr>
+            <tr>
+              <td>No aparece nada al filtrar por agente en el Dashboard</td>
+              <td>El trafico llega directo por syslog, no proviene de un agente instalado</td>
+              <td>Filtrar por <code class="inline">agent.id: "000"</code> o por <code class="inline">rule.groups: firewall</code></td>
+            </tr>
+            <tr>
+              <td>Demasiado ruido en el Dashboard</td>
+              <td>Demasiadas categorias de log activas en la columna SIEM de Sophos</td>
+              <td>Desactivar categorias irrelevantes (ver paso 6) y añadir la regla de silenciado 100507 en Wazuh</td>
+            </tr>
+            <tr>
+              <td>Aviso de "Rule ID duplicado" en wazuh-logtest</td>
+              <td>Choque de identificadores entre distintos archivos de reglas personalizadas instalados en el mismo manager</td>
+              <td><code class="inline">grep -rn "&lt;ID&gt;" /var/ossec/etc/rules/</code> y renombrar el identificador repetido</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section class="card" id="produccion">
+        <h2>16. Notas de ampliacion</h2>
+        <p>El conjunto de reglas de esta guia cubre los casos basicos de un primer montaje. Para un entorno mas completo se puede ampliar con:</p>
+        <ul>
+          <li>Reglas de <strong>geolocalizacion</strong>, usando los campos <code class="inline">src_country</code>/<code class="inline">dst_country</code> para marcar conexiones hacia paises de riesgo.</li>
+          <li>Deteccion de <strong>aplicaciones de alto riesgo</strong>, usando los campos <code class="inline">app_name</code>, <code class="inline">app_risk</code> y <code class="inline">app_category</code>.</li>
+          <li>Alertas por <strong>transferencias de datos inusualmente grandes</strong>, usando <code class="inline">bytes_sent</code> y <code class="inline">bytes_received</code>.</li>
+          <li>Alertas por <strong>conexiones de duracion inusualmente larga</strong>, usando el campo <code class="inline">duration</code>.</li>
+          <li>Reglas especificas para <strong>actividad de usuarios administradores</strong>, usando el campo <code class="inline">user_name</code>.</li>
+        </ul>
+        <div class="note">Al añadir reglas nuevas, conviene mantener los identificadores dentro de un rango propio (por ejemplo, continuando desde <code class="inline">100508</code>) para evitar coincidencias con otros conjuntos de reglas personalizadas que puedan existir en el mismo manager.</div>
+      </section>
+      <footer>
+        Guia tecnica para integrar Sophos Firewall (SFOS) con Wazuh SIEM mediante syslog, con decoder y reglas personalizadas.
+      </footer>
+    </div>
+  </div>
+</main>
+
+<script>
+  async function copyText(text, button) {
+    try {
+      await navigator.clipboard.writeText(text);
+      const original = button.textContent;
+      button.textContent = 'Copiado';
+      button.classList.add('copied');
+      setTimeout(() => {
+        button.textContent = original;
+        button.classList.remove('copied');
+      }, 1400);
+    } catch (err) {
+      alert('No se pudo copiar automaticamente.');
+    }
+  }
+
+  document.querySelectorAll('.copy-btn').forEach(button => {
+    button.addEventListener('click', () => {
+      const targetId = button.getAttribute('data-copy-target');
+      const target = document.getElementById(targetId);
+      if (!target) return;
+      copyText(target.innerText.trim(), button);
+    });
+  });
+</script>
+</body>
+</html>
