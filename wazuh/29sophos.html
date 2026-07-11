@@ -4,7 +4,6 @@
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Integracion Sophos Firewall (SFOS) con Wazuh SIEM</title>
-  <link rel="icon" type="image/png" href="https://blogger.googleusercontent.com/img/a/AVvXsEjuquj9lFaN9zfg8H5FofNIUKAHWWRiOUbDhHragpU14TfF6RYKxb5w62mfAClxDkDrzCMAilRatibcoWFbuqMnXMBh30p_sfbxp4D2gUny70NbjyHLrs42VXeBB4Qtc8NovIS_DqIU5iq3dMMx1TuNZkW70MeW8Ryemwk_tDv6iKZi9ngKfaskUG1yCWo=s1600"/>
   <style>
     :root {
       --bg: #060606;
@@ -703,7 +702,8 @@
             <div class="cmd-title">Ajustar permisos</div>
             <button class="copy-btn" data-copy-target="cmd-6">Copiar</button>
           </div>
-          <pre id="cmd-6">sudo chown wazuh:wazuh /var/ossec/etc/decoders/sophos_decoder.xml\nsudo chmod 660 /var/ossec/etc/decoders/sophos_decoder.xml</pre>
+          <pre id="cmd-6">sudo chown wazuh:wazuh /var/ossec/etc/decoders/sophos_decoder.xml
+sudo chmod 660 /var/ossec/etc/decoders/sophos_decoder.xml</pre>
         </div>
         <div class="note">En la sintaxis de decoders de Wazuh (OSRegex), <code class="inline">\.</code> significa "cualquier caracter" y un punto sin barra significa "punto literal" &mdash; es lo opuesto a la convencion de un regex estandar (PCRE). Por eso <code class="inline">(\.*)</code> captura cualquier valor hasta el siguiente caracter fijo del patron (la comilla de cierre).</div>
         <div class="note"><strong>Error habitual al construir este tipo de decoder:</strong> usar como <code class="inline">prematch</code> un valor que en realidad es el hostname configurado en un ejemplo concreto (por ejemplo, si un log de referencia trae <code class="inline">device_name="SFW"</code>, tomar literalmente <code class="inline">SFW</code> como prematch). Ese valor es el nombre que alguien le puso a su propio firewall, no un identificador fijo de Sophos, asi que en cualquier otro firewall con otro hostname el decoder nunca coincidiria. El prematch correcto es un fragmento de la estructura del log que siempre esta presente, como <code class="inline">device_name="</code>, independientemente de como se llame el dispositivo.</div>
@@ -797,7 +797,9 @@
             <div class="cmd-title">Ajustar permisos y reiniciar</div>
             <button class="copy-btn" data-copy-target="cmd-9">Copiar</button>
           </div>
-          <pre id="cmd-9">sudo chown wazuh:wazuh /var/ossec/etc/rules/sophos_rules.xml\nsudo chmod 660 /var/ossec/etc/rules/sophos_rules.xml\nsudo systemctl restart wazuh-manager</pre>
+          <pre id="cmd-9">sudo chown wazuh:wazuh /var/ossec/etc/rules/sophos_rules.xml
+sudo chmod 660 /var/ossec/etc/rules/sophos_rules.xml
+sudo systemctl restart wazuh-manager</pre>
         </div>
         <p>Esta base cubre conexiones permitidas y denegadas, deteccion de multiples intentos desde un mismo origen, eventos de severidad critica, filtrado web y protocolos de alto riesgo. La regla <code class="inline">100507</code> es la que silencia el ruido de difusion (broadcast) mencionado en el paso 6: no elimina el evento, solo le baja el nivel para que no aparezca como alerta.</p>
       </section>
@@ -829,7 +831,8 @@
             <div class="cmd-title">Reiniciar y observar en vivo</div>
             <button class="copy-btn" data-copy-target="cmd-12">Copiar</button>
           </div>
-          <pre id="cmd-12">sudo systemctl restart wazuh-manager\nsudo tail -f /var/ossec/logs/archives/archives.log</pre>
+          <pre id="cmd-12">sudo systemctl restart wazuh-manager
+sudo tail -f /var/ossec/logs/archives/archives.log</pre>
         </div>
         <p>La linea que aparece aqui, generada por trafico real del firewall, es la que hay que copiar &mdash; sin basura binaria, exactamente como la procesa el motor de analisis. Conviene desactivar <code class="inline">logall</code>/<code class="inline">logall_json</code> una vez terminada la verificacion, ya que generan bastante volumen de disco si se dejan activos.</p>
         <h3>Probar con wazuh-logtest</h3>
@@ -904,7 +907,9 @@
             <div class="cmd-title">Generar el trafico bloqueado</div>
             <button class="copy-btn" data-copy-target="cmd-16">Copiar</button>
           </div>
-          <pre id="cmd-16">curl -m 3 http://IP_DESTINO_PRUEBA\n# o bien\nping -c 3 IP_DESTINO_PRUEBA</pre>
+          <pre id="cmd-16">curl -m 3 http://IP_DESTINO_PRUEBA
+# o bien
+ping -c 3 IP_DESTINO_PRUEBA</pre>
         </div>
         <div class="ok">La alerta correspondiente deberia aparecer en Discover en cuestion de segundos, con la descripcion generada dinamicamente por la regla 100502 ("Sophos Firewall - Firewall Rule: conexion denegada...").</div>
       </section>
