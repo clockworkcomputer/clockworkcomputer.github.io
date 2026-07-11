@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Integracion Windows Defender con Wazuh SIEM</title>
+  <style>
+    :root {
+      --bg: #060606;
+      --panel: #111111;
+      --panel-2: #1a1a1a;
+      --text: #f5f5f5;
+      --muted: #b9b9b9;
+      --accent: #ff7a00;
+      --accent-2: #ff9a3d;
+      --border: #2b2b2b;
+      --code: #050505;
+      --success: #24b36b;
+      --shadow: 0 12px 30px rgba(0,0,0,.35);
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+      background: linear-gradient(180deg, #050505 0%, #0a0a0a 100%);
+      color: var(--text);
+      line-height: 1.6;
+    }
+
+    .container {
+      width: min(1100px, calc(100% - 32px));
+      margin: 0 auto;
+    }
+
+    header {
+      padding: 48px 0 28px;
+      border-bottom: 1px solid rgba(255,255,255,.06);
+      background:
+        radial-gradient(circle at top right, rgba(255,122,0,.16), transparent 30%),
+        radial-gradient(circle at top left, rgba(255,154,61,.10), transparent 20%),
+        linear-gradient(180deg, #080808 0%, #101010 100%);
+      z-index: 20;
+    }
+
+    .header-inner {
+      display: flex;
+      gap: 18px;
+      align-items: flex-start;
+      justify-content: space-between;
+      flex-wrap: wrap;
+    }
+
+    .header-brand {
+      display: flex;
+      gap: 18px;
+      align-items: center;
+      flex: 1 1 720px;
+    }
+
+    .channel-logo {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 18px;
+      padding: 0;
+      overflow: hidden;
+      border: 1px solid rgba(255,255,255,.08);
+      box-shadow: var(--shadow);
+      background: rgba(255,255,255,.03);
+      flex: 0 0 auto;
+    }
+
+    .channel-logo img {
+      display: block;
+      width: 200px;
+      height: auto;
+      object-fit: contain;
+    }
+
+    h1 {
+      font-size: clamp(1.8rem, 3vw, 3rem);
+      margin: 0;
+      line-height: 1.15;
+      color: var(--accent);
+    }
+
+    .brand {
+      margin-top: 8px;
+      font-weight: 700;
+      letter-spacing: .4px;
+      color: var(--accent-2);
+    }
+
+    .subtitle {
+      color: var(--muted);
+      margin: 10px 0 0;
+      max-width: 850px;
+    }
+
+    main { padding: 28px 0 64px; }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 260px 1fr;
+      gap: 24px;
+      align-items: start;
+    }
+
+    .toc {
+      position: sticky;
+      top: 20px;
+      width: 260px;
+      background: rgba(17,17,17,.92);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 18px;
+      box-shadow: var(--shadow);
+      margin: 0;
+    }
+
+    .toc h2 {
+      margin: 0 0 12px;
+      font-size: 1rem;
+      color: var(--accent);
+    }
+
+    .toc a {
+      display: block;
+      color: var(--muted);
+      text-decoration: none;
+      padding: 8px 10px;
+      border-radius: 10px;
+      transition: background .15s ease, color .15s ease;
+      font-size: .95rem;
+    }
+
+    .toc a:hover {
+      color: var(--text);
+      background: rgba(255,122,0,.08);
+    }
+
+    .content {
+      display: grid;
+      gap: 18px;
+    }
+
+    .card {
+      background: linear-gradient(180deg, rgba(17,17,17,.97), rgba(12,12,12,.97));
+      border: 1px solid var(--border);
+      border-radius: 22px;
+      padding: 24px;
+      box-shadow: var(--shadow);
+    }
+
+    .card h2 {
+      margin-top: 0;
+      font-size: 1.5rem;
+      color: var(--accent);
+    }
+
+    .card h3 {
+      margin-bottom: 10px;
+      margin-top: 22px;
+      font-size: 1.08rem;
+      color: #ffd1a8;
+    }
+
+    .muted { color: var(--muted); }
+    ul, ol { margin-top: 10px; padding-left: 20px; }
+    li + li { margin-top: 6px; }
+
+    .note {
+      background: rgba(255,122,0,.08);
+      border: 1px solid rgba(255,122,0,.22);
+      border-radius: 14px;
+      padding: 14px 16px;
+      color: #ffe2c4;
+      margin-top: 14px;
+    }
+
+    .ok {
+      background: rgba(36,179,107,.10);
+      border: 1px solid rgba(36,179,107,.28);
+      border-radius: 14px;
+      padding: 14px 16px;
+      color: #d8ffe8;
+      margin-top: 14px;
+    }
+
+    .cmd {
+      margin-top: 14px;
+      border: 1px solid var(--border);
+      background: var(--code);
+      border-radius: 16px;
+      overflow: hidden;
+    }
+
+    .cmd-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 12px;
+      background: rgba(255,255,255,.03);
+      border-bottom: 1px solid rgba(255,255,255,.06);
+    }
+
+    .cmd-title {
+      font-size: .92rem;
+      color: var(--muted);
+      font-weight: 600;
+    }
+
+    .copy-btn {
+      border: 1px solid #6a3408;
+      background: linear-gradient(180deg, #ff7a00, #d76200);
+      color: #111;
+      border-radius: 10px;
+      padding: 8px 10px;
+      cursor: pointer;
+      font-size: .9rem;
+      font-weight: 800;
+      transition: .15s ease;
+    }
+
+    .copy-btn:hover { filter: brightness(1.06); }
+    .copy-btn.copied {
+      background: rgba(36,179,107,.18);
+      border-color: rgba(36,179,107,.45);
+      color: #d7ffe8;
+    }
+
+    pre {
+      margin: 0;
+      padding: 16px;
+      overflow-x: auto;
+      white-space: pre-wrap;
+      word-break: break-word;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      font-size: .94rem;
+      color: #ffbf85;
+    }
+
+    code.inline {
+      background: rgba(255,255,255,.06);
+      padding: 2px 8px;
+      border-radius: 8px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: .92em;
+      color: #ffd2aa;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 12px;
+      font-size: .95rem;
+    }
+
+    th, td {
+      border: 1px solid var(--border);
+      padding: 10px 12px;
+      text-align: left;
+      vertical-align: top;
+    }
+
+    th {
+      background: rgba(255,255,255,.04);
+      color: #ffd1a8;
+    }
+
+    footer {
+      margin-top: 24px;
+      color: var(--muted);
+      text-align: center;
+      font-size: .95rem;
+    }
+
+    @media (max-width: 920px) {
+      .layout { grid-template-columns: 1fr; }
+      .toc { position: static; width: 100%; }
+    }
+  </style>
+</head>
+<body>
+<header>
+  <div class="container header-inner">
+    <div class="header-brand">
+      <a class="channel-logo" href="https://www.youtube.com/c/ClockworkComputerIP" target="_blank" rel="noopener noreferrer" aria-label="Clockwork Computer">
+        <img src="https://blogger.googleusercontent.com/img/a/AVvXsEjuquj9lFaN9zfg8H5FofNIUKAHWWRiOUbDhHragpU14TfF6RYKxb5w62mfAClxDkDrzCMAilRatibcoWFbuqMnXMBh30p_sfbxp4D2gUny70NbjyHLrs42VXeBB4Qtc8NovIS_DqIU5iq3dMMx1TuNZkW70MeW8Ryemwk_tDv6iKZi9ngKfaskUG1yCWo=s1600" alt="Clockwork Computer"/>
+      </a>
+      <div>
+        <h1>Integracion Windows Defender con Wazuh SIEM</h1>
+        <div class="brand">Deteccion nativa + despliegue centralizado desde el Dashboard</div>
+        <p class="subtitle">Guia tecnica para recoger los eventos de Windows Defender con el agente Wazuh, generar alertas con el ruleset nativo, y desplegar la configuracion a un grupo entero de equipos Windows sin usar la terminal.</p>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main>
+  <div class="container layout">
+    <aside class="toc">
+      <h2>Contenido</h2>
+      <a href="#introduccion">1. Introduccion</a>
+      <a href="#variables">2. Variables de esta guia</a>
+      <a href="#arquitectura">3. Arquitectura y flujo</a>
+      <a href="#requisitos">4. Requisitos</a>
+      <a href="#paso-1">5. Configuracion individual en un agente</a>
+      <a href="#paso-2">6. Verificacion en el Wazuh Manager</a>
+      <a href="#paso-3">7. Primera alerta: prueba EICAR</a>
+      <a href="#paso-4">8. Tabla de reglas relevantes</a>
+      <a href="#paso-5">9. Despliegue centralizado desde el Dashboard</a>
+      <a href="#paso-6">10. Verificar que se aplico la configuracion</a>
+      <a href="#paso-7">11. Prueba EICAR tras el despliegue</a>
+      <a href="#errores">12. Errores comunes</a>
+      <a href="#produccion">13. Notas de ampliacion</a>
+    </aside>
+
+    <div class="content">
+      <section class="card" id="introduccion">
+        <h2>1. Introduccion</h2>
+        <p>Esta guia integra <strong>Windows Defender</strong> con <strong>Wazuh SIEM</strong> a traves del agente Wazuh instalado en el propio endpoint. A diferencia de otras integraciones (por ejemplo, la de un firewall por syslog), aqui no hace falta construir un decoder ni un conjunto de reglas propio: Wazuh trae de fabrica el decoder <code class="inline">windows_eventchannel</code> y un ruleset completo para Windows Defender.</p>
+        <div class="note">El valor añadido de esta guia no esta en la decodificacion, sino en dos puntos que suelen dar problemas en la practica: la configuracion correcta del canal de eventos, y el <strong>despliegue centralizado a un grupo de agentes desde la interfaz del Dashboard</strong>, sin necesidad de acceso por SSH al manager.</div>
+      </section>
+
+      <section class="card" id="variables">
+        <h2>2. Variables de esta guia</h2>
+        <p>Todos los bloques de configuracion usan los siguientes marcadores en <strong>MAYUSCULAS</strong>. Sustituyelos por los valores reales del entorno donde se aplique esta guia.</p>
+        <table>
+          <thead>
+            <tr><th>Marcador</th><th>Que es</th><th>Donde se obtiene</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><code class="inline">IP_WAZUH_MANAGER</code></td><td>IP del servidor donde corre el Wazuh Manager</td><td>La interfaz de red de ese servidor</td></tr>
+            <tr><td><code class="inline">NOMBRE_AGENTE_WINDOWS</code></td><td>Nombre del agente Wazuh instalado en el endpoint Windows</td><td>Se define durante el registro del agente</td></tr>
+            <tr><td><code class="inline">NOMBRE_GRUPO_WINDOWS</code></td><td>Grupo de agentes que recibira la configuracion centralizada</td><td>Se crea en Agents management &gt; Groups</td></tr>
+            <tr><td><code class="inline">ID_DEL_AGENTE</code></td><td>Identificador numerico del agente (por ejemplo <code class="inline">001</code>)</td><td>Columna ID en el listado de agentes del Dashboard</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section class="card" id="arquitectura">
+        <h2>3. Arquitectura y flujo</h2>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Resumen visual</div>
+            <button class="copy-btn" data-copy-target="cmd-arch">Copiar</button>
+          </div>
+          <pre id="cmd-arch">[WINDOWS DEFENDER]
+  Detecta malware o EICAR
+        |
+        v
+[REGISTRO DE EVENTOS DE WINDOWS]
+  Canal: Microsoft-Windows-Windows Defender/Operational
+        |
+        v
+[WAZUH AGENT]   NOMBRE_AGENTE_WINDOWS
+  localfile, log_format eventchannel
+        |
+        v
+[WAZUH MANAGER]   IP_WAZUH_MANAGER
+  Decoder y reglas ya incluidos (windows_eventchannel, 0600-win-wdefender_rules.xml)
+        |
+        v
+[WAZUH INDEXER]   (OpenSearch, almacena las alertas)
+        |
+        v
+[WAZUH DASHBOARD]
+  Discover / Threat hunting</pre>
+        </div>
+        <p>A diferencia de una integracion por syslog, aqui el evento si llega asociado a un agente con nombre propio, no al manager (<code class="inline">agent.id: "000"</code>), porque pasa por el agente Wazuh instalado localmente en el endpoint Windows.</p>
+      </section>
+
+      <section class="card" id="requisitos">
+        <h2>4. Requisitos</h2>
+        <ul>
+          <li>Endpoint Windows 10/11 con agente Wazuh instalado y conectado al manager.</li>
+          <li>Wazuh Manager 4.14.x instalado y en ejecucion.</li>
+          <li>Windows Defender activo, con <strong>proteccion en tiempo real habilitada</strong>.</li>
+          <li>Acceso administrador al endpoint Windows (PowerShell como administrador) y al Wazuh Dashboard.</li>
+        </ul>
+      </section>
+
+      <section class="card" id="paso-1">
+        <h2>5. Configuracion individual en un agente</h2>
+        <p>Antes de desplegar a un grupo entero, conviene validar el montaje en un solo equipo. Abre en el agente:</p>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Ruta del archivo</div>
+            <button class="copy-btn" data-copy-target="cmd-1">Copiar</button>
+          </div>
+          <pre id="cmd-1">C:\Program Files (x86)\ossec-agent\ossec.conf</pre>
+        </div>
+        <p>Añade este bloque dentro de <code class="inline">&lt;ossec_config&gt;</code>:</p>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Bloque localfile</div>
+            <button class="copy-btn" data-copy-target="cmd-2">Copiar</button>
+          </div>
+          <pre id="cmd-2">&lt;localfile&gt;
+  &lt;location&gt;Microsoft-Windows-Windows Defender/Operational&lt;/location&gt;
+  &lt;log_format&gt;eventchannel&lt;/log_format&gt;
+&lt;/localfile&gt;</pre>
+        </div>
+        <p>Reinicia el servicio del agente para aplicar el cambio (aqui si hace falta, es configuracion local):</p>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Reiniciar el agente</div>
+            <button class="copy-btn" data-copy-target="cmd-3">Copiar</button>
+          </div>
+          <pre id="cmd-3">Restart-Service -Name WazuhSvc
+Get-Service -Name WazuhSvc</pre>
+        </div>
+        <p>Comprueba que el canal existe y esta habilitado a nivel de Windows:</p>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Comprobar el canal de eventos</div>
+            <button class="copy-btn" data-copy-target="cmd-4">Copiar</button>
+          </div>
+          <pre id="cmd-4">Get-WinEvent -ListLog "Microsoft-Windows-Windows Defender/Operational" | Select-Object LogName, IsEnabled, RecordCount</pre>
+        </div>
+        <div class="note"><code class="inline">IsEnabled</code> debe ser <code class="inline">True</code>. Si es <code class="inline">False</code>, el canal esta desactivado a nivel de Windows y ningun agente va a poder leerlo, por bien configurado que este en Wazuh.</div>
+      </section>
+
+      <section class="card" id="paso-2">
+        <h2>6. Verificacion en el Wazuh Manager</h2>
+        <p>En el manager, en <code class="inline">/var/ossec/etc/ossec.conf</code>, dentro de <code class="inline">&lt;global&gt;</code>:</p>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Activar el registro de archivos crudos</div>
+            <button class="copy-btn" data-copy-target="cmd-5">Copiar</button>
+          </div>
+          <pre id="cmd-5">&lt;logall&gt;yes&lt;/logall&gt;
+&lt;logall_json&gt;yes&lt;/logall_json&gt;</pre>
+        </div>
+        <div class="ok">Confirmado en pruebas: si tras añadir <code class="inline">logall_json</code> el <code class="inline">tail</code> no muestra nada, el manager necesita reiniciarse para aplicar el cambio.</div>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Reiniciar el manager</div>
+            <button class="copy-btn" data-copy-target="cmd-6">Copiar</button>
+          </div>
+          <pre id="cmd-6">sudo systemctl restart wazuh-manager</pre>
+        </div>
+        <p>Buena practica: primero confirma que fluyen eventos en bruto sin filtrar, y solo despues añade el filtro:</p>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Seguir los archivos crudos</div>
+            <button class="copy-btn" data-copy-target="cmd-7">Copiar</button>
+          </div>
+          <pre id="cmd-7">sudo tail -f /var/ossec/logs/archives/archives.json
+# una vez confirmado que fluye:
+sudo tail -f /var/ossec/logs/archives/archives.json | grep -i "windows defender"</pre>
+        </div>
+        <div class="note">Un evento generado <em>antes</em> de activar <code class="inline">logall_json</code> nunca aparecera en <code class="inline">archives.json</code> &mdash; hay que generar uno nuevo con el <code class="inline">tail</code> ya abierto. Este archivo es un flujo totalmente independiente del de alertas: que una alerta ya llegue bien al Dashboard no implica que los archivos crudos esten activos.</div>
+      </section>
+
+      <section class="card" id="paso-3">
+        <h2>7. Generar la primera alerta: prueba EICAR</h2>
+        <p>El archivo EICAR es el estandar universal para probar antivirus (no es malware real, es una cadena de texto reconocida por firma):</p>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Crear el archivo de prueba</div>
+            <button class="copy-btn" data-copy-target="cmd-8">Copiar</button>
+          </div>
+          <pre id="cmd-8">$eicar = 'X5O!P%@AP[4\PZX54(P^)7CC)7}$EICAR-STANDARD-ANTIVIRUS-TEST-FILE!$H+H*'
+Set-Content -Path "C:\Users\$env:USERNAME\Downloads\eicar-test.com" -Value $eicar</pre>
+        </div>
+        <p>Si no salta, comprueba que la proteccion en tiempo real este activa:</p>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Comprobar el estado de Defender</div>
+            <button class="copy-btn" data-copy-target="cmd-9">Copiar</button>
+          </div>
+          <pre id="cmd-9">Get-MpComputerStatus | Select-Object AMRunningMode, RealTimeProtectionEnabled, AntivirusEnabled</pre>
+        </div>
+        <div class="ok">Confirmado en pruebas: la alerta llega como regla <strong>62123</strong> (nivel 12, "Antimalware platform detected potentially unwanted software"), aunque Defender clasifique internamente el EICAR como <code class="inline">Virus:DOS/EICAR_Test_File</code>. Es una particularidad del ruleset, no un error.</div>
+      </section>
+
+      <section class="card" id="paso-4">
+        <h2>8. Tabla de reglas relevantes</h2>
+        <table>
+          <thead><tr><th>Rule ID</th><th>Nivel</th><th>Que significa</th><th>Como dispararla en la demo</th></tr></thead>
+          <tbody>
+            <tr><td>62107</td><td>3</td><td>Inicio de un analisis (scan)</td><td><code class="inline">Start-MpScan -ScanType QuickScan</code></td></tr>
+            <tr><td>62113</td><td>14</td><td>Malware detectado</td><td>Mejor explicarla; no recomendado disparar malware real en directo</td></tr>
+            <tr><td>62123</td><td>12</td><td>Software potencialmente no deseado / deteccion generica (incluye EICAR)</td><td>Prueba EICAR de la seccion 7</td></tr>
+            <tr><td>62151</td><td>3</td><td>Proteccion en tiempo real activada</td><td><code class="inline">Set-MpPreference -DisableRealtimeMonitoring $false</code></td></tr>
+            <tr><td>62152</td><td>5</td><td>Proteccion en tiempo real desactivada</td><td><code class="inline">Set-MpPreference -DisableRealtimeMonitoring $true</code> (requiere Tamper Protection desactivado)</td></tr>
+          </tbody>
+        </table>
+        <div class="note">Los niveles 12 y 14 son los que en un SOC real dispararian notificacion inmediata; los niveles 3-5 son mas bien telemetria operativa.</div>
+      </section>
+
+      <section class="card" id="paso-5">
+        <h2>9. Despliegue centralizado desde el Wazuh Dashboard</h2>
+        <p>Con el montaje ya validado en un agente, el despliegue real a todo un grupo se hace asi, sin acceso por SSH al manager:</p>
+        <ol>
+          <li>Menu &rarr; <strong>Agents management &rarr; Groups</strong></li>
+          <li>Si el grupo no existe: <strong>Add new group</strong> &rarr; nombre <code class="inline">NOMBRE_GRUPO_WINDOWS</code></li>
+          <li>Selecciona el grupo &rarr; <strong>Manage agents</strong> &rarr; añade los agentes Windows &rarr; <strong>Apply changes</strong></li>
+          <li>Dentro del grupo, pestaña <strong>Files</strong> &rarr; <strong>Edit group configuration</strong></li>
+          <li>Pega el bloque XML y guarda</li>
+        </ol>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Contenido a pegar en la configuracion del grupo</div>
+            <button class="copy-btn" data-copy-target="cmd-10">Copiar</button>
+          </div>
+          <pre id="cmd-10">&lt;agent_config&gt;
+  &lt;localfile&gt;
+    &lt;location&gt;Microsoft-Windows-Windows Defender/Operational&lt;/location&gt;
+    &lt;log_format&gt;eventchannel&lt;/log_format&gt;
+  &lt;/localfile&gt;
+&lt;/agent_config&gt;</pre>
+        </div>
+        <div class="note">Trampa real y actual, confirmada en el tracker de Wazuh: si añades el atributo <code class="inline">os</code> para filtrar por sistema operativo, no uses sintaxis de expresion regular. <code class="inline">os="^Windows"</code> no funciona (el atributo es un simple substring match, no regex); <code class="inline">os="Windows"</code> si funciona. Si el grupo ya es exclusivamente Windows, lo mas simple es no poner el atributo en absoluto.</div>
+        <div class="note">Otra trampa a tener en cuenta: un XML mal formado en <code class="inline">agent.conf</code> bloquea la sincronizacion por completo y sin aviso &mdash; ni un solo agente del grupo recibe nada hasta que se corrija. Si algo no llega tras el despliegue, lo primero es descartar un error de sintaxis antes de sospechar de la conexion del agente.</div>
+      </section>
+
+      <section class="card" id="paso-6">
+        <h2>10. Verificar que se aplico la configuracion</h2>
+        <p>A diferencia del metodo manual (paso 5), aqui no hace falta reiniciar el servicio: el agente aplica la configuracion de grupo solo, en el siguiente keepalive (unos segundos). Tres formas de confirmarlo, de mas a menos directa:</p>
+        <h3>a) En el propio agente Windows</h3>
+        <p>Revisa que el bloque llego al archivo combinado que envia el manager:</p>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Comprobar merged.mg</div>
+            <button class="copy-btn" data-copy-target="cmd-11">Copiar</button>
+          </div>
+          <pre id="cmd-11">Get-Content "C:\Program Files (x86)\ossec-agent\shared\merged.mg" | Select-String "Defender"</pre>
+        </div>
+        <h3>b) En el log del propio agente</h3>
+        <p>Busca la confirmacion de que recargo por configuracion compartida:</p>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Revisar ossec.log del agente</div>
+            <button class="copy-btn" data-copy-target="cmd-12">Copiar</button>
+          </div>
+          <pre id="cmd-12">Get-Content "C:\Program Files (x86)\ossec-agent\ossec.log" -Tail 50 | Select-String "shared configuration"</pre>
+        </div>
+        <p>Deberias ver una linea similar a <code class="inline">Agent is reloading due to shared configuration changes</code>.</p>
+        <h3>c) Desde el manager, vía API (Dev Tools del propio Dashboard)</h3>
+        <p>Consulta el estado de sincronizacion del grupo para ese agente:</p>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Consulta en Dev Tools</div>
+            <button class="copy-btn" data-copy-target="cmd-13">Copiar</button>
+          </div>
+          <pre id="cmd-13">GET /agents?agents_list=ID_DEL_AGENTE&select=group_config_status</pre>
+        </div>
+        <div class="ok">Debería devolver <code class="inline">"group_config_status": "synced"</code>. Si sale <code class="inline">"not synced"</code>, espera unos segundos mas (depende del intervalo de keepalive) antes de sospechar de un problema real.</div>
+      </section>
+
+      <section class="card" id="paso-7">
+        <h2>11. Prueba EICAR tras el despliegue centralizado</h2>
+        <p>Repite la prueba de la seccion 7 en un agente que <strong>solo</strong> recibio la configuracion por el grupo, sin tocarla a mano. Si la alerta 62123 aparece igual que antes, el despliegue centralizado queda demostrado de extremo a extremo.</p>
+        <div class="note">Buen detalle para el video: revisa en la propia alerta el campo <code class="inline">agent.groups</code> (o el listado de grupos del agente en el Dashboard) para confirmar visualmente que la deteccion viene de un equipo que solo recibio la configuracion por el grupo.</div>
+      </section>
+
+      <section class="card" id="errores">
+        <h2>12. Errores comunes y como resolverlos</h2>
+        <table>
+          <thead>
+            <tr><th>Problema</th><th>Causa probable</th><th>Solucion</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>No llega ningun evento de Defender</td>
+              <td>Proteccion en tiempo real desactivada</td>
+              <td><code class="inline">Get-MpComputerStatus</code>, reactivar si hace falta</td>
+            </tr>
+            <tr>
+              <td>El canal existe pero no genera eventos</td>
+              <td>Canal <em>Operational</em> deshabilitado a nivel de Windows</td>
+              <td><code class="inline">Get-WinEvent -ListLog ...</code>, revisar <code class="inline">IsEnabled</code></td>
+            </tr>
+            <tr>
+              <td><code class="inline">archives.json</code> no muestra nada aunque <code class="inline">logall_json</code> este activado</td>
+              <td>Falta reiniciar el manager tras el cambio</td>
+              <td><code class="inline">sudo systemctl restart wazuh-manager</code></td>
+            </tr>
+            <tr>
+              <td>La config de grupo no se aplica a ningun agente</td>
+              <td>XML mal formado en <code class="inline">agent.conf</code> (bloquea toda la sincronizacion, sin error visible)</td>
+              <td>Revisar que el XML sea valido antes de nada mas</td>
+            </tr>
+            <tr>
+              <td>La config de grupo no se aplica solo en Windows</td>
+              <td>Atributo <code class="inline">os</code> con regex (<code class="inline">^Windows</code>)</td>
+              <td>Cambiar a substring simple (<code class="inline">os="Windows"</code>) o quitar el atributo</td>
+            </tr>
+            <tr>
+              <td>Los cmdlets de Defender fallan sin explicacion clara</td>
+              <td>Tamper Protection activo</td>
+              <td>Desactivar temporalmente en el equipo de pruebas</td>
+            </tr>
+            <tr>
+              <td><code class="inline">group_config_status</code> en "not synced" mucho rato</td>
+              <td>Intervalo de keepalive aun no ha pasado, o agente desconectado</td>
+              <td>Esperar un ciclo; comprobar el estado de conexion del agente</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section class="card" id="produccion">
+        <h2>13. Notas de ampliacion</h2>
+        <p>El montaje de esta guia cubre la deteccion basica y su despliegue a escala. Para un entorno mas completo se puede ampliar con:</p>
+        <ul>
+          <li><strong>Sysmon</strong> combinado con Defender: Defender dice <em>que</em> detecto, Sysmon dice <em>que proceso</em> lo trajo (proceso padre, linea de comandos, red).</li>
+          <li><strong>Active response</strong>: aislar el equipo de la red o notificar a Slack/email automaticamente cuando salte una regla de nivel &ge; 12.</li>
+          <li><strong>YARA</strong> como capa adicional, solo para detectar lo que Defender no ve (malware personalizado, hunting proactivo) &mdash; complementario, no sustituto.</li>
+          <li><strong>Visualizacion dedicada en el Dashboard</strong>: un panel filtrado por <code class="inline">rule.groups: windows_defender</code>, separado del resto de telemetria Windows.</li>
+        </ul>
+      </section>
+      <footer>
+        Guia tecnica para integrar Windows Defender con Wazuh SIEM mediante el agente nativo, con despliegue centralizado desde el Wazuh Dashboard.
+      </footer>
+    </div>
+  </div>
+</main>
+
+<script>
+  async function copyText(text, button) {
+    try {
+      await navigator.clipboard.writeText(text);
+      const original = button.textContent;
+      button.textContent = 'Copiado';
+      button.classList.add('copied');
+      setTimeout(() => {
+        button.textContent = original;
+        button.classList.remove('copied');
+      }, 1400);
+    } catch (err) {
+      alert('No se pudo copiar automaticamente.');
+    }
+  }
+
+  document.querySelectorAll('.copy-btn').forEach(button => {
+    button.addEventListener('click', () => {
+      const targetId = button.getAttribute('data-copy-target');
+      const target = document.getElementById(targetId);
+      if (!target) return;
+      copyText(target.innerText.trim(), button);
+    });
+  });
+</script>
+</body>
+</html>
