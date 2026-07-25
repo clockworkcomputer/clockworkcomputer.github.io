@@ -1,0 +1,886 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Monitorizacion con Zabbix: Docker + Agentes Ubuntu Server y Windows 11</title>
+  <link rel="icon" type="image/png" href="https://blogger.googleusercontent.com/img/a/AVvXsEjuquj9lFaN9zfg8H5FofNIUKAHWWRiOUbDhHragpU14TfF6RYKxb5w62mfAClxDkDrzCMAilRatibcoWFbuqMnXMBh30p_sfbxp4D2gUny70NbjyHLrs42VXeBB4Qtc8NovIS_DqIU5iq3dMMx1TuNZkW70MeW8Ryemwk_tDv6iKZi9ngKfaskUG1yCWo=s1600"/>
+  <style>
+    :root {
+      --bg: #060606;
+      --panel: #111111;
+      --panel-2: #1a1a1a;
+      --text: #f5f5f5;
+      --muted: #b9b9b9;
+      --accent: #ff7a00;
+      --accent-2: #ff9a3d;
+      --border: #2b2b2b;
+      --code: #050505;
+      --success: #24b36b;
+      --shadow: 0 12px 30px rgba(0,0,0,.35);
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+      background: linear-gradient(180deg, #050505 0%, #0a0a0a 100%);
+      color: var(--text);
+      line-height: 1.6;
+    }
+
+    .container {
+      width: min(1100px, calc(100% - 32px));
+      margin: 0 auto;
+    }
+
+    header {
+      padding: 48px 0 28px;
+      border-bottom: 1px solid rgba(255,255,255,.06);
+      background:
+        radial-gradient(circle at top right, rgba(255,122,0,.16), transparent 30%),
+        radial-gradient(circle at top left, rgba(255,154,61,.10), transparent 20%),
+        linear-gradient(180deg, #080808 0%, #101010 100%);
+      z-index: 20;
+    }
+
+    .header-inner {
+      display: flex;
+      gap: 18px;
+      align-items: flex-start;
+      justify-content: space-between;
+      flex-wrap: wrap;
+    }
+
+    .header-brand {
+      display: flex;
+      gap: 18px;
+      align-items: center;
+      flex: 1 1 720px;
+    }
+
+    .channel-logo {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 18px;
+      padding: 0;
+      overflow: hidden;
+      border: 1px solid rgba(255,255,255,.08);
+      box-shadow: var(--shadow);
+      background: rgba(255,255,255,.03);
+      flex: 0 0 auto;
+    }
+
+    .channel-logo img {
+      display: block;
+      width: 200px;
+      height: auto;
+      object-fit: contain;
+    }
+
+    h1 {
+      font-size: clamp(1.8rem, 3vw, 3rem);
+      margin: 0;
+      line-height: 1.15;
+      color: var(--accent);
+    }
+
+    .brand {
+      margin-top: 8px;
+      font-weight: 700;
+      letter-spacing: .4px;
+      color: var(--accent-2);
+    }
+
+    .subtitle {
+      color: var(--muted);
+      margin: 10px 0 0;
+      max-width: 850px;
+    }
+
+    main { padding: 28px 0 64px; }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 260px 1fr;
+      gap: 24px;
+      align-items: start;
+    }
+
+    .toc {
+      position: sticky;
+      top: 20px;
+      width: 260px;
+      background: rgba(17,17,17,.92);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 18px;
+      box-shadow: var(--shadow);
+      margin: 0;
+    }
+
+    .toc h2 {
+      margin: 0 0 12px;
+      font-size: 1rem;
+      color: var(--accent);
+    }
+
+    .toc a {
+      display: block;
+      color: var(--muted);
+      text-decoration: none;
+      padding: 8px 10px;
+      border-radius: 10px;
+      transition: background .15s ease, color .15s ease;
+      font-size: .95rem;
+    }
+
+    .toc a:hover {
+      color: var(--text);
+      background: rgba(255,122,0,.08);
+    }
+
+    .content {
+      display: grid;
+      gap: 18px;
+    }
+
+    .card {
+      background: linear-gradient(180deg, rgba(17,17,17,.97), rgba(12,12,12,.97));
+      border: 1px solid var(--border);
+      border-radius: 22px;
+      padding: 24px;
+      box-shadow: var(--shadow);
+    }
+
+    .card h2 {
+      margin-top: 0;
+      font-size: 1.5rem;
+      color: var(--accent);
+    }
+
+    .card h3 {
+      margin-bottom: 10px;
+      margin-top: 22px;
+      font-size: 1.08rem;
+      color: #ffd1a8;
+    }
+
+    .muted { color: var(--muted); }
+    ul, ol { margin-top: 10px; padding-left: 20px; }
+    li + li { margin-top: 6px; }
+
+    p, .note, .ok { text-align: justify; }
+
+    .note {
+      background: rgba(255,122,0,.08);
+      border: 1px solid rgba(255,122,0,.22);
+      border-radius: 14px;
+      padding: 14px 16px;
+      color: #ffe2c4;
+      margin-top: 14px;
+    }
+
+    .ok {
+      background: rgba(36,179,107,.10);
+      border: 1px solid rgba(36,179,107,.28);
+      border-radius: 14px;
+      padding: 14px 16px;
+      color: #d8ffe8;
+      margin-top: 14px;
+    }
+
+    .cmd {
+      margin-top: 14px;
+      border: 1px solid var(--border);
+      background: var(--code);
+      border-radius: 16px;
+      overflow: hidden;
+    }
+
+    .cmd-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 12px;
+      background: rgba(255,255,255,.03);
+      border-bottom: 1px solid rgba(255,255,255,.06);
+    }
+
+    .cmd-title {
+      font-size: .92rem;
+      color: var(--muted);
+      font-weight: 600;
+    }
+
+    .copy-btn {
+      border: 1px solid #6a3408;
+      background: linear-gradient(180deg, #ff7a00, #d76200);
+      color: #111;
+      border-radius: 10px;
+      padding: 8px 10px;
+      cursor: pointer;
+      font-size: .9rem;
+      font-weight: 800;
+      transition: .15s ease;
+    }
+
+    .copy-btn:hover { filter: brightness(1.06); }
+    .copy-btn.copied {
+      background: rgba(36,179,107,.18);
+      border-color: rgba(36,179,107,.45);
+      color: #d7ffe8;
+    }
+
+    pre {
+      margin: 0;
+      padding: 16px;
+      overflow-x: auto;
+      white-space: pre-wrap;
+      word-break: break-word;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      font-size: .94rem;
+      color: #ffbf85;
+    }
+
+    code.inline {
+      background: rgba(255,255,255,.06);
+      padding: 2px 8px;
+      border-radius: 8px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: .92em;
+      color: #ffd2aa;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 12px;
+      font-size: .95rem;
+    }
+
+    th, td {
+      border: 1px solid var(--border);
+      padding: 10px 12px;
+      text-align: left;
+      vertical-align: top;
+    }
+
+    th {
+      background: rgba(255,255,255,.04);
+      color: #ffd1a8;
+    }
+
+    footer {
+      margin-top: 24px;
+      color: var(--muted);
+      text-align: center;
+      font-size: .95rem;
+    }
+
+    @media (max-width: 920px) {
+      .layout { grid-template-columns: 1fr; }
+      .toc { position: static; width: 100%; }
+    }
+  </style>
+</head>
+<body>
+<header>
+  <div class="container header-inner">
+    <div class="header-brand">
+      <a class="channel-logo" href="https://www.youtube.com/c/ClockworkComputerIP" target="_blank" rel="noopener noreferrer" aria-label="Clockwork Computer">
+        <img src="https://blogger.googleusercontent.com/img/a/AVvXsEjuquj9lFaN9zfg8H5FofNIUKAHWWRiOUbDhHragpU14TfF6RYKxb5w62mfAClxDkDrzCMAilRatibcoWFbuqMnXMBh30p_sfbxp4D2gUny70NbjyHLrs42VXeBB4Qtc8NovIS_DqIU5iq3dMMx1TuNZkW70MeW8Ryemwk_tDv6iKZi9ngKfaskUG1yCWo=s1600" alt="Clockwork Computer"/>
+      </a>
+      <div>
+        <h1>Monitorizacion con Zabbix: Docker + Agentes Ubuntu Server y Windows 11</h1>
+        <div class="brand">Servidor Zabbix en contenedores + agentes nativos en tres endpoints reales</div>
+        <p class="subtitle">Guia tecnica para levantar el stack de Zabbix (server, frontend y base de datos) con Docker Compose, e instalar el agente Zabbix nativo en el propio host Docker, en un Ubuntu Server y en un Windows 11, dando de alta cada equipo en el frontend justo despues de instalarlo.</p>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main>
+  <div class="container layout">
+    <aside class="toc">
+      <h2>Contenido</h2>
+      <a href="#introduccion">1. Introduccion</a>
+      <a href="#variables">2. Variables de esta guia</a>
+      <a href="#arquitectura">3. Arquitectura y flujo</a>
+      <a href="#requisitos">4. Requisitos</a>
+      <a href="#paso-1">5. Levantar el stack de Zabbix con Docker</a>
+      <a href="#paso-2">6. Primer acceso al frontend</a>
+      <a href="#paso-3">7. Agente en Ubuntu Server</a>
+      <a href="#paso-host-ubuntu">8. Añadir el host de Ubuntu Server</a>
+      <a href="#paso-agente-docker">9. Agente en el propio host Docker</a>
+      <a href="#paso-host-docker">10. Añadir el host del servidor Docker</a>
+      <a href="#paso-5">11. Agente en Windows 11</a>
+      <a href="#paso-host-windows">12. Añadir el host de Windows 11</a>
+      <a href="#paso-8">13. Verificar que llegan datos</a>
+      <a href="#puertos">14. Tabla de puertos y componentes</a>
+      <a href="#errores">15. Errores comunes</a>
+      <a href="#produccion">16. Notas de ampliacion</a>
+    </aside>
+
+    <div class="content">
+      <section class="card" id="introduccion">
+        <h2>1. Introduccion</h2>
+        <p>Esta guia monta un entorno de monitorizacion con <strong>Zabbix</strong> en el que el servidor (server + frontend + base de datos) corre en <strong>Docker</strong>, mientras que los tres equipos a monitorizar &mdash; el propio <strong>host Docker</strong>, un <strong>Ubuntu Server</strong> y un <strong>Windows 11</strong> &mdash; llevan el agente Zabbix instalado de forma nativa, tal y como se haria en un entorno real. No todo va dentro de contenedores: el objetivo es replicar el patron mas habitual en produccion, donde el servidor de monitorizacion es una pieza centralizada y los agentes viven en cada endpoint, incluido el propio servidor que aloja Zabbix.</p>
+        <div class="note">El valor añadido de esta guia no esta solo en levantar Zabbix, sino en los puntos que mas dudas generan en la practica: que las imagenes oficiales de Docker configuran la base de datos <strong>solo mediante variables de entorno</strong> (no hay wizard de configuracion en el primer acceso), que MySQL 8 necesita un ajuste concreto para importar el esquema de Zabbix sin errores, y que agente y servidor se comunican en <strong>dos direcciones distintas</strong> (checks activos y pasivos) que usan puertos y sentidos de conexion diferentes. Cada agente se instala y se da de alta en el frontend justo despues, uno a uno, en vez de dejar el alta de los hosts para el final.</div>
+      </section>
+
+      <section class="card" id="variables">
+        <h2>2. Variables de esta guia</h2>
+        <p>Todos los bloques de configuracion usan los siguientes marcadores en <strong>MAYUSCULAS</strong>. Sustituyelos por los valores reales del entorno donde se aplique esta guia.</p>
+        <table>
+          <thead>
+            <tr><th>Marcador</th><th>Que es</th><th>Donde se obtiene</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><code class="inline">IP_HOST_DOCKER</code></td><td>IP del host Linux donde corre el stack de Zabbix con Docker</td><td>La interfaz de red de ese host</td></tr>
+            <tr><td><code class="inline">MYSQL_PASSWORD</code></td><td>Contraseña del usuario <code class="inline">zabbix</code> en la base de datos</td><td>Se define en <code class="inline">/docker/zabbix/.env</code>, no en el <code class="inline">docker-compose.yml</code> (paso 5)</td></tr>
+            <tr><td><code class="inline">MYSQL_ROOT_PASSWORD</code></td><td>Contraseña root de MySQL dentro del contenedor</td><td>Se define en <code class="inline">/docker/zabbix/.env</code>, no en el <code class="inline">docker-compose.yml</code> (paso 5)</td></tr>
+            <tr><td><code class="inline">HOSTNAME_DOCKER</code></td><td>Nombre con el que el propio host Docker se identifica ante Zabbix como agente</td><td>Lo defines tu; debe coincidir exacto en agente y frontend</td></tr>
+            <tr><td><code class="inline">IP_AGENTE_UBUNTU</code></td><td>IP del Ubuntu Server donde se instala el agente</td><td><code class="inline">ip a</code> en ese equipo</td></tr>
+            <tr><td><code class="inline">HOSTNAME_UBUNTU</code></td><td>Nombre con el que ese agente se identifica ante Zabbix</td><td>Lo defines tu; debe coincidir exacto en agente y frontend</td></tr>
+            <tr><td><code class="inline">IP_AGENTE_WINDOWS</code></td><td>IP del equipo Windows 11 donde se instala el agente</td><td><code class="inline">ipconfig</code> en ese equipo</td></tr>
+            <tr><td><code class="inline">HOSTNAME_WINDOWS</code></td><td>Nombre con el que ese agente se identifica ante Zabbix</td><td>Lo defines tu; debe coincidir exacto en agente y frontend</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section class="card" id="arquitectura">
+        <h2>3. Arquitectura y flujo</h2>
+        <p>Zabbix soporta dos formas de recoger datos, y no son intercambiables sin mas: cambia quien inicia la conexion. Esta guia usa <strong>checks activos</strong> como modelo principal (es el que se sigue en el resto de los pasos), porque es el habitual en este canal: el firewall solo se abre en el servidor, nunca en el endpoint.</p>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Modelo usado en esta guia: checks ACTIVOS</div>
+            <button class="copy-btn" data-copy-target="cmd-arch">Copiar</button>
+          </div>
+          <pre id="cmd-arch">[HOST DOCKER]      [UBUNTU SERVER]      [WINDOWS 11]
+  zabbix-agent2      zabbix-agent2        Zabbix Agent 2
+  sin puertos        sin puertos          sin puertos
+  en escucha         en escucha           en escucha
+        |                  |                    |
+        |     los AGENTES se conectan al server  |
+        |     (saliente, sin abrir nada aqui)    |
+        +------------------+--------------------+
+                           |
+                           v
+              [ZABBIX SERVER - Docker]   IP_HOST_DOCKER
+                puerto 10051 (unico puerto que hay que abrir)
+                           |
+                           v
+              [ZABBIX DB - MySQL, Docker]
+                           |
+                           v
+              [ZABBIX WEB - Nginx, Docker]
+                puerto 8080 -> frontend</pre>
+        </div>
+        <div class="note">Alternativa (no es la que sigue esta guia, pero conviene conocerla): en modo <strong>pasivo</strong> es el <em>server</em> quien inicia la conexion contra el puerto 10050 de cada agente. Eso obliga a abrir el firewall en cada endpoint monitorizado, aunque a cambio permite que el server (o una herramienta como <code class="inline">zabbix_get</code>) consulte un valor bajo demanda en cualquier momento, sin esperar al siguiente ciclo del agente.</div>
+        <table>
+          <thead><tr><th></th><th>Checks ACTIVOS (esta guia)</th><th>Checks PASIVOS (alternativa)</th></tr></thead>
+          <tbody>
+            <tr><td>Quien inicia la conexion</td><td>El agente, hacia el server</td><td>El server, hacia el agente</td></tr>
+            <tr><td>Puerto a abrir</td><td>Solo 10051 en el server</td><td>10050 en cada agente</td></tr>
+            <tr><td>Superficie de firewall en los endpoints</td><td>Ninguna</td><td>Un puerto por endpoint</td></tr>
+            <tr><td>Consulta bajo demanda (<code class="inline">zabbix_get</code>)</td><td>No, hay que esperar al ciclo del agente</td><td>Si, inmediata</td></tr>
+            <tr><td>Plantilla a usar en el host</td><td><code class="inline">... by Zabbix agent active</code></td><td><code class="inline">... by Zabbix agent</code> (sin "active")</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section class="card" id="requisitos">
+        <h2>4. Requisitos</h2>
+        <ul>
+          <li>Un host Linux con <strong>Docker Engine</strong> y el plugin <strong>Docker Compose</strong> (<code class="inline">docker compose</code>, sin guion) ya instalados. Este mismo host tambien va a llevar un agente Zabbix nativo, como un endpoint mas.</li>
+          <li>El <strong>Ubuntu Server</strong> a monitorizar, con acceso <code class="inline">sudo</code>.</li>
+          <li>El equipo <strong>Windows 11</strong> a monitorizar, con acceso administrador (PowerShell como administrador).</li>
+          <li>Conectividad de red: con el modelo de checks activos que sigue esta guia, basta con que Ubuntu Server y Windows 11 puedan alcanzar el puerto 10051 del host Docker (conexion saliente desde cada agente); el propio host Docker habla consigo mismo por <code class="inline">127.0.0.1</code>, sin salir a la red.</li>
+        </ul>
+        <div class="note">Esta guia usa <strong>Zabbix 7.0 LTS</strong> en las cuatro piezas (server, frontend y los tres agentes). Usar la misma rama LTS en servidor y agentes evita incompatibilidades de protocolo; si mas adelante actualizas el server a otra rama, actualiza los agentes en el mismo orden.</div>
+      </section>
+
+      <section class="card" id="paso-1">
+        <h2>5. Levantar el stack de Zabbix con Docker</h2>
+        <p>Seguimos la misma organizacion de siempre: cada stack vive en su propia carpeta dentro de <code class="inline">/docker</code>, y las contraseñas van en un <code class="inline">.env</code> aparte, nunca escritas dentro del <code class="inline">docker-compose.yml</code>.</p>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Crear la carpeta del stack</div>
+            <button class="copy-btn" data-copy-target="cmd-1">Copiar</button>
+          </div>
+          <pre id="cmd-1">sudo mkdir -p /docker/zabbix && cd /docker/zabbix
+sudo nano .env</pre>
+        </div>
+        <p>Contenido del <code class="inline">.env</code>. Al ser una maquina virtual de pruebas para la clase, dejamos estas contraseñas tal cual (en un entorno real, cambialas):</p>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">.env</div>
+            <button class="copy-btn" data-copy-target="cmd-2">Copiar</button>
+          </div>
+          <pre id="cmd-2">MYSQL_DATABASE=zabbix
+MYSQL_USER=zabbix
+MYSQL_PASSWORD=zabbix_pwd
+MYSQL_ROOT_PASSWORD=zabbix_root_pwd</pre>
+        </div>
+        <div class="note">Buena costumbre aunque sea una VM de pruebas: <code class="inline">sudo chmod 600 .env</code> para que solo root pueda leer el archivo de contraseñas.</div>
+        <p>Ahora el archivo del stack, en la misma carpeta:</p>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Crear docker-compose.yml</div>
+            <button class="copy-btn" data-copy-target="cmd-2b">Copiar</button>
+          </div>
+          <pre id="cmd-2b">sudo nano docker-compose.yml</pre>
+        </div>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">docker-compose.yml</div>
+            <button class="copy-btn" data-copy-target="cmd-2c">Copiar</button>
+          </div>
+          <pre id="cmd-2c">services:
+  zabbix-db:
+    image: mysql:8.0
+    container_name: zabbix-mysql
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_bin
+      - --log-bin-trust-function-creators=1
+    environment:
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+    volumes:
+      - zabbix-db-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u root -p\"$$MYSQL_ROOT_PASSWORD\" --silent"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 40s
+    restart: unless-stopped
+
+  zabbix-server:
+    image: zabbix/zabbix-server-mysql:alpine-7.0-latest
+    container_name: zabbix-server
+    environment:
+      DB_SERVER_HOST: zabbix-db
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    ports:
+      - "10051:10051"
+    depends_on:
+      zabbix-db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  zabbix-web:
+    image: zabbix/zabbix-web-nginx-mysql:alpine-7.0-latest
+    container_name: zabbix-web
+    environment:
+      DB_SERVER_HOST: zabbix-db
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      ZBX_SERVER_HOST: zabbix-server
+      PHP_TZ: Europe/Madrid
+    ports:
+      - "8080:8080"
+    depends_on:
+      zabbix-db:
+        condition: service_healthy
+      zabbix-server:
+        condition: service_started
+    restart: unless-stopped
+
+volumes:
+  zabbix-db-data:</pre>
+        </div>
+        <p>Levanta el stack desde <code class="inline">/docker/zabbix</code>:</p>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Arrancar los contenedores</div>
+            <button class="copy-btn" data-copy-target="cmd-3">Copiar</button>
+          </div>
+          <pre id="cmd-3">cd /docker/zabbix
+docker compose up -d
+watch docker compose ps</pre>
+        </div>
+        <div class="note">Docker Compose carga el <code class="inline">.env</code> automaticamente si esta en la misma carpeta que el <code class="inline">docker-compose.yml</code> &mdash; no hace falta indicarlo aparte. Las tres variables <code class="inline">MYSQL_*</code> se rellenan igual en <code class="inline">zabbix-db</code>, <code class="inline">zabbix-server</code> y <code class="inline">zabbix-web</code> porque los tres leen del mismo <code class="inline">.env</code>; si algun contenedor no arranca bien, lo primero es comprobar que el <code class="inline">.env</code> esta realmente en <code class="inline">/docker/zabbix</code> y no en otra carpeta.</div>
+        <div class="note">El <code class="inline">healthcheck</code> de <code class="inline">zabbix-db</code> evita que <code class="inline">zabbix-server</code> conecte antes de que MySQL este listo, pero hay una segunda trampa, mas importante, en el primer arranque: MySQL 8 trae el <em>binary logging</em> activado por defecto, y el esquema de Zabbix necesita crear varias funciones y triggers que requieren privilegio <code class="inline">SUPER</code> para saltarse esa restriccion. Sin el flag <code class="inline">--log-bin-trust-function-creators=1</code> del comando de arriba, la importacion del esquema falla a mitad (creando <code class="inline">dbversion</code> pero no <code class="inline">users</code>, por ejemplo) con un error del tipo <code class="inline">ERROR 1419: You do not have the SUPER privilege and binary logging is enabled</code> que queda oculto porque el contenedor se reinicia solo tras el fallo. En el segundo intento, <code class="inline">zabbix-server</code> ve que la base "ya existe" y no vuelve a intentar importarla, quedando en bucle con el error de <code class="inline">"users" table is empty</code> para siempre. Con el flag incluido desde el primer arranque, esto no deberia pasar.</div>
+      </section>
+
+      <section class="card" id="paso-2">
+        <h2>6. Primer acceso al frontend y verificacion del stack</h2>
+        <p>Gracias al <code class="inline">healthcheck</code> del paso anterior, <code class="inline">zabbix-server</code> no arranca hasta que <code class="inline">zabbix-mysql</code> esta realmente listo. Comprueba el orden con:</p>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Ver el estado de los tres contenedores</div>
+            <button class="copy-btn" data-copy-target="cmd-4b">Copiar</button>
+          </div>
+          <pre id="cmd-4b">docker compose ps</pre>
+        </div>
+        <p><code class="inline">zabbix-mysql</code> debe mostrar <strong>(healthy)</strong> en la columna STATUS antes de que <code class="inline">zabbix-server</code> pase a <strong>Up</strong>. Ahora si, sigue el log del servidor:</p>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Seguir el log del servidor</div>
+            <button class="copy-btn" data-copy-target="cmd-4">Copiar</button>
+          </div>
+          <pre id="cmd-4">docker logs -f zabbix-server</pre>
+        </div>
+        <p>Busca una linea similar a <code class="inline">Starting Zabbix Server. Zabbix 7.0.x (revision ...)</code> seguida de <code class="inline">server #0 started [main process]</code>, sin ningun error de <code class="inline">"users" table is empty</code> por el camino. Sal con <code class="inline">Ctrl+C</code> y entra en el frontend:</p>
+        <div class="note">Tras el arranque veras decenas de lineas <code class="inline">server #N started [...]</code> (pollers, discoverers, history pollers...) y despues, normalmente, un puñado de avisos sobre el host interno "Zabbix server" (el que usa Zabbix para monitorizarse a si mismo): cosas como <code class="inline">item "...snmp trapper..." became not supported</code> o <code class="inline">Zabbix agent item "system.swap.size[,free]" ... failed: first network error</code>. Son normales por ahora: los procesos opcionales (SNMP trapper, VMware collector, report writer...) no arrancan por defecto, y ese host interno todavia no tiene un agente detras &mdash; eso lo resolvemos en los pasos 7 y 8.</div>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">URL del frontend</div>
+            <button class="copy-btn" data-copy-target="cmd-5">Copiar</button>
+          </div>
+          <pre id="cmd-5">http://IP_HOST_DOCKER:8080</pre>
+        </div>
+        <div class="ok">A diferencia de una instalacion manual desde paquetes, aqui <strong>no aparece el asistente de configuracion de base de datos</strong>: las imagenes oficiales de Docker ya la configuran solas a partir de las variables de entorno del <code class="inline">docker-compose.yml</code>. Deberia ir directo a la pantalla de login.</div>
+        <p>Credenciales por defecto en una instalacion nueva:</p>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Login inicial</div>
+            <button class="copy-btn" data-copy-target="cmd-6">Copiar</button>
+          </div>
+          <pre id="cmd-6">Usuario: Admin
+Contraseña: zabbix</pre>
+        </div>
+        <div class="note">Cambia la contraseña de <code class="inline">Admin</code> nada mas entrar (icono de usuario, arriba a la derecha &rarr; <strong>Profile</strong>), sobre todo si el puerto 8080 va a quedar accesible mas alla de tu red local de pruebas.</div>
+        <div class="note">Red de seguridad para el video: si por cualquier motivo el log de <code class="inline">zabbix-server</code> muestra un error de base de datos incompleta, no hace falta diagnosticar nada a fondo en directo. Un reinicio limpio soluciona un primer arranque fallido en segundos: <code class="inline">docker compose down -v</code> seguido de <code class="inline">docker compose up -d</code> vuelve a crear la base de datos desde cero.</div>
+      </section>
+
+      <section class="card" id="paso-3">
+        <h2>7. Instalar el agente en Ubuntu Server</h2>
+        <p>En el Ubuntu Server a monitorizar (no en el host Docker), añade el repositorio oficial de Zabbix. Ejemplo para Ubuntu 26.04 (Resolute) con Zabbix 7.0 &mdash; comprueba el nombre exacto del <code class="inline">.deb</code> en <a href="https://www.zabbix.com/download" target="_blank" rel="noopener noreferrer">zabbix.com/download</a> si tu version difiere:</p>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Añadir el repositorio e instalar el agente</div>
+            <button class="copy-btn" data-copy-target="cmd-7">Copiar</button>
+          </div>
+          <pre id="cmd-7">wget https://repo.zabbix.com/zabbix/7.0/ubuntu/pool/main/z/zabbix-release/zabbix-release_latest_7.0+ubuntu26.04_all.deb
+sudo dpkg -i zabbix-release_latest_7.0+ubuntu26.04_all.deb
+sudo apt update
+sudo apt install zabbix-agent2 -y</pre>
+        </div>
+        <p>Edita la configuracion del agente:</p>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Editar zabbix_agent2.conf</div>
+            <button class="copy-btn" data-copy-target="cmd-8">Copiar</button>
+          </div>
+          <pre id="cmd-8">sudo nano /etc/zabbix/zabbix_agent2.conf</pre>
+        </div>
+        <p>Busca y ajusta estas tres lineas (quita el <code class="inline">#</code> si estan comentadas):</p>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Valores a cambiar</div>
+            <button class="copy-btn" data-copy-target="cmd-9">Copiar</button>
+          </div>
+          <pre id="cmd-9">Server=IP_HOST_DOCKER
+ServerActive=IP_HOST_DOCKER
+Hostname=HOSTNAME_UBUNTU</pre>
+        </div>
+        <p>Reinicia el servicio para aplicar el cambio:</p>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Reiniciar el agente</div>
+            <button class="copy-btn" data-copy-target="cmd-10">Copiar</button>
+          </div>
+          <pre id="cmd-10">sudo systemctl restart zabbix-agent2
+sudo systemctl enable zabbix-agent2
+sudo systemctl status zabbix-agent2</pre>
+        </div>
+        <div class="note">Al trabajar con checks activos no hace falta abrir ningun puerto en este Ubuntu Server: el agente es quien sale hacia <code class="inline">IP_HOST_DOCKER:10051</code>, no al reves. Lo unico que debe estar abierto es el puerto 10051 en el host Docker (ya expuesto en el <code class="inline">docker-compose.yml</code> del paso 5). Si en tu caso prefieres el modelo pasivo (ver seccion 3), entonces si tocaria <code class="inline">sudo ufw allow 10050/tcp</code> aqui.</div>
+        <p>Confirma que el proceso esta activo y que consigue conectar de salida al server:</p>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Comprobar proceso, conectividad y log</div>
+            <button class="copy-btn" data-copy-target="cmd-12">Copiar</button>
+          </div>
+          <pre id="cmd-12">systemctl is-active zabbix-agent2
+nc -zv IP_HOST_DOCKER 10051
+sudo tail -f /var/log/zabbix/zabbix_agent2.log</pre>
+        </div>
+        <div class="note">Es normal ver mensajes tipo <code class="inline">no active checks on server</code> o <code class="inline">empty list of active checks</code> en este punto: el agente ya intenta hablar con el server, pero el host todavia no existe en el frontend (eso se hace en el siguiente paso). No es un error, es el orden logico de la configuracion.</div>
+        <div class="note"><code class="inline">Hostname</code> distingue mayusculas de minusculas y debe coincidir letra por letra con el <strong>Host name</strong> que le pongas despues en el frontend (paso 8). Es la causa numero uno de que un host "no se vincule" aunque el agente este activo y conectado.</div>
+      </section>
+
+      <section class="card" id="paso-host-ubuntu">
+        <h2>8. Añadir el host de Ubuntu Server en el frontend</h2>
+        <p>En el frontend: <code class="inline">Data collection &rarr; Hosts &rarr; Create host</code>.</p>
+        <ul>
+          <li><strong>Host name:</strong> <code class="inline">HOSTNAME_UBUNTU</code> (identico al <code class="inline">Hostname</code> del paso 7)</li>
+          <li><strong>Host groups:</strong> crea o selecciona un grupo, por ejemplo <code class="inline">Linux servers</code></li>
+          <li><strong>Interfaces:</strong> con checks activos no es obligatorio añadir una interfaz Agent; puedes dejarlo sin interfaces</li>
+          <li><strong>Templates:</strong> <code class="inline">Linux by Zabbix agent active</code></li>
+        </ul>
+        <div class="note">Ojo con el nombre de la plantilla: existe una version con "active" al final y otra sin ella. Si asignas por error <code class="inline">Linux by Zabbix agent</code> (sin "active"), sus items apareceran como "Not supported" porque esa plantilla espera que el server pueda conectar al agente por el puerto 10050, cosa que en este montaje no ocurre.</div>
+        <div class="note">No hace falta reiniciar el agente tras esto. En cuanto guardas el host, en <code class="inline">Monitoring &rarr; Latest data</code> deberian empezar a aparecer valores en el siguiente ciclo de checks activos (por defecto cada 1-2 minutos). Con checks activos el icono <strong>ZBX</strong> del listado de <code class="inline">Hosts</code> no aplica del mismo modo que en pasivo: la señal real de que funciona es que lleguen datos, no ese icono.</div>
+      </section>
+
+      <section class="card" id="paso-agente-docker">
+        <h2>9. Instalar el agente en el propio host Docker</h2>
+        <p>Antes de pasar a los otros dos equipos, aprovechamos para monitorizar tambien la maquina que aloja el stack de Zabbix. Desde el punto de vista del agente es un Ubuntu como cualquier otro; la unica diferencia es que el server esta en la misma maquina, no al otro lado de la red.</p>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Añadir el repositorio e instalar el agente</div>
+            <button class="copy-btn" data-copy-target="cmd-d1">Copiar</button>
+          </div>
+          <pre id="cmd-d1">wget https://repo.zabbix.com/zabbix/7.0/ubuntu/pool/main/z/zabbix-release/zabbix-release_latest_7.0+ubuntu26.04_all.deb
+sudo dpkg -i zabbix-release_latest_7.0+ubuntu26.04_all.deb
+sudo apt update
+sudo apt install zabbix-agent2 -y</pre>
+        </div>
+        <p>Edita la configuracion del agente:</p>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Editar zabbix_agent2.conf</div>
+            <button class="copy-btn" data-copy-target="cmd-d2">Copiar</button>
+          </div>
+          <pre id="cmd-d2">sudo nano /etc/zabbix/zabbix_agent2.conf</pre>
+        </div>
+        <p>Busca y ajusta estas tres lineas. Ojo: aqui <code class="inline">Server</code> y <code class="inline">ServerActive</code> apuntan a <code class="inline">127.0.0.1</code>, no a la IP de red &mdash; agente y server viven en la misma maquina, no hace falta salir por la tarjeta de red para hablar con uno mismo:</p>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Valores a cambiar</div>
+            <button class="copy-btn" data-copy-target="cmd-d3">Copiar</button>
+          </div>
+          <pre id="cmd-d3">Server=127.0.0.1
+ServerActive=127.0.0.1
+Hostname=HOSTNAME_DOCKER</pre>
+        </div>
+        <p>Reinicia el servicio y comprueba que arranco:</p>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Reiniciar y verificar el agente</div>
+            <button class="copy-btn" data-copy-target="cmd-d4">Copiar</button>
+          </div>
+          <pre id="cmd-d4">sudo systemctl restart zabbix-agent2
+sudo systemctl enable zabbix-agent2
+systemctl is-active zabbix-agent2</pre>
+        </div>
+        <p>Y que consigue conectar de salida al server (que en este caso tambien es <code class="inline">127.0.0.1</code>, en el puerto donde <code class="inline">docker-compose.yml</code> publica <code class="inline">zabbix-server</code>):</p>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Comprobar conectividad y log</div>
+            <button class="copy-btn" data-copy-target="cmd-d5">Copiar</button>
+          </div>
+          <pre id="cmd-d5">nc -zv 127.0.0.1 10051
+sudo tail -f /var/log/zabbix/zabbix_agent2.log</pre>
+        </div>
+        <div class="note"><code class="inline">Hostname</code> distingue mayusculas de minusculas y debe coincidir letra por letra con el <strong>Host name</strong> que le pongas despues en el frontend (paso 10). Es la causa numero uno de que un host "no se vincule" aunque el agente este activo y conectado.</div>
+      </section>
+
+      <section class="card" id="paso-host-docker">
+        <h2>10. Añadir el host del servidor Docker en el frontend</h2>
+        <p>Zabbix trae de fabrica un host de demostracion llamado exactamente <strong>Zabbix server</strong>, pensado justo para este caso: monitorizar la propia instalacion con un agente local. En vez de crear un host nuevo, lo aprovechamos &mdash; pero trae dos cosas mal configuradas de fabrica para un montaje con Docker, y hay que corregirlas.</p>
+        <ul>
+          <li>Ve a <code class="inline">Data collection &rarr; Hosts &rarr; Zabbix server</code></li>
+          <li>Pestaña <strong>Host</strong>: en <strong>Interfaces</strong> hay una interfaz Agent apuntando a <code class="inline">127.0.0.1:10050</code>. Quitala (<strong>Remove</strong>). Con checks activos no hace falta, y ademas es incorrecta: ese <code class="inline">127.0.0.1</code> es el del <em>contenedor</em> <code class="inline">zabbix-server</code>, no el de la maquina fisica &mdash; son namespaces de red distintos, nunca van a poder hablarse por ahi.</li>
+          <li>Pestaña <strong>Templates</strong>: quita (<strong>Unlink</strong>) la plantilla <code class="inline">Linux by Zabbix agent</code> (pasiva) y añade <code class="inline">Linux by Zabbix agent active</code> en su lugar. Deja <code class="inline">Zabbix server health</code> tal cual, esa usa checks internos y no depende de ningun agente.</li>
+          <li><strong>Host name:</strong> debe quedar identico al <code class="inline">Hostname</code> que pusiste en el agente (paso 9). Si prefieres otro nombre, cambia uno de los dos lados para que coincidan.</li>
+        </ul>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Resumen de la configuracion final del host</div>
+            <button class="copy-btn" data-copy-target="cmd-d6">Copiar</button>
+          </div>
+          <pre id="cmd-d6">Host name: HOSTNAME_DOCKER
+Templates: Zabbix server health + Linux by Zabbix agent active
+Interfaces: ninguna (no hace falta con checks activos)</pre>
+        </div>
+        <div class="ok">Tras darle a <strong>Update</strong>, en unos minutos deberia desaparecer el problema <code class="inline">Linux: Zabbix agent is not available</code> del dashboard y empezar a llegar metricas de este host en <code class="inline">Monitoring &rarr; Latest data</code>.</div>
+        <div class="note">Si prefieres no tocar el host de demostracion, la alternativa es crear uno nuevo con <strong>Create host</strong>: <code class="inline">Host name: HOSTNAME_DOCKER</code>, plantilla <code class="inline">Linux by Zabbix agent active</code>, sin interfaces. Funciona exactamente igual; es solo cuestion de si prefieres reciclar el host de fabrica o partir de uno limpio.</div>
+      </section>
+
+      <section class="card" id="paso-5">
+        <h2>11. Instalar el agente en Windows 11</h2>
+        <p>Descarga el instalador MSI de Zabbix Agent 2, version 7.0.x (misma rama LTS que el server), desde <a href="https://www.zabbix.com/download_agents" target="_blank" rel="noopener noreferrer">zabbix.com/download_agents</a>. Puedes descargarlo directamente por PowerShell (revisa en la pagina de descargas cual es el numero de patch actual antes de lanzarlo):</p>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Descargar el instalador</div>
+            <button class="copy-btn" data-copy-target="cmd-14">Copiar</button>
+          </div>
+          <pre id="cmd-14">$msiUrl = "https://cdn.zabbix.com/zabbix/binaries/stable/7.0/7.0.19/zabbix_agent2-7.0.19-windows-amd64-openssl.msi"
+Invoke-WebRequest -Uri $msiUrl -OutFile "C:\Users\$env:USERNAME\Downloads\zabbix_agent2.msi"</pre>
+        </div>
+        <p>Instala en modo silencioso desde PowerShell <strong>como administrador</strong>, pasando ya la configuracion:</p>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Instalacion silenciosa</div>
+            <button class="copy-btn" data-copy-target="cmd-15">Copiar</button>
+          </div>
+          <pre id="cmd-15">msiexec /i "C:\Users\$env:USERNAME\Downloads\zabbix_agent2.msi" `
+  SERVER=IP_HOST_DOCKER `
+  SERVERACTIVE=IP_HOST_DOCKER `
+  HOSTNAME=HOSTNAME_WINDOWS `
+  ENABLEPATH=1 `
+  SKIP=fw `
+  /qn /norestart /l*v C:\Users\$env:USERNAME\Downloads\zabbix_install.log</pre>
+        </div>
+        <div class="note">Usamos <code class="inline">SKIP=fw</code> a proposito: como este equipo solo hace checks activos (sale hacia el server, nadie entra), no necesita ninguna regla de entrada en el puerto 10050. Si en tu caso trabajas con el modelo pasivo (seccion 3), quita ese parametro para que el instalador cree la regla de firewall automaticamente.</div>
+        <p>Comprueba que el servicio se registro y esta en marcha:</p>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Estado del servicio</div>
+            <button class="copy-btn" data-copy-target="cmd-16">Copiar</button>
+          </div>
+          <pre id="cmd-16">Get-Service -Name "Zabbix Agent 2"</pre>
+        </div>
+        <p>Comprueba que llega al puerto del server (checks activos):</p>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Probar conectividad hacia el server</div>
+            <button class="copy-btn" data-copy-target="cmd-17">Copiar</button>
+          </div>
+          <pre id="cmd-17">Test-NetConnection -ComputerName IP_HOST_DOCKER -Port 10051</pre>
+        </div>
+        <p>Y sigue el log del agente:</p>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Log del agente en Windows</div>
+            <button class="copy-btn" data-copy-target="cmd-18">Copiar</button>
+          </div>
+          <pre id="cmd-18">Get-Content "C:\Program Files\Zabbix Agent 2\zabbix_agent2.log" -Tail 50 -Wait</pre>
+        </div>
+        <div class="ok"><code class="inline">TcpTestSucceeded : True</code> en el paso anterior confirma que la red entre el Windows y el host Docker esta bien; el resto (que aparezca como monitorizado) depende de dar de alta el host en el frontend, en el siguiente paso.</div>
+      </section>
+
+      <section class="card" id="paso-host-windows">
+        <h2>12. Añadir el host de Windows 11 en el frontend</h2>
+        <p>Igual que con Ubuntu Server: <code class="inline">Data collection &rarr; Hosts &rarr; Create host</code>.</p>
+        <ul>
+          <li><strong>Host name:</strong> <code class="inline">HOSTNAME_WINDOWS</code> (identico al <code class="inline">HOSTNAME</code> del paso 11)</li>
+          <li><strong>Host groups:</strong> crea o selecciona un grupo, por ejemplo <code class="inline">Windows servers</code></li>
+          <li><strong>Interfaces:</strong> igual que en Linux, no hace falta interfaz Agent para checks activos</li>
+          <li><strong>Templates:</strong> <code class="inline">Windows by Zabbix agent active</code></li>
+        </ul>
+        <div class="note">No hace falta reiniciar el agente tras esto. En cuanto guardas el host, en <code class="inline">Monitoring &rarr; Latest data</code> deberian empezar a aparecer valores en el siguiente ciclo de checks activos.</div>
+      </section>
+
+      <section class="card" id="paso-8">
+        <h2>13. Verificar que llegan datos</h2>
+        <p>Ve a <code class="inline">Monitoring &rarr; Latest data</code>, filtra por cada uno de los tres hosts (host Docker, Ubuntu Server y Windows 11) y comprueba que aparecen metricas con valores y marca de tiempo reciente: uso de CPU, memoria disponible, espacio en disco, etc. Esto lo trae ya la plantilla que asignaste en cada alta, sin necesidad de crear items manualmente.</p>
+        <div class="ok">Si ves valores actualizandose cada pocos minutos en los tres hosts, el montaje esta completo de extremo a extremo: Docker sirviendo el server y el frontend, y tres agentes nativos reportando desde sus propios sistemas operativos, incluida la propia maquina que aloja Zabbix.</div>
+        <p>Buen cierre para el video: abre una grafica (icono de grafica junto a cualquier item, por ejemplo <code class="inline">CPU utilization</code>) para mostrar visualmente que los datos ya fluyen en el tiempo.</p>
+      </section>
+
+      <section class="card" id="puertos">
+        <h2>14. Tabla de puertos y componentes</h2>
+        <table>
+          <thead><tr><th>Puerto</th><th>Componente</th><th>Sentido de la conexion</th><th>Para que sirve</th></tr></thead>
+          <tbody>
+            <tr><td>8080/tcp</td><td>zabbix-web (Docker)</td><td>Navegador &rarr; contenedor</td><td>Frontend web de Zabbix</td></tr>
+            <tr><td>10051/tcp</td><td>zabbix-server (Docker)</td><td>Agentes &rarr; server</td><td><strong>Unico puerto necesario en este montaje.</strong> Checks activos: cada agente (incluido el del propio host Docker) envia datos por iniciativa propia</td></tr>
+            <tr><td>10050/tcp</td><td>Agente Docker / Ubuntu / Windows</td><td>Server &rarr; agente</td><td>No se usa en esta guia. Solo aplica si cambias al modelo pasivo (ver seccion 3)</td></tr>
+            <tr><td>3306/tcp</td><td>zabbix-db (Docker, interno)</td><td>zabbix-server / zabbix-web &rarr; zabbix-db</td><td>Conexion a MySQL; no necesita exponerse al host</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section class="card" id="errores">
+        <h2>15. Errores comunes y como resolverlos</h2>
+        <table>
+          <thead>
+            <tr><th>Problema</th><th>Causa probable</th><th>Solucion</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>El contenedor <code class="inline">zabbix-server</code> se reinicia en bucle</td>
+              <td>El <code class="inline">.env</code> no esta en <code class="inline">/docker/zabbix</code> (Compose no lo carga desde otra carpeta)</td>
+              <td><code class="inline">docker logs zabbix-server</code>; confirmar con <code class="inline">docker compose config</code> que las variables <code class="inline">MYSQL_*</code> se resolvieron y no aparecen vacias</td>
+            </tr>
+            <tr>
+              <td>El log de <code class="inline">zabbix-server</code> repite <code class="inline">cannot use database "zabbix": its "users" table is empty</code></td>
+              <td>MySQL 8 fallo al crear las funciones/triggers del esquema por tener el binary logging activo sin <code class="inline">log_bin_trust_function_creators</code>; la importacion quedo a medias y en el reintento automatico ya no se repite</td>
+              <td><code class="inline">docker compose down -v</code> para borrar la base a medias, confirmar que el <code class="inline">command:</code> de <code class="inline">zabbix-db</code> incluye <code class="inline">--log-bin-trust-function-creators=1</code> (seccion 5) y <code class="inline">docker compose up -d</code> de nuevo</td>
+            </tr>
+            <tr>
+              <td>El frontend no carga o da error de conexion a BD</td>
+              <td>Variables de entorno no llegaron al contenedor, o <code class="inline">zabbix-db</code> no esta healthy todavia</td>
+              <td><code class="inline">docker compose ps</code>, <code class="inline">docker logs zabbix-web</code>, y <code class="inline">docker compose up -d --force-recreate</code> si hiciste cambios en el compose</td>
+            </tr>
+            <tr>
+              <td>El host "Zabbix server" muestra <code class="inline">Linux: Zabbix agent is not available</code></td>
+              <td>La interfaz Agent de ese host de demostracion apunta a <code class="inline">127.0.0.1:10050</code>, que dentro del contenedor <code class="inline">zabbix-server</code> no es la misma maquina que el host fisico</td>
+              <td>Quitar esa interfaz y cambiar a la plantilla <code class="inline">Linux by Zabbix agent active</code> (ver seccion 10)</td>
+            </tr>
+            <tr>
+              <td>Los items de la plantilla aparecen como "Not supported"</td>
+              <td>Se asigno la plantilla pasiva (<code class="inline">... by Zabbix agent</code>) a un host que solo hace checks activos</td>
+              <td>Cambiar a la plantilla <code class="inline">... by Zabbix agent active</code></td>
+            </tr>
+            <tr>
+              <td>No llegan datos en Latest data pasados varios minutos</td>
+              <td>El agente no consigue conectar de salida al puerto 10051 del host Docker</td>
+              <td><code class="inline">nc -zv IP_HOST_DOCKER 10051</code> (o <code class="inline">127.0.0.1</code> si es el propio host Docker) desde el propio agente; revisar que el puerto 10051 este publicado en el <code class="inline">docker-compose.yml</code></td>
+            </tr>
+            <tr>
+              <td>El agente esta activo pero el host nunca se vincula</td>
+              <td><code class="inline">Hostname</code> del agente no coincide exactamente con el <code class="inline">Host name</code> del frontend</td>
+              <td>Comparar ambos valores caracter a caracter, incluyendo mayusculas/minusculas</td>
+            </tr>
+            <tr>
+              <td>Quiero consultar un valor puntual con <code class="inline">zabbix_get</code> y no responde</td>
+              <td>Es el comportamiento esperado: este montaje usa solo checks activos, no hay nada escuchando en el puerto 10050 del agente</td>
+              <td>Si se necesita esa consulta puntual, cambiar ese host concreto al modelo pasivo (seccion 3) y abrir el puerto 10050 en ese agente</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section class="card" id="produccion">
+        <h2>16. Notas de ampliacion</h2>
+        <p>El montaje de esta guia cubre lo minimo necesario para tener tres endpoints reales monitorizados desde un server en Docker. Para un entorno mas completo se puede ampliar con:</p>
+        <ul>
+          <li><strong>Cifrado con PSK (TLS)</strong> entre agente y server, en lugar de dejar la comunicacion en texto plano &mdash; especialmente recomendable si los agentes viven fuera de una red de confianza.</li>
+          <li><strong>Zabbix Proxy</strong> si en el futuro se añaden agentes en otra ubicacion o red separada, para no exponer el server directamente.</li>
+          <li><strong>Alertas por Telegram o email</strong> (<code class="inline">Administration &rarr; Media types</code> y <code class="inline">Alerta &rarr; Actions</code>), para que un umbral de CPU o disco lleno notifique de forma inmediata.</li>
+          <li><strong>Auto-discovery de red</strong> para que Zabbix detecte solo nuevos hosts en un rango de IPs, en vez de darlos de alta uno a uno.</li>
+          <li><strong>Triggers y templates propios</strong> cuando las plantillas nativas de Linux/Windows no cubran una metrica especifica del entorno.</li>
+        </ul>
+      </section>
+      <footer>
+        <p style="margin: 0 0 6px;">Guia tecnica para monitorizar el propio host Docker, un Ubuntu Server y un Windows 11 con Zabbix, usando un server Docker y agentes nativos en cada endpoint.</p>
+        <p style="margin: 0; opacity: .75;">&copy; <span id="anio-actual">2026</span> Clockwork Computer. Todos los derechos reservados. Contenido educativo de libre consulta; su reproduccion total o parcial en otros sitios requiere autorizacion previa.</p>
+      </footer>
+    </div>
+  </div>
+</main>
+
+<script>
+  async function copyText(text, button) {
+    try {
+      await navigator.clipboard.writeText(text);
+      const original = button.textContent;
+      button.textContent = 'Copiado';
+      button.classList.add('copied');
+      setTimeout(() => {
+        button.textContent = original;
+        button.classList.remove('copied');
+      }, 1400);
+    } catch (err) {
+      alert('No se pudo copiar automaticamente.');
+    }
+  }
+
+  document.querySelectorAll('.copy-btn').forEach(button => {
+    button.addEventListener('click', () => {
+      const targetId = button.getAttribute('data-copy-target');
+      const target = document.getElementById(targetId);
+      if (!target) return;
+      copyText(target.innerText.trim(), button);
+    });
+  });
+
+  const anioEl = document.getElementById('anio-actual');
+  if (anioEl) anioEl.textContent = new Date().getFullYear();
+</script>
+</body>
+</html>
