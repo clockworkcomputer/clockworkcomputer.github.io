@@ -1,0 +1,802 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Chat propio con Matrix: Synapse + Element en Docker con HTTPS propio</title>
+  <link rel="icon" type="image/png" href="https://blogger.googleusercontent.com/img/a/AVvXsEjuquj9lFaN9zfg8H5FofNIUKAHWWRiOUbDhHragpU14TfF6RYKxb5w62mfAClxDkDrzCMAilRatibcoWFbuqMnXMBh30p_sfbxp4D2gUny70NbjyHLrs42VXeBB4Qtc8NovIS_DqIU5iq3dMMx1TuNZkW70MeW8Ryemwk_tDv6iKZi9ngKfaskUG1yCWo=s1600"/>
+  <style>
+    :root {
+      --bg: #060606;
+      --panel: #111111;
+      --panel-2: #1a1a1a;
+      --text: #f5f5f5;
+      --muted: #b9b9b9;
+      --accent: #ff7a00;
+      --accent-2: #ff9a3d;
+      --border: #2b2b2b;
+      --code: #050505;
+      --success: #24b36b;
+      --shadow: 0 12px 30px rgba(0,0,0,.35);
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+      background: linear-gradient(180deg, #050505 0%, #0a0a0a 100%);
+      color: var(--text);
+      line-height: 1.6;
+    }
+
+    .container {
+      width: min(1100px, calc(100% - 32px));
+      margin: 0 auto;
+    }
+
+    header {
+      padding: 48px 0 28px;
+      border-bottom: 1px solid rgba(255,255,255,.06);
+      background:
+        radial-gradient(circle at top right, rgba(255,122,0,.16), transparent 30%),
+        radial-gradient(circle at top left, rgba(255,154,61,.10), transparent 20%),
+        linear-gradient(180deg, #080808 0%, #101010 100%);
+      z-index: 20;
+    }
+
+    .header-inner {
+      display: flex;
+      gap: 18px;
+      align-items: flex-start;
+      justify-content: space-between;
+      flex-wrap: wrap;
+    }
+
+    .header-brand {
+      display: flex;
+      gap: 18px;
+      align-items: center;
+      flex: 1 1 720px;
+    }
+
+    .channel-logo {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 18px;
+      padding: 0;
+      overflow: hidden;
+      border: 1px solid rgba(255,255,255,.08);
+      box-shadow: var(--shadow);
+      background: rgba(255,255,255,.03);
+      flex: 0 0 auto;
+    }
+
+    .channel-logo img {
+      display: block;
+      width: 200px;
+      height: auto;
+      object-fit: contain;
+    }
+
+    h1 {
+      font-size: clamp(1.8rem, 3vw, 3rem);
+      margin: 0;
+      line-height: 1.15;
+      color: var(--accent);
+    }
+
+    .brand {
+      margin-top: 8px;
+      font-weight: 700;
+      letter-spacing: .4px;
+      color: var(--accent-2);
+    }
+
+    .subtitle {
+      color: var(--muted);
+      margin: 10px 0 0;
+      max-width: 850px;
+    }
+
+    main { padding: 28px 0 64px; }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 260px 1fr;
+      gap: 24px;
+      align-items: start;
+    }
+
+    .toc {
+      position: sticky;
+      top: 20px;
+      width: 260px;
+      background: rgba(17,17,17,.92);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 18px;
+      box-shadow: var(--shadow);
+      margin: 0;
+    }
+
+    .toc h2 {
+      margin: 0 0 12px;
+      font-size: 1rem;
+      color: var(--accent);
+    }
+
+    .toc a {
+      display: block;
+      color: var(--muted);
+      text-decoration: none;
+      padding: 8px 10px;
+      border-radius: 10px;
+      transition: background .15s ease, color .15s ease;
+      font-size: .95rem;
+    }
+
+    .toc a:hover {
+      color: var(--text);
+      background: rgba(255,122,0,.08);
+    }
+
+    .content {
+      display: grid;
+      gap: 18px;
+    }
+
+    .card {
+      background: linear-gradient(180deg, rgba(17,17,17,.97), rgba(12,12,12,.97));
+      border: 1px solid var(--border);
+      border-radius: 22px;
+      padding: 24px;
+      box-shadow: var(--shadow);
+    }
+
+    .card h2 {
+      margin-top: 0;
+      font-size: 1.5rem;
+      color: var(--accent);
+    }
+
+    .card h3 {
+      margin-bottom: 10px;
+      margin-top: 22px;
+      font-size: 1.08rem;
+      color: #ffd1a8;
+    }
+
+    .muted { color: var(--muted); }
+    ul, ol { margin-top: 10px; padding-left: 20px; }
+    li + li { margin-top: 6px; }
+
+    p, .note, .ok { text-align: justify; }
+
+    .note {
+      background: rgba(255,122,0,.08);
+      border: 1px solid rgba(255,122,0,.22);
+      border-radius: 14px;
+      padding: 14px 16px;
+      color: #ffe2c4;
+      margin-top: 14px;
+    }
+
+    .ok {
+      background: rgba(36,179,107,.10);
+      border: 1px solid rgba(36,179,107,.28);
+      border-radius: 14px;
+      padding: 14px 16px;
+      color: #d8ffe8;
+      margin-top: 14px;
+    }
+
+    .cmd {
+      margin-top: 14px;
+      border: 1px solid var(--border);
+      background: var(--code);
+      border-radius: 16px;
+      overflow: hidden;
+    }
+
+    .cmd-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 12px;
+      background: rgba(255,255,255,.03);
+      border-bottom: 1px solid rgba(255,255,255,.06);
+    }
+
+    .cmd-title {
+      font-size: .92rem;
+      color: var(--muted);
+      font-weight: 600;
+    }
+
+    .copy-btn {
+      border: 1px solid #6a3408;
+      background: linear-gradient(180deg, #ff7a00, #d76200);
+      color: #111;
+      border-radius: 10px;
+      padding: 8px 10px;
+      cursor: pointer;
+      font-size: .9rem;
+      font-weight: 800;
+      transition: .15s ease;
+    }
+
+    .copy-btn:hover { filter: brightness(1.06); }
+    .copy-btn.copied {
+      background: rgba(36,179,107,.18);
+      border-color: rgba(36,179,107,.45);
+      color: #d7ffe8;
+    }
+
+    pre {
+      margin: 0;
+      padding: 16px;
+      overflow-x: auto;
+      white-space: pre-wrap;
+      word-break: break-word;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      font-size: .94rem;
+      color: #ffbf85;
+    }
+
+    code.inline {
+      background: rgba(255,255,255,.06);
+      padding: 2px 8px;
+      border-radius: 8px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: .92em;
+      color: #ffd2aa;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 12px;
+      font-size: .95rem;
+    }
+
+    th, td {
+      border: 1px solid var(--border);
+      padding: 10px 12px;
+      text-align: left;
+      vertical-align: top;
+    }
+
+    th {
+      background: rgba(255,255,255,.04);
+      color: #ffd1a8;
+    }
+
+    footer {
+      margin-top: 24px;
+      color: var(--muted);
+      text-align: center;
+      font-size: .95rem;
+    }
+
+    @media (max-width: 920px) {
+      .layout { grid-template-columns: 1fr; }
+      .toc { position: static; width: 100%; }
+    }
+  </style>
+</head>
+<body>
+<header>
+  <div class="container header-inner">
+    <div class="header-brand">
+      <a class="channel-logo" href="https://www.youtube.com/c/ClockworkComputerIP" target="_blank" rel="noopener noreferrer" aria-label="Clockwork Computer">
+        <img src="https://blogger.googleusercontent.com/img/a/AVvXsEjuquj9lFaN9zfg8H5FofNIUKAHWWRiOUbDhHragpU14TfF6RYKxb5w62mfAClxDkDrzCMAilRatibcoWFbuqMnXMBh30p_sfbxp4D2gUny70NbjyHLrs42VXeBB4Qtc8NovIS_DqIU5iq3dMMx1TuNZkW70MeW8Ryemwk_tDv6iKZi9ngKfaskUG1yCWo=s1600" alt="Clockwork Computer"/>
+      </a>
+      <div>
+        <h1>Chat propio con Matrix: Synapse + Element en Docker con HTTPS propio</h1>
+        <div class="brand">Homeserver privado con cuentas locales, acceso directo por IP con certificado autofirmado</div>
+        <p class="subtitle">Guia tecnica para levantar un homeserver Matrix (Synapse), Element Web y un proxy inverso Nginx con certificado autofirmado, todo con Docker Compose. Acceso directo por IP desde cualquier equipo de la red (incluido un Windows 11), por navegador o con la app Element Desktop, sin depender de ningun proveedor externo.</p>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main>
+  <div class="container layout">
+    <aside class="toc">
+      <h2>Contenido</h2>
+      <a href="#introduccion">1. Introduccion</a>
+      <a href="#variables">2. Variables de esta guia</a>
+      <a href="#arquitectura">3. Arquitectura y flujo</a>
+      <a href="#requisitos">4. Requisitos</a>
+      <a href="#paso-stack">5. Levantar Postgres, Synapse y Element con Docker</a>
+      <a href="#paso-generate">6. Generar la configuracion de Synapse</a>
+      <a href="#paso-proxy">7. Configurar el proxy inverso con HTTPS propio</a>
+      <a href="#paso-arranque">8. Arrancar el stack y verificar Synapse</a>
+      <a href="#paso-usuario">9. Crear los usuarios</a>
+      <a href="#paso-navegador">10. Acceder desde el navegador</a>
+      <a href="#paso-desktop">11. Alternativa: Element Desktop</a>
+      <a href="#puertos">12. Tabla de puertos y componentes</a>
+      <a href="#errores">13. Errores comunes</a>
+      <a href="#produccion">14. Notas de ampliacion</a>
+    </aside>
+
+    <div class="content">
+      <section class="card" id="introduccion">
+        <h2>1. Introduccion</h2>
+        <p><strong>Matrix</strong> es un protocolo abierto y descentralizado de mensajeria en tiempo real. <strong>Synapse</strong> es la implementacion de referencia del homeserver (el servidor que aloja las cuentas, las salas y los mensajes), y <strong>Element</strong> es el cliente mas usado para hablar con el. Esta guia levanta Synapse, su base de datos PostgreSQL, Element Web y un proxy inverso Nginx con Docker, todo autoalojado, sin federar con el resto de la red Matrix y sin depender de ningun proveedor externo.</p>
+        <div class="note">Un navegador moderno exige que la pagina de un cliente como Element se cargue en un <strong>contexto seguro</strong>: HTTPS, o <code class="inline">localhost</code>. Una IP normal de la red servida por <code class="inline">http</code> no cumple esa condicion, y sin ella el navegador deshabilita el cifrado que Element necesita. La solucion correcta, la que se usaria en un servidor real, no es un tunel ni un ajuste del navegador: es poner un <strong>proxy inverso con HTTPS</strong> delante, aunque sea con un certificado autofirmado mientras no haya un dominio publico. Esta guia lo hace con <strong>Nginx</strong> y un certificado generado con <code class="inline">openssl</code>, y es la razon por la que el acceso final es directo por IP, sin trucos del lado del cliente.</div>
+      </section>
+
+      <section class="card" id="variables">
+        <h2>2. Variables de esta guia</h2>
+        <p>Todos los bloques de configuracion usan los siguientes marcadores en <strong>MAYUSCULAS</strong>. Sustituyelos por los valores reales del entorno donde se aplique esta guia.</p>
+        <table>
+          <thead>
+            <tr><th>Marcador</th><th>Que es</th><th>Donde se obtiene</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><code class="inline">IP_HOST_DOCKER</code></td><td>IP del host Linux donde corre el stack con Docker</td><td>La interfaz de red de ese host</td></tr>
+            <tr><td><code class="inline">SERVER_NAME_MATRIX</code></td><td>Nombre de dominio interno del homeserver, forma parte del identificador de cada usuario (<code class="inline">@usuario:SERVER_NAME_MATRIX</code>)</td><td>Lo defines tu, por ejemplo <code class="inline">clockwork.local</code>; no hace falta que resuelva por DNS porque no vamos a federar</td></tr>
+            <tr><td><code class="inline">POSTGRES_PASSWORD</code></td><td>Contraseña del usuario de la base de datos de Synapse</td><td>Se define en <code class="inline">/docker/synapse/.env</code></td></tr>
+            <tr><td><code class="inline">USUARIO_MATRIX</code> / <code class="inline">PASSWORD_MATRIX</code></td><td>La primera cuenta local que se crea en el homeserver</td><td>Los eliges tu al ejecutar el comando de alta de usuario (seccion 9)</td></tr>
+          </tbody>
+        </table>
+        <div class="note"><code class="inline">IP_HOST_DOCKER</code> tiene un papel adicional en esta guia: es literalmente el texto que se escribe como <code class="inline">CN</code> y <code class="inline">subjectAltName</code> al generar el certificado (seccion 7). Si esa IP cambia mas adelante, hay que regenerar el certificado para que siga siendo valido para la nueva direccion.</div>
+      </section>
+
+      <section class="card" id="arquitectura">
+        <h2>3. Arquitectura y flujo</h2>
+        <p>Todo el trafico del navegador pasa por un unico punto de entrada, el proxy inverso, que reparte segun la ruta: la interfaz de Element por un lado, la API de Synapse por otro, ambas bajo el mismo origen HTTPS &mdash; asi no hay ni contenido mixto ni problemas de CORS entre las dos piezas.</p>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Resumen visual</div>
+            <button class="copy-btn" data-copy-target="cmd-arch">Copiar</button>
+          </div>
+          <pre id="cmd-arch">[Windows / cualquier navegador o Element Desktop]
+      |
+      |  https://IP_HOST_DOCKER:8443  (certificado autofirmado)
+      v
+[proxy] :8443 (Nginx, proxy inverso HTTPS)
+      |         \
+      |          \ /_matrix/*, /_synapse/*
+      v            v
+[element] :80   [synapse] :8008
+                     |
+                     v
+               [synapse-db]  (PostgreSQL)</pre>
+        </div>
+        <div class="note">Esta guia <strong>no configura federacion</strong> con el resto de la red Matrix (no se expone el puerto 8448, el habitual para hablar con otros homeservers). Es una decision deliberada: un homeserver privado para un equipo no necesita hablar con matrix.org ni con nadie mas, y evitarlo simplifica muchisimo el montaje &mdash; la documentacion oficial es clara en que la federacion si exige un certificado valido, no autofirmado, sin excepciones.</div>
+      </section>
+
+      <section class="card" id="requisitos">
+        <h2>4. Requisitos</h2>
+        <ul>
+          <li>Un host Linux con <strong>Docker Engine</strong> y el plugin <strong>Docker Compose</strong> (<code class="inline">docker compose</code>, sin guion) ya instalados.</li>
+          <li><strong>No hace falta salida a Internet</strong> desde ese host: todo el flujo de login vive dentro de la red local, sin necesidad de contactar servidores externos.</li>
+          <li>Un navegador cualquiera (Chrome, Firefox, Edge...) en cualquier equipo de la misma red, o la app <strong>Element Desktop</strong> si se prefiere esa via (seccion 11).</li>
+        </ul>
+      </section>
+
+      <section class="card" id="paso-stack">
+        <h2>5. Levantar Postgres, Synapse y Element con Docker</h2>
+        <p>Misma organizacion de siempre: cada stack en su carpeta dentro de <code class="inline">/docker</code>, credenciales en un <code class="inline">.env</code> aparte.</p>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Crear la carpeta del stack</div>
+            <button class="copy-btn" data-copy-target="cmd-1">Copiar</button>
+          </div>
+          <pre id="cmd-1">sudo mkdir -p /docker/synapse && cd /docker/synapse
+sudo mkdir -p synapse-data</pre>
+        </div>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Crear .env</div>
+            <button class="copy-btn" data-copy-target="cmd-1b">Copiar</button>
+          </div>
+          <pre id="cmd-1b">sudo nano .env</pre>
+        </div>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">.env</div>
+            <button class="copy-btn" data-copy-target="cmd-2">Copiar</button>
+          </div>
+          <pre id="cmd-2">POSTGRES_USER=synapse
+POSTGRES_PASSWORD=synapse_pwd
+POSTGRES_DB=synapse</pre>
+        </div>
+        <p>Ahora crea el archivo de Element:</p>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Crear element-config.json</div>
+            <button class="copy-btn" data-copy-target="cmd-2b">Copiar</button>
+          </div>
+          <pre id="cmd-2b">sudo nano element-config.json</pre>
+        </div>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">element-config.json</div>
+            <button class="copy-btn" data-copy-target="cmd-3">Copiar</button>
+          </div>
+          <pre id="cmd-3">{
+  "default_server_config": {
+    "m.homeserver": {
+      "base_url": "https://IP_HOST_DOCKER:8443",
+      "server_name": "SERVER_NAME_MATRIX"
+    }
+  },
+  "brand": "Clockwork Computer Chat"
+}</pre>
+        </div>
+        <div class="note">Ojo, son dos cosas distintas dentro del mismo archivo: <code class="inline">base_url</code> es la direccion real a la que Element se conecta (ahi si va la IP), pero <code class="inline">server_name</code> no es una direccion de red, es la segunda mitad del identificador de cada usuario, y queda fijado para siempre en cuanto se genere <code class="inline">homeserver.yaml</code> en el paso 6. Por eso conviene usar algo inventado como <code class="inline">clockwork.local</code> en vez de la IP para ese campo.</div>
+        <p>Y ahora el <code class="inline">docker-compose.yml</code>:</p>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Crear docker-compose.yml</div>
+            <button class="copy-btn" data-copy-target="cmd-3b">Copiar</button>
+          </div>
+          <pre id="cmd-3b">sudo nano docker-compose.yml</pre>
+        </div>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">docker-compose.yml</div>
+            <button class="copy-btn" data-copy-target="cmd-4">Copiar</button>
+          </div>
+          <pre id="cmd-4">services:
+  synapse-db:
+    image: postgres:16-alpine
+    container_name: synapse-db
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C"
+    volumes:
+      - synapse-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
+    restart: unless-stopped
+
+  synapse:
+    image: matrixdotorg/synapse:latest
+    container_name: synapse
+    volumes:
+      - ./synapse-data:/data
+    ports:
+      - "8008:8008"
+    depends_on:
+      synapse-db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  element:
+    image: vectorim/element-web:latest
+    container_name: element
+    volumes:
+      - ./element-config.json:/app/config.json:ro
+    depends_on:
+      - synapse
+    restart: unless-stopped
+
+  proxy:
+    image: nginx:alpine
+    container_name: proxy
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./proxy-selfsigned.crt:/etc/nginx/certs/proxy-selfsigned.crt:ro
+      - ./proxy-selfsigned.key:/etc/nginx/certs/proxy-selfsigned.key:ro
+    ports:
+      - "8443:8443"
+    depends_on:
+      - synapse
+      - element
+    restart: unless-stopped
+
+volumes:
+  synapse-db-data:</pre>
+        </div>
+        <div class="note"><code class="inline">POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C"</code> no es opcional, es la trampa mas repetida al montar Synapse: si la base de datos se crea con el locale por defecto de la imagen, Synapse se niega a arrancar con un error de <code class="inline">"Database has incorrect collation... Should be 'C'"</code>. Solo se aplica en la primera inicializacion del volumen; si ya arrancaste una vez sin este flag, hay que borrar el volumen y empezar de cero.</div>
+        <div class="note">El servicio <code class="inline">element</code> no publica ningun puerto al host: solo es alcanzable a traves de <code class="inline">proxy</code>, por dentro de la red de Docker. Es <code class="inline">proxy</code> el unico punto de entrada desde fuera.</div>
+      </section>
+
+      <section class="card" id="paso-generate">
+        <h2>6. Generar la configuracion de Synapse</h2>
+        <p>Synapse necesita un <code class="inline">homeserver.yaml</code> antes de arrancar de verdad. Se genera con un comando de un solo uso, usando el propio servicio ya definido en el <code class="inline">docker-compose.yml</code>:</p>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Generar homeserver.yaml</div>
+            <button class="copy-btn" data-copy-target="cmd-5">Copiar</button>
+          </div>
+          <pre id="cmd-5">cd /docker/synapse
+docker compose run --rm -e SYNAPSE_SERVER_NAME=SERVER_NAME_MATRIX -e SYNAPSE_REPORT_STATS=no synapse generate</pre>
+        </div>
+        <p>Esto crea <code class="inline">./synapse-data/homeserver.yaml</code> y una clave de firma, ya con un <code class="inline">registration_shared_secret</code> aleatorio incluido &mdash; no hay que generarlo ni copiarlo a mano, el comando de alta de usuarios del paso 9 lo lee directamente del propio archivo.</p>
+        <p>Edita el archivo generado:</p>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Editar homeserver.yaml</div>
+            <button class="copy-btn" data-copy-target="cmd-6">Copiar</button>
+          </div>
+          <pre id="cmd-6">sudo nano ./synapse-data/homeserver.yaml</pre>
+        </div>
+        <p>Busca el bloque <code class="inline">database:</code> (por defecto viene configurado para SQLite) y sustituyelo entero por este, apuntando a Postgres:</p>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Bloque database: en homeserver.yaml</div>
+            <button class="copy-btn" data-copy-target="cmd-7">Copiar</button>
+          </div>
+          <pre id="cmd-7">database:
+  name: psycopg2
+  args:
+    user: synapse
+    password: synapse_pwd
+    database: synapse
+    host: synapse-db
+    port: 5432
+    cp_min: 5
+    cp_max: 10</pre>
+        </div>
+        <div class="note"><code class="inline">host: synapse-db</code> es el nombre del servicio en <code class="inline">docker-compose.yml</code>, no <code class="inline">localhost</code>. Dentro de la red de Compose, los contenedores se hablan por nombre de servicio, nunca por <code class="inline">localhost</code>. Si dejaste <code class="inline">user</code> y <code class="inline">password</code> con otros valores en el <code class="inline">.env</code> del paso 5, aqui deben coincidir exactamente.</div>
+      </section>
+
+      <section class="card" id="paso-proxy">
+        <h2>7. Configurar el proxy inverso con HTTPS propio</h2>
+        <p>Primero, genera un certificado autofirmado con clave EC (curva eliptica), valido para la IP del host Docker:</p>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Generar el certificado autofirmado</div>
+            <button class="copy-btn" data-copy-target="cmd-cert1">Copiar</button>
+          </div>
+          <pre id="cmd-cert1">cd /docker/synapse
+sudo openssl ecparam -name prime256v1 -genkey -noout -out proxy-selfsigned.key
+sudo openssl req -new -x509 -key proxy-selfsigned.key -out proxy-selfsigned.crt -days 825 \
+  -subj "/CN=IP_HOST_DOCKER" \
+  -addext "subjectAltName=IP:IP_HOST_DOCKER"</pre>
+        </div>
+        <p>Ahora crea la configuracion de Nginx:</p>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Crear nginx.conf</div>
+            <button class="copy-btn" data-copy-target="cmd-nginx1">Copiar</button>
+          </div>
+          <pre id="cmd-nginx1">sudo nano nginx.conf</pre>
+        </div>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">nginx.conf</div>
+            <button class="copy-btn" data-copy-target="cmd-nginx2">Copiar</button>
+          </div>
+          <pre id="cmd-nginx2">resolver 127.0.0.11 valid=10s;
+
+server {
+    listen 8443 ssl;
+    server_name IP_HOST_DOCKER;
+
+    ssl_certificate     /etc/nginx/certs/proxy-selfsigned.crt;
+    ssl_certificate_key /etc/nginx/certs/proxy-selfsigned.key;
+
+    location ~ ^/(_matrix|_synapse) {
+        set $upstream_synapse http://synapse:8008;
+        proxy_pass $upstream_synapse;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location / {
+        set $upstream_element http://element:80;
+        proxy_pass $upstream_element;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}</pre>
+        </div>
+        <div class="note">El <code class="inline">resolver 127.0.0.11</code> (el DNS interno de Docker) combinado con <code class="inline">set $upstream_... ; proxy_pass $upstream_...;</code> es imprescindible, no un capricho de estilo: sin la variable, Nginx intenta resolver <code class="inline">synapse</code> y <code class="inline">element</code> una sola vez al arrancar, con el resolvedor normal del sistema, y si en ese instante no lo consigue se niega a arrancar con un error de <code class="inline">host not found in upstream</code>. Con la variable, la resolucion se hace bajo demanda en cada peticion, tolerando que el contenedor tarde en estar listo o se recree mas adelante con otra IP interna.</div>
+      </section>
+
+      <section class="card" id="paso-arranque">
+        <h2>8. Arrancar el stack y verificar Synapse</h2>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Arrancar los contenedores</div>
+            <button class="copy-btn" data-copy-target="cmd-8">Copiar</button>
+          </div>
+          <pre id="cmd-8">cd /docker/synapse
+docker compose up -d
+docker compose ps</pre>
+        </div>
+        <p>Sigue el log del homeserver:</p>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Log de Synapse</div>
+            <button class="copy-btn" data-copy-target="cmd-9">Copiar</button>
+          </div>
+          <pre id="cmd-9">docker logs -f synapse</pre>
+        </div>
+        <p>Busca una linea similar a <code class="inline">"Synapse now listening on TCP port 8008"</code>, sin errores de collation ni excepciones de Python por el camino. Sal con <code class="inline">Ctrl+C</code>.</p>
+        <p>Comprueba tambien que el proxy responde correctamente antes de pasar al navegador:</p>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Probar el proxy desde el propio host</div>
+            <button class="copy-btn" data-copy-target="cmd-9b">Copiar</button>
+          </div>
+          <pre id="cmd-9b">curl -kv https://IP_HOST_DOCKER:8443/_matrix/client/versions</pre>
+        </div>
+        <div class="ok">Si devuelve un JSON con las versiones del protocolo Matrix, confirma que el proxy esta reenviando correctamente a Synapse por HTTPS.</div>
+      </section>
+
+      <section class="card" id="paso-usuario">
+        <h2>9. Crear los usuarios</h2>
+        <p>Las cuentas en Synapse se crean con un comando de administracion, ejecutado dentro del propio contenedor:</p>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Crear un usuario administrador</div>
+            <button class="copy-btn" data-copy-target="cmd-10">Copiar</button>
+          </div>
+          <pre id="cmd-10">docker exec -it synapse register_new_matrix_user \
+  http://localhost:8008 \
+  -c /data/homeserver.yaml \
+  -u USUARIO_MATRIX \
+  -p PASSWORD_MATRIX \
+  -a</pre>
+        </div>
+        <p>El flag <code class="inline">-a</code> marca la cuenta como administradora del homeserver.</p>
+        <div class="note">Esta guia deja <code class="inline">enable_registration</code> en su valor por defecto (<code class="inline">false</code>): nadie puede registrarse solo desde el cliente, todas las cuentas se crean con este comando por un administrador.</div>
+        <p>Para crear una segunda cuenta (por ejemplo, una que no sea administradora), se repite el mismo comando cambiando el usuario y la contraseña, sustituyendo <code class="inline">-a</code> por <code class="inline">--no-admin</code>:</p>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Crear una segunda cuenta (no administradora)</div>
+            <button class="copy-btn" data-copy-target="cmd-10b">Copiar</button>
+          </div>
+          <pre id="cmd-10b">docker exec -it synapse register_new_matrix_user \
+  http://localhost:8008 \
+  -c /data/homeserver.yaml \
+  -u USUARIO2_MATRIX \
+  -p PASSWORD2_MATRIX \
+  --no-admin</pre>
+        </div>
+      </section>
+
+      <section class="card" id="paso-navegador">
+        <h2>10. Acceder desde el navegador</h2>
+        <p>Abre cualquier navegador y entra en:</p>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">URL de acceso</div>
+            <button class="copy-btn" data-copy-target="cmd-11">Copiar</button>
+          </div>
+          <pre id="cmd-11">https://IP_HOST_DOCKER:8443</pre>
+        </div>
+        <div class="note">El navegador va a mostrar un aviso de conexion no privada o certificado no confiable. Es esperado: el certificado es autofirmado, no lo ha emitido una autoridad publica reconocida por el navegador. Pulsa <strong>"Avanzado"</strong> y <strong>"Continuar a IP_HOST_DOCKER (no seguro)"</strong> (el texto exacto varia segun el navegador) para seguir. Es la misma situacion que se encuentra con muchisimos servicios internos en empresas reales antes de tener un certificado firmado por una entidad publica.</div>
+        <div class="ok">Tras aceptar el aviso, deberia cargar la pantalla de login de Element sin ningun error de "navegador no compatible". Inicia sesion con <code class="inline">USUARIO_MATRIX</code> y <code class="inline">PASSWORD_MATRIX</code>, crea una sala de prueba y escribe un mensaje.</div>
+      </section>
+
+      <section class="card" id="paso-desktop">
+        <h2>11. Alternativa: Element Desktop</h2>
+        <p>Si se prefiere no lidiar con el aviso de certificado, tambien se puede instalar <strong>Element Desktop</strong> (<a href="https://element.io/download" target="_blank" rel="noopener noreferrer">element.io/download</a>) y conectarla directamente al puerto de Synapse sin pasar por el proxy, ya que al ser una aplicacion nativa no esta sujeta al requisito de contexto seguro del navegador:</p>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Homeserver personalizado en Element Desktop</div>
+            <button class="copy-btn" data-copy-target="cmd-12">Copiar</button>
+          </div>
+          <pre id="cmd-12">http://IP_HOST_DOCKER:8008</pre>
+        </div>
+        <p>Ambas vias llevan al mismo homeserver y a las mismas cuentas; son formas distintas de conectarse, no montajes separados.</p>
+      </section>
+
+      <section class="card" id="puertos">
+        <h2>12. Tabla de puertos y componentes</h2>
+        <table>
+          <thead><tr><th>Puerto</th><th>Componente</th><th>Sentido de la conexion</th><th>Para que sirve</th></tr></thead>
+          <tbody>
+            <tr><td>8443/tcp</td><td>proxy (Docker, Nginx)</td><td>Navegador &rarr; contenedor</td><td>Proxy inverso HTTPS (certificado autofirmado); reparte a Element y a Synapse segun la ruta</td></tr>
+            <tr><td>8008/tcp</td><td>synapse (Docker)</td><td>Element Desktop &rarr; contenedor</td><td>API cliente-servidor de Matrix, accesible tambien directo (sin HTTPS) para la app de escritorio</td></tr>
+            <tr><td>5432/tcp</td><td>synapse-db (Docker, interno)</td><td>synapse &rarr; synapse-db</td><td>Conexion a PostgreSQL; no necesita exponerse al host</td></tr>
+            <tr><td>&mdash;</td><td>element (Docker, interno)</td><td>proxy &rarr; element</td><td>No publica ningun puerto al host; solo accesible a traves de proxy</td></tr>
+            <tr><td>8448/tcp</td><td>No usado en esta guia</td><td>&mdash;</td><td>Puerto de federacion con otros homeservers; deliberadamente no expuesto</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section class="card" id="errores">
+        <h2>13. Errores comunes y como resolverlos</h2>
+        <table>
+          <thead>
+            <tr><th>Problema</th><th>Causa probable</th><th>Solucion</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Synapse falla al arrancar con <code class="inline">Database has incorrect collation... Should be 'C'</code></td>
+              <td>El volumen de Postgres se creo sin <code class="inline">POSTGRES_INITDB_ARGS</code>, con el locale por defecto de la imagen</td>
+              <td>Borrar el volumen (<code class="inline">docker compose down -v</code>) y volver a arrancar con el flag ya incluido en el <code class="inline">docker-compose.yml</code> (seccion 5)</td>
+            </tr>
+            <tr>
+              <td>Synapse no arranca, error de conexion a la base de datos</td>
+              <td><code class="inline">host</code> en el bloque <code class="inline">database:</code> de <code class="inline">homeserver.yaml</code> apunta a <code class="inline">localhost</code> en vez de <code class="inline">synapse-db</code>, o las credenciales no coinciden con el <code class="inline">.env</code></td>
+              <td>Revisar el bloque <code class="inline">database:</code> caracter a caracter (seccion 6)</td>
+            </tr>
+            <tr>
+              <td>El navegador o <code class="inline">curl -k</code> dan un error de TLS tipo <code class="inline">alert internal error</code> al conectar al proxy</td>
+              <td>Fallo especifico de algunos entornos con el mecanismo de certificados de Caddy; no ocurre con Nginx</td>
+              <td>Esta guia ya usa Nginx con un certificado generado a mano precisamente para evitar este problema; si aparece igualmente, comprobar con <code class="inline">openssl s_server</code> si el propio sistema es capaz de completar un handshake TLS con esos mismos archivos, para descartar causas mas de base</td>
+            </tr>
+            <tr>
+              <td>El contenedor <code class="inline">proxy</code> se reinicia en bucle con <code class="inline">host not found in upstream "synapse"</code></td>
+              <td>Nginx intento resolver el nombre del contenedor una sola vez al arrancar y no lo consiguio a tiempo</td>
+              <td>Usar <code class="inline">resolver 127.0.0.11</code> junto con <code class="inline">set $upstream_...; proxy_pass $upstream_...;</code> en vez de un <code class="inline">proxy_pass</code> directo (seccion 7), para que la resolucion sea bajo demanda</td>
+            </tr>
+            <tr>
+              <td>Tras cambiar el <code class="inline">docker-compose.yml</code>, sigue respondiendo el servicio antiguo en el mismo puerto</td>
+              <td>Un contenedor de un servicio ya eliminado del compose sigue vivo (Compose no lo para si ya no aparece en el archivo)</td>
+              <td><code class="inline">docker ps</code> para localizarlo, y <code class="inline">docker stop &lt;nombre&gt; && docker rm &lt;nombre&gt;</code> antes de volver a levantar el stack</td>
+            </tr>
+            <tr>
+              <td><code class="inline">register_new_matrix_user</code> falla o no encuentra el archivo de configuracion</td>
+              <td>Ruta incorrecta en <code class="inline">-c</code>, o el contenedor <code class="inline">synapse</code> no esta corriendo todavia</td>
+              <td>Confirmar con <code class="inline">docker compose ps</code> que <code class="inline">synapse</code> esta <strong>Up</strong>, y que la ruta es <code class="inline">/data/homeserver.yaml</code> (la ruta dentro del contenedor, no la del host)</td>
+            </tr>
+            <tr>
+              <td>Un usuario nuevo no puede registrarse el mismo desde Element</td>
+              <td>Comportamiento esperado: <code class="inline">enable_registration</code> esta en <code class="inline">false</code> a proposito</td>
+              <td>Crear la cuenta con <code class="inline">register_new_matrix_user</code> (seccion 9)</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section class="card" id="produccion">
+        <h2>14. Notas de ampliacion</h2>
+        <p>El montaje de esta guia cubre lo minimo necesario para tener un chat propio funcionando con cuentas locales, cifrado con HTTPS y acceso directo por IP. Para un entorno de uso continuado, conviene ampliar con:</p>
+        <ul>
+          <li><strong>Importar el certificado</strong> en el almacen de confianza de cada equipo cliente (Windows, Mac, Linux), para que el aviso de "certificado no confiable" desaparezca de forma permanente en esos equipos, sin tener que aceptarlo cada vez.</li>
+          <li><strong>Dominio propio + Let's Encrypt</strong> en vez de certificado autofirmado, necesario si en algun momento se quiere activar la <strong>federacion</strong> con otros homeservers Matrix, que exige un certificado valido reconocido publicamente.</li>
+          <li><strong>Apps moviles</strong> (Element para Android e iOS), que pueden apuntar al mismo homeserver desde fuera de la red local una vez este detras de un dominio con HTTPS valido.</li>
+          <li><strong>Puentes (bridges)</strong> hacia otras plataformas como Slack, Discord o Telegram, para centralizar conversaciones de varias herramientas en el mismo cliente.</li>
+          <li><strong>Copias de seguridad</strong> del volumen de PostgreSQL y de la carpeta <code class="inline">synapse-data</code> (incluye las claves de firma del servidor, necesarias para que el homeserver mantenga su identidad).</li>
+        </ul>
+      </section>
+      <footer>
+        <p style="margin: 0 0 6px;">Guia tecnica para autoalojar un homeserver Matrix (Synapse), Element Web y un proxy inverso Nginx con HTTPS propio, todo con Docker Compose y cuentas locales.</p>
+        <p style="margin: 0; opacity: .75;">&copy; <span id="anio-actual">2026</span> Clockwork Computer. Todos los derechos reservados. Contenido educativo de libre consulta; su reproduccion total o parcial en otros sitios requiere autorizacion previa.</p>
+      </footer>
+    </div>
+  </div>
+</main>
+
+<script>
+  async function copyText(text, button) {
+    try {
+      await navigator.clipboard.writeText(text);
+      const original = button.textContent;
+      button.textContent = 'Copiado';
+      button.classList.add('copied');
+      setTimeout(() => {
+        button.textContent = original;
+        button.classList.remove('copied');
+      }, 1400);
+    } catch (err) {
+      alert('No se pudo copiar automaticamente.');
+    }
+  }
+
+  document.querySelectorAll('.copy-btn').forEach(button => {
+    button.addEventListener('click', () => {
+      const targetId = button.getAttribute('data-copy-target');
+      const target = document.getElementById(targetId);
+      if (!target) return;
+      copyText(target.innerText.trim(), button);
+    });
+  });
+
+  const anioEl = document.getElementById('anio-actual');
+  if (anioEl) anioEl.textContent = new Date().getFullYear();
+</script>
+</body>
+</html>
