@@ -1,0 +1,479 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Gestor de contraseñas propio: Vaultwarden en Docker con HTTPS propio (sin SSO)</title>
+  <link rel="icon" type="image/png" href="https://blogger.googleusercontent.com/img/a/AVvXsEjuquj9lFaN9zfg8H5FofNIUKAHWWRiOUbDhHragpU14TfF6RYKxb5w62mfAClxDkDrzCMAilRatibcoWFbuqMnXMBh30p_sfbxp4D2gUny70NbjyHLrs42VXeBB4Qtc8NovIS_DqIU5iq3dMMx1TuNZkW70MeW8Ryemwk_tDv6iKZi9ngKfaskUG1yCWo=s1600"/>
+  <style>
+    :root {
+      --bg: #060606;
+      --panel: #111111;
+      --panel-2: #1a1a1a;
+      --text: #f5f5f5;
+      --muted: #b9b9b9;
+      --accent: #ff7a00;
+      --accent-2: #ff9a3d;
+      --border: #2b2b2b;
+      --code: #050505;
+      --success: #24b36b;
+      --shadow: 0 12px 30px rgba(0,0,0,.35);
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+      background: linear-gradient(180deg, #050505 0%, #0a0a0a 100%);
+      color: var(--text);
+      line-height: 1.6;
+    }
+    .container { width: min(1100px, calc(100% - 32px)); margin: 0 auto; }
+    header {
+      padding: 48px 0 28px;
+      border-bottom: 1px solid rgba(255,255,255,.06);
+      background:
+        radial-gradient(circle at top right, rgba(255,122,0,.16), transparent 30%),
+        radial-gradient(circle at top left, rgba(255,154,61,.10), transparent 20%),
+        linear-gradient(180deg, #080808 0%, #101010 100%);
+      z-index: 20;
+    }
+    .header-inner { display: flex; gap: 18px; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; }
+    .header-brand { display: flex; gap: 18px; align-items: center; flex: 1 1 720px; }
+    .channel-logo {
+      display: inline-flex; align-items: center; justify-content: center;
+      border-radius: 18px; padding: 0; overflow: hidden;
+      border: 1px solid rgba(255,255,255,.08); box-shadow: var(--shadow);
+      background: rgba(255,255,255,.03); flex: 0 0 auto;
+    }
+    .channel-logo img { display: block; width: 200px; height: auto; object-fit: contain; }
+    h1 { font-size: clamp(1.8rem, 3vw, 3rem); margin: 0; line-height: 1.15; color: var(--accent); }
+    .brand { margin-top: 8px; font-weight: 700; letter-spacing: .4px; color: var(--accent-2); }
+    .subtitle { color: var(--muted); margin: 10px 0 0; max-width: 850px; }
+    main { padding: 28px 0 64px; }
+    .layout { display: grid; grid-template-columns: 260px 1fr; gap: 24px; align-items: start; }
+    .toc {
+      position: sticky; top: 20px; width: 260px;
+      background: rgba(17,17,17,.92); border: 1px solid var(--border);
+      border-radius: 18px; padding: 18px; box-shadow: var(--shadow); margin: 0;
+    }
+    .toc h2 { margin: 0 0 12px; font-size: 1rem; color: var(--accent); }
+    .toc a {
+      display: block; color: var(--muted); text-decoration: none;
+      padding: 8px 10px; border-radius: 10px;
+      transition: background .15s ease, color .15s ease; font-size: .95rem;
+    }
+    .toc a:hover { color: var(--text); background: rgba(255,122,0,.08); }
+    .content { display: grid; gap: 18px; }
+    .card {
+      background: linear-gradient(180deg, rgba(17,17,17,.97), rgba(12,12,12,.97));
+      border: 1px solid var(--border); border-radius: 22px; padding: 24px; box-shadow: var(--shadow);
+    }
+    .card h2 { margin-top: 0; font-size: 1.5rem; color: var(--accent); }
+    .card h3 { margin-bottom: 10px; margin-top: 22px; font-size: 1.08rem; color: #ffd1a8; }
+    .muted { color: var(--muted); }
+    ul, ol { margin-top: 10px; padding-left: 20px; }
+    li + li { margin-top: 6px; }
+    p, .note, .ok { text-align: justify; }
+    .note {
+      background: rgba(255,122,0,.08); border: 1px solid rgba(255,122,0,.22);
+      border-radius: 14px; padding: 14px 16px; color: #ffe2c4; margin-top: 14px;
+    }
+    .ok {
+      background: rgba(36,179,107,.10); border: 1px solid rgba(36,179,107,.28);
+      border-radius: 14px; padding: 14px 16px; color: #d8ffe8; margin-top: 14px;
+    }
+    .cmd { margin-top: 14px; border: 1px solid var(--border); background: var(--code); border-radius: 16px; overflow: hidden; }
+    .cmd-head {
+      display: flex; justify-content: space-between; align-items: center; gap: 12px;
+      padding: 10px 12px; background: rgba(255,255,255,.03); border-bottom: 1px solid rgba(255,255,255,.06);
+    }
+    .cmd-title { font-size: .92rem; color: var(--muted); font-weight: 600; }
+    .copy-btn {
+      border: 1px solid #6a3408; background: linear-gradient(180deg, #ff7a00, #d76200);
+      color: #111; border-radius: 10px; padding: 8px 10px; cursor: pointer;
+      font-size: .9rem; font-weight: 800; transition: .15s ease;
+    }
+    .copy-btn:hover { filter: brightness(1.06); }
+    .copy-btn.copied { background: rgba(36,179,107,.18); border-color: rgba(36,179,107,.45); color: #d7ffe8; }
+    pre {
+      margin: 0; padding: 16px; overflow-x: auto; white-space: pre-wrap; word-break: break-word;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      font-size: .94rem; color: #ffbf85;
+    }
+    code.inline {
+      background: rgba(255,255,255,.06); padding: 2px 8px; border-radius: 8px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: .92em; color: #ffd2aa;
+    }
+    table { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: .95rem; }
+    th, td { border: 1px solid var(--border); padding: 10px 12px; text-align: left; vertical-align: top; }
+    th { background: rgba(255,255,255,.04); color: #ffd1a8; }
+    footer { margin-top: 24px; color: var(--muted); text-align: center; font-size: .95rem; }
+    @media (max-width: 920px) {
+      .layout { grid-template-columns: 1fr; }
+      .toc { position: static; width: 100%; }
+    }
+  </style>
+</head>
+<body>
+<header>
+  <div class="container header-inner">
+    <div class="header-brand">
+      <a class="channel-logo" href="https://www.youtube.com/c/ClockworkComputerIP" target="_blank" rel="noopener noreferrer" aria-label="Clockwork Computer">
+        <img src="https://blogger.googleusercontent.com/img/a/AVvXsEjuquj9lFaN9zfg8H5FofNIUKAHWWRiOUbDhHragpU14TfF6RYKxb5w62mfAClxDkDrzCMAilRatibcoWFbuqMnXMBh30p_sfbxp4D2gUny70NbjyHLrs42VXeBB4Qtc8NovIS_DqIU5iq3dMMx1TuNZkW70MeW8Ryemwk_tDv6iKZi9ngKfaskUG1yCWo=s1600" alt="Clockwork Computer"/>
+      </a>
+      <div>
+        <h1>Gestor de contraseñas propio: Vaultwarden en Docker con HTTPS propio</h1>
+        <div class="brand">Un único contenedor, HTTPS propio, acceso directo por IP, sin SSO</div>
+        <p class="subtitle">Guía técnica para levantar Vaultwarden (servidor compatible con Bitwarden) en Docker. Un solo contenedor, con HTTPS propio (certificado autofirmado) servido por el propio Vaultwarden, sin proxy inverso, sin dominio y sin SSO. Todo pensado para copiar y pegar tal cual.</p>
+      </div>
+    </div>
+  </div>
+</header>
+<main>
+  <div class="container layout">
+    <aside class="toc">
+      <h2>Contenido</h2>
+      <a href="#introduccion">1. Introducción</a>
+      <a href="#variables">2. Variables de esta guía</a>
+      <a href="#arquitectura">3. Arquitectura y flujo</a>
+      <a href="#requisitos">4. Requisitos</a>
+      <a href="#paso-carpeta">5. Crear la carpeta del stack</a>
+      <a href="#paso-cert">6. Generar el certificado autofirmado</a>
+      <a href="#paso-env">7. Crear el .env</a>
+      <a href="#paso-compose">8. Crear el docker-compose.yml</a>
+      <a href="#paso-token">9. Generar el ADMIN_TOKEN</a>
+      <a href="#paso-arranque">10. Arrancar el stack y verificar</a>
+      <a href="#paso-cuenta">11. Crear la cuenta y cerrar el registro</a>
+      <a href="#paso-navegador">12. Acceder desde el navegador</a>
+      <a href="#puertos">13. Tabla de puertos y componentes</a>
+      <a href="#errores">14. Errores comunes</a>
+      <a href="#ampliacion">15. Notas de ampliación</a>
+    </aside>
+    <div class="content">
+
+      <section class="card" id="introduccion">
+        <h2>1. Introducción</h2>
+        <p><strong>Vaultwarden</strong> es una reimplementación en Rust, ligera, de la API de servidor de Bitwarden. Permite usar los clientes oficiales de Bitwarden (navegador, extensión, móvil, escritorio) contra un servidor propio, autoalojado, sin depender de la nube de Bitwarden. Esta práctica lo levanta en un único contenedor Docker, pensada como laboratorio de pruebas: sin dominio, sin proxy inverso y sin SSO.</p>
+        <div class="note">El vault web de Vaultwarden, igual que le pasa a otros clientes web modernos, exige que la página se cargue en un <strong>contexto seguro</strong>: HTTPS, o <code class="inline">localhost</code>. Una IP normal de la red servida por <code class="inline">http</code> no lo cumple, y sin ello el navegador deshabilita el cifrado que el propio vault necesita para funcionar. La solución más simple aquí no es un proxy aparte: Vaultwarden puede servir <strong>HTTPS él mismo</strong> con un certificado autofirmado, montado como volumen y activado con una única variable (<code class="inline">ROCKET_TLS</code>). Un solo contenedor, sin piezas adicionales.</p>
+      </section>
+
+      <section class="card" id="variables">
+        <h2>2. Variables de esta guía</h2>
+        <p>Todos los bloques usan el siguiente marcador en <strong>MAYÚSCULAS</strong>. Sustitúyelo por el valor real de tu servidor.</p>
+        <table>
+          <thead><tr><th>Marcador</th><th>Qué es</th><th>Dónde se obtiene</th></tr></thead>
+          <tbody>
+            <tr><td><code class="inline">IP_HOST_DOCKER</code></td><td>IP del servidor donde corre Docker</td><td>La interfaz de red de ese servidor (<code class="inline">ip a</code>)</td></tr>
+          </tbody>
+        </table>
+        <div class="note"><code class="inline">IP_HOST_DOCKER</code> es también el texto que se escribe como <code class="inline">CN</code> y <code class="inline">subjectAltName</code> al generar el certificado (sección 6). Si esa IP cambia más adelante, hay que regenerar el certificado.</div>
+      </section>
+
+      <section class="card" id="arquitectura">
+        <h2>3. Arquitectura y flujo</h2>
+        <p>Un único contenedor recibe todo el tráfico HTTPS directamente, sin proxy delante: el propio Vaultwarden termina el TLS con el certificado autofirmado montado como volumen.</p>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Resumen visual</div>
+            <button class="copy-btn" data-copy-target="cmd-arch">Copiar</button>
+          </div>
+          <pre id="cmd-arch">[Navegador, en cualquier equipo de la red]
+      |
+      |  https://IP_HOST_DOCKER:8443  (certificado autofirmado)
+      v
+[vaultwarden] :8443  (HTTPS servido por el propio contenedor)
+      |
+      v
+ ./vw-data  (volumen persistente: bóveda, config, adjuntos)
+ ./certs    (volumen: cert.pem + key.pem)</pre>
+        </div>
+        <div class="note">Esta práctica no implementa SSO ni dominio público: el acceso es directo por IP dentro de la red local, sin exponer nada a internet.</div>
+      </section>
+
+      <section class="card" id="requisitos">
+        <h2>4. Requisitos</h2>
+        <ul>
+          <li>Un servidor con <strong>Ubuntu Server</strong>, físico o virtual, con red en la misma LAN desde la que vas a acceder.</li>
+          <li><strong>Docker Engine</strong> y el plugin <strong>Docker Compose</strong> (<code class="inline">docker compose</code>, sin guion) instalados en ese servidor.</li>
+          <li><strong>No hace falta salida a internet</strong>: todo el flujo vive dentro de la red local.</li>
+          <li>Un navegador cualquiera en otro equipo de la misma red (o en el propio servidor).</li>
+        </ul>
+      </section>
+
+      <section class="card" id="paso-carpeta">
+        <h2>5. Crear la carpeta del stack</h2>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Crear /docker/vaultwarden</div>
+            <button class="copy-btn" data-copy-target="cmd-1">Copiar</button>
+          </div>
+          <pre id="cmd-1">sudo mkdir -p /docker/vaultwarden && cd /docker/vaultwarden
+sudo mkdir -p vw-data certs</pre>
+        </div>
+      </section>
+
+      <section class="card" id="paso-cert">
+        <h2>6. Generar el certificado autofirmado</h2>
+        <p>Certificado con clave EC (curva elíptica), válido para la IP del servidor:</p>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Generar cert.pem y key.pem</div>
+            <button class="copy-btn" data-copy-target="cmd-cert">Copiar</button>
+          </div>
+          <pre id="cmd-cert">cd /docker/vaultwarden
+sudo openssl ecparam -name prime256v1 -genkey -noout -out certs/key.pem
+sudo openssl req -new -x509 -key certs/key.pem -out certs/cert.pem -days 825 \
+  -subj "/CN=IP_HOST_DOCKER" \
+  -addext "subjectAltName=IP:IP_HOST_DOCKER"</pre>
+        </div>
+      </section>
+
+      <section class="card" id="paso-env">
+        <h2>7. Crear el .env</h2>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Crear el archivo</div>
+            <button class="copy-btn" data-copy-target="cmd-envcmd">Copiar</button>
+          </div>
+          <pre id="cmd-envcmd">sudo nano .env</pre>
+        </div>
+        <p>Pega esto, sustituyendo <code class="inline">IP_HOST_DOCKER</code> y dejando <code class="inline">ADMIN_TOKEN</code> pendiente hasta la sección 9:</p>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">.env</div>
+            <button class="copy-btn" data-copy-target="cmd-env">Copiar</button>
+          </div>
+          <pre id="cmd-env"># URL de acceso: IP del servidor + puerto HTTPS
+DOMAIN=https://IP_HOST_DOCKER:8443
+
+# Se rellena en la sección 9, con el hash generado por "vaultwarden hash"
+ADMIN_TOKEN=PENDIENTE_SECCION_9
+
+# Registro abierto mientras se hace la prueba; se cierra en la sección 11
+SIGNUPS_ALLOWED=true
+
+# HTTPS servido por el propio Vaultwarden (sin proxy)
+ROCKET_TLS={certs="/ssl/cert.pem",key="/ssl/key.pem"}
+ROCKET_PORT=8443
+
+# Esta práctica NO implementa SSO (queda para una práctica posterior)
+SSO_ENABLED=false</pre>
+        </div>
+        <div class="note">Las rutas <code class="inline">/ssl/cert.pem</code> y <code class="inline">/ssl/key.pem</code> son rutas <strong>dentro del contenedor</strong>, no del host: el volumen <code class="inline">./certs:/ssl:ro</code> del <code class="inline">docker-compose.yml</code> (sección 8) es el que hace que coincidan con los ficheros generados en la sección 6.</div>
+      </section>
+
+      <section class="card" id="paso-compose">
+        <h2>8. Crear el docker-compose.yml</h2>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Crear el archivo</div>
+            <button class="copy-btn" data-copy-target="cmd-composecmd">Copiar</button>
+          </div>
+          <pre id="cmd-composecmd">sudo nano docker-compose.yml</pre>
+        </div>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">docker-compose.yml</div>
+            <button class="copy-btn" data-copy-target="cmd-compose">Copiar</button>
+          </div>
+          <pre id="cmd-compose">services:
+  vaultwarden:
+    image: vaultwarden/server:latest
+    container_name: vaultwarden
+    restart: unless-stopped
+    env_file:
+      - .env
+    volumes:
+      - ./vw-data:/data
+      - ./certs:/ssl:ro
+    ports:
+      - "8443:8443"</pre>
+        </div>
+        <div class="note">Un único servicio, sin proxy: el puerto 8443 se publica directamente desde el contenedor de Vaultwarden, que ya sirve HTTPS gracias a <code class="inline">ROCKET_TLS</code> (sección 7).</div>
+      </section>
+
+      <section class="card" id="paso-token">
+        <h2>9. Generar el ADMIN_TOKEN</h2>
+        <p>El panel <code class="inline">/admin</code> exige un token hasheado con Argon2, no una contraseña en texto plano:</p>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Generar el hash</div>
+            <button class="copy-btn" data-copy-target="cmd-hash">Copiar</button>
+          </div>
+          <pre id="cmd-hash">docker run --rm -it vaultwarden/server:latest /vaultwarden hash</pre>
+        </div>
+        <p>Introduce la contraseña que quieras usar para <code class="inline">/admin</code>. Copia el hash completo (empieza por <code class="inline">$argon2id$...</code>) y sustitúyelo en <code class="inline">.env</code>:</p>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Editar .env</div>
+            <button class="copy-btn" data-copy-target="cmd-editenv">Copiar</button>
+          </div>
+          <pre id="cmd-editenv">sudo nano .env
+# Sustituye la línea:
+# ADMIN_TOKEN=PENDIENTE_SECCION_9
+# por:
+# ADMIN_TOKEN=$argon2id$v=19$m=...(hash completo)...</pre>
+        </div>
+        <div class="note">Guarda ese hash completo entre las mismas líneas del <code class="inline">.env</code>, sin comillas adicionales. La contraseña en claro no se guarda en ningún sitio: solo tú la recuerdas para entrar en <code class="inline">/admin</code>.</div>
+      </section>
+
+      <section class="card" id="paso-arranque">
+        <h2>10. Arrancar el stack y verificar</h2>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Levantar el contenedor</div>
+            <button class="copy-btn" data-copy-target="cmd-up">Copiar</button>
+          </div>
+          <pre id="cmd-up">cd /docker/vaultwarden
+docker compose up -d
+docker compose ps</pre>
+        </div>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Ver logs</div>
+            <button class="copy-btn" data-copy-target="cmd-logs">Copiar</button>
+          </div>
+          <pre id="cmd-logs">docker logs -f vaultwarden</pre>
+        </div>
+        <p>Busca una línea de arranque sin errores de certificado ni de permisos. <code class="inline">Ctrl+C</code> para salir del log (el contenedor sigue corriendo).</p>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Probar desde el propio host</div>
+            <button class="copy-btn" data-copy-target="cmd-curl">Copiar</button>
+          </div>
+          <pre id="cmd-curl">curl -kv https://IP_HOST_DOCKER:8443/alive</pre>
+        </div>
+        <div class="ok">Si devuelve una fecha/hora, Vaultwarden está sirviendo correctamente por HTTPS.</div>
+      </section>
+
+      <section class="card" id="paso-cuenta">
+        <h2>11. Crear la cuenta y cerrar el registro</h2>
+        <p>Desde el navegador, en <code class="inline">https://IP_HOST_DOCKER:8443</code>, pulsa <strong>Crear cuenta</strong> y registra tu email y contraseña maestra. Inicia sesión y confirma que la bóveda carga.</p>
+        <p>Entra en el panel de administración:</p>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">URL del panel admin</div>
+            <button class="copy-btn" data-copy-target="cmd-admin">Copiar</button>
+          </div>
+          <pre id="cmd-admin">https://IP_HOST_DOCKER:8443/admin</pre>
+        </div>
+        <p>Usa la contraseña en claro de la sección 9 (no el hash). Una vez creada tu cuenta, cierra el registro público:</p>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Cerrar SIGNUPS_ALLOWED</div>
+            <button class="copy-btn" data-copy-target="cmd-close">Copiar</button>
+          </div>
+          <pre id="cmd-close">sudo nano .env
+# Cambia:
+# SIGNUPS_ALLOWED=true
+# por:
+# SIGNUPS_ALLOWED=false
+
+docker compose up -d</pre>
+        </div>
+      </section>
+
+      <section class="card" id="paso-navegador">
+        <h2>12. Acceder desde el navegador</h2>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">URL de acceso</div>
+            <button class="copy-btn" data-copy-target="cmd-url">Copiar</button>
+          </div>
+          <pre id="cmd-url">https://IP_HOST_DOCKER:8443</pre>
+        </div>
+        <div class="note">El navegador mostrará un aviso de conexión no privada o certificado no confiable. Es esperado: el certificado es autofirmado. Pulsa <strong>"Avanzado"</strong> y <strong>"Continuar a IP_HOST_DOCKER (no seguro)"</strong> (el texto exacto varía según el navegador) para seguir.</div>
+        <div class="ok">Tras aceptar el aviso, debería cargar el login de Vaultwarden sin errores de "navegador no compatible". Inicia sesión, crea una entrada de prueba en la bóveda y confirma que se guarda correctamente.</div>
+      </section>
+
+      <section class="card" id="puertos">
+        <h2>13. Tabla de puertos y componentes</h2>
+        <table>
+          <thead><tr><th>Puerto</th><th>Componente</th><th>Sentido de la conexión</th><th>Para qué sirve</th></tr></thead>
+          <tbody>
+            <tr><td>8443/tcp</td><td>vaultwarden (Docker)</td><td>Navegador → contenedor</td><td>HTTPS servido por el propio Vaultwarden (certificado autofirmado, sin proxy)</td></tr>
+            <tr><td>&mdash;</td><td>./vw-data (volumen)</td><td>Contenedor ↔ host</td><td>Persistencia de la bóveda, adjuntos y configuración</td></tr>
+            <tr><td>&mdash;</td><td>./certs (volumen)</td><td>Host → contenedor (solo lectura)</td><td>Certificado y clave usados por ROCKET_TLS</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section class="card" id="errores">
+        <h2>14. Errores comunes</h2>
+        <table>
+          <thead><tr><th>Problema</th><th>Causa probable</th><th>Solución</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>El contenedor no arranca, error relacionado con <code class="inline">ROCKET_TLS</code></td>
+              <td>Ruta incorrecta en el valor de <code class="inline">ROCKET_TLS</code>, o los ficheros <code class="inline">cert.pem</code>/<code class="inline">key.pem</code> no están en <code class="inline">./certs</code></td>
+              <td>Revisar que <code class="inline">./certs</code> contiene ambos ficheros (sección 6) y que la ruta en <code class="inline">.env</code> es exactamente <code class="inline">/ssl/cert.pem</code> y <code class="inline">/ssl/key.pem</code> (sección 7)</td>
+            </tr>
+            <tr>
+              <td>El navegador no llega a cargar nada en <code class="inline">https://IP_HOST_DOCKER:8443</code></td>
+              <td>El puerto 8443 no está publicado, o un firewall interno del servidor (<code class="inline">ufw</code>) lo bloquea</td>
+              <td><code class="inline">docker compose ps</code> para confirmar que el puerto aparece publicado; si hay <code class="inline">ufw</code> activo, <code class="inline">sudo ufw allow 8443/tcp</code></td>
+            </tr>
+            <tr>
+              <td><code class="inline">/admin</code> da "no autorizado"</td>
+              <td>Se está usando el hash guardado en <code class="inline">.env</code> en vez de la contraseña en claro</td>
+              <td>Usar la contraseña que escribiste al ejecutar <code class="inline">vaultwarden hash</code> (sección 9), no el hash resultante</td>
+            </tr>
+            <tr>
+              <td>Cambios en <code class="inline">.env</code> no se aplican</td>
+              <td>Falta relanzar el contenedor tras editar el archivo</td>
+              <td><code class="inline">docker compose up -d</code> de nuevo (Vaultwarden no recarga en caliente)</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section class="card" id="ampliacion">
+        <h2>15. Notas de ampliación</h2>
+        <p>Esta guía cubre lo mínimo necesario para un laboratorio funcional: un contenedor, HTTPS propio y una cuenta de prueba. Para un uso más allá del laboratorio, conviene ampliar con:</p>
+        <ul>
+          <li><strong>Importar el certificado</strong> en el almacén de confianza de cada equipo cliente, para que el aviso de "certificado no confiable" desaparezca de forma permanente.</li>
+          <li><strong>Dominio propio + Let's Encrypt</strong> en vez de certificado autofirmado, si el servicio pasa a estar accesible fuera del laboratorio.</li>
+          <li><strong>SSO corporativo</strong> (Entra ID / Microsoft), deliberadamente fuera del alcance de esta práctica.</li>
+          <li><strong>Apps cliente</strong> (extensión de navegador, móvil, escritorio de Bitwarden) apuntando al mismo <code class="inline">DOMAIN</code>, una vez el certificado esté importado o sea válido.</li>
+          <li><strong>Copias de seguridad</strong> de <code class="inline">./vw-data</code> (incluye la bóveda cifrada y la configuración del servidor).</li>
+        </ul>
+      </section>
+
+      <footer>
+        <p style="margin: 0 0 6px;">Guía técnica para autoalojar Vaultwarden en Docker con HTTPS propio, sin SSO.</p>
+        <p style="margin: 0; opacity: .75;">&copy; <span id="anio-actual">2026</span> Clockwork Computer. Contenido educativo de libre consulta; su reproducción total o parcial en otros sitios requiere autorización previa.</p>
+      </footer>
+    </div>
+  </div>
+</main>
+<script>
+  async function copyText(text, button) {
+    try {
+      await navigator.clipboard.writeText(text);
+      const original = button.textContent;
+      button.textContent = 'Copiado';
+      button.classList.add('copied');
+      setTimeout(() => {
+        button.textContent = original;
+        button.classList.remove('copied');
+      }, 1400);
+    } catch (err) {
+      alert('No se pudo copiar automáticamente.');
+    }
+  }
+  document.querySelectorAll('.copy-btn').forEach(button => {
+    button.addEventListener('click', () => {
+      const targetId = button.getAttribute('data-copy-target');
+      const target = document.getElementById(targetId);
+      if (!target) return;
+      copyText(target.innerText.trim(), button);
+    });
+  });
+  const anioEl = document.getElementById('anio-actual');
+  if (anioEl) anioEl.textContent = new Date().getFullYear();
+</script>
+</body>
+</html>
