@@ -156,7 +156,7 @@
       <section class="card" id="introduccion">
         <h2>1. Introducción</h2>
         <p><strong>Vaultwarden</strong> es una reimplementación en Rust, ligera, de la API de servidor de Bitwarden. Permite usar los clientes oficiales de Bitwarden (navegador, extensión, móvil, escritorio) contra un servidor propio, autoalojado, sin depender de la nube de Bitwarden. Esta guía lo levanta en un único contenedor Docker, con HTTPS servido por el propio Vaultwarden.</p>
-        <div class="note">El vault web de Vaultwarden, igual que le pasa a otros clientes web modernos, exige que la página se cargue en un <strong>contexto seguro</strong>: HTTPS, o <code class="inline">localhost</code>. Una IP normal de la red servida por <code class="inline">http</code> no lo cumple, y sin ello el navegador deshabilita el cifrado que el propio vault necesita para funcionar. La solución más simple aquí no es un proxy aparte: Vaultwarden puede servir <strong>HTTPS él mismo</strong> con un certificado autofirmado, montado como volumen y activado con una única variable (<code class="inline">ROCKET_TLS</code>). Un solo contenedor, sin piezas adicionales.</p>
+        <div class="note">El vault web de Vaultwarden, igual que le pasa a otros clientes web modernos, exige que la página se cargue en un <strong>contexto seguro</strong>: HTTPS, o <code class="inline">localhost</code>. Una IP normal de la red servida por <code class="inline">http</code> no lo cumple, y sin ello el navegador deshabilita el cifrado que el propio vault necesita para funcionar. La solución más simple aquí no es un proxy aparte: Vaultwarden puede servir <strong>HTTPS él mismo</strong> con un certificado autofirmado, montado como volumen y activado con una única variable (<code class="inline">ROCKET_TLS</code>). Un solo contenedor, sin piezas adicionales.</div>
       </section>
 
       <section class="card" id="variables">
@@ -169,6 +169,7 @@
           </tbody>
         </table>
         <div class="note"><code class="inline">IP_HOST_DOCKER</code> es también el texto que se escribe como <code class="inline">CN</code> y <code class="inline">subjectAltName</code> al generar el certificado (sección 6). Si esa IP cambia más adelante, hay que regenerar el certificado.</div>
+        <div class="note">Si en el mismo servidor ya tienes otro servicio publicando el puerto <code class="inline">8444</code>, cámbialo por otro libre (por ejemplo <code class="inline">8445</code>) en las secciones 7, 8, 10, 11, 12 y 13 antes de arrancar. Dos contenedores no pueden publicar el mismo puerto del host a la vez, aunque cada uno tenga su propio certificado.</div>
       </section>
 
       <section class="card" id="arquitectura">
@@ -181,9 +182,9 @@
           </div>
           <pre id="cmd-arch">[Navegador, en cualquier equipo de la red]
       |
-      |  https://IP_HOST_DOCKER:8443  (certificado autofirmado)
+      |  https://IP_HOST_DOCKER:8444  (certificado autofirmado)
       v
-[vaultwarden] :8443  (HTTPS servido por el propio contenedor)
+[vaultwarden] :8444  (HTTPS servido por el propio contenedor)
       |
       v
  ./vw-data  (volumen persistente: bóveda, config, adjuntos)
@@ -199,6 +200,7 @@
           <li><strong>Docker Engine</strong> y el plugin <strong>Docker Compose</strong> (<code class="inline">docker compose</code>, sin guion) instalados en ese servidor.</li>
           <li><strong>No hace falta salida a internet</strong>: todo el flujo vive dentro de la red local.</li>
           <li>Un navegador cualquiera en otro equipo de la misma red (o en el propio servidor).</li>
+          <li>Confirmar que el puerto <code class="inline">8444</code> está libre en ese servidor (<code class="inline">ss -tlnp | grep 8444</code>); si ya lo usa otro contenedor, elige otro puerto antes de empezar.</li>
         </ul>
       </section>
 
@@ -246,7 +248,7 @@ sudo openssl req -new -x509 -key certs/key.pem -out certs/cert.pem -days 825 \
             <button class="copy-btn" data-copy-target="cmd-env">Copiar</button>
           </div>
           <pre id="cmd-env"># URL de acceso: IP del servidor + puerto HTTPS
-DOMAIN=https://IP_HOST_DOCKER:8443
+DOMAIN=https://IP_HOST_DOCKER:8444
 
 # Se rellena en la sección 9, con el hash generado por "vaultwarden hash"
 ADMIN_TOKEN=PENDIENTE_SECCION_9
@@ -256,9 +258,10 @@ SIGNUPS_ALLOWED=true
 
 # HTTPS servido por el propio Vaultwarden
 ROCKET_TLS={certs="/ssl/cert.pem",key="/ssl/key.pem"}
-ROCKET_PORT=8443</pre>
+ROCKET_PORT=8444</pre>
         </div>
         <div class="note">Las rutas <code class="inline">/ssl/cert.pem</code> y <code class="inline">/ssl/key.pem</code> son rutas <strong>dentro del contenedor</strong>, no del host: el volumen <code class="inline">./certs:/ssl:ro</code> del <code class="inline">docker-compose.yml</code> (sección 8) es el que hace que coincidan con los ficheros generados en la sección 6.</div>
+        <div class="note">El <code class="inline">ADMIN_TOKEN</code> se carga aquí con <code class="inline">env_file:</code> en vez de con <code class="inline">environment: ${ADMIN_TOKEN}</code> en el <code class="inline">docker-compose.yml</code>, y es a propósito: el hash de la sección 9 lleva varios símbolos <code class="inline">$</code> dentro (<code class="inline">$argon2id$v=19$...</code>), y con <code class="inline">env_file:</code> Docker Compose los pasa tal cual al contenedor, sin intentar interpretarlos como sus propias variables. Si alguna vez migras esto a <code class="inline">environment:</code>, tendrías que duplicar cada <code class="inline">$</code> como <code class="inline">$$</code>.</div>
       </section>
 
       <section class="card" id="paso-compose">
@@ -286,9 +289,9 @@ ROCKET_PORT=8443</pre>
       - ./vw-data:/data
       - ./certs:/ssl:ro
     ports:
-      - "8443:8443"</pre>
+      - "8444:8444"</pre>
         </div>
-        <div class="note">Un único servicio, sin proxy: el puerto 8443 se publica directamente desde el contenedor de Vaultwarden, que ya sirve HTTPS gracias a <code class="inline">ROCKET_TLS</code> (sección 7).</div>
+        <div class="note">Un único servicio, sin proxy: el puerto 8444 se publica directamente desde el contenedor de Vaultwarden, que ya sirve HTTPS gracias a <code class="inline">ROCKET_TLS</code> (sección 7).</div>
       </section>
 
       <section class="card" id="paso-token">
@@ -340,21 +343,21 @@ docker compose ps</pre>
             <div class="cmd-title">Probar desde el propio host</div>
             <button class="copy-btn" data-copy-target="cmd-curl">Copiar</button>
           </div>
-          <pre id="cmd-curl">curl -kv https://IP_HOST_DOCKER:8443/alive</pre>
+          <pre id="cmd-curl">curl -kv https://IP_HOST_DOCKER:8444/alive</pre>
         </div>
         <div class="ok">Si devuelve una fecha/hora, Vaultwarden está sirviendo correctamente por HTTPS.</div>
       </section>
 
       <section class="card" id="paso-cuenta">
         <h2>11. Crear la cuenta y cerrar el registro</h2>
-        <p>Desde el navegador, en <code class="inline">https://IP_HOST_DOCKER:8443</code>, pulsa <strong>Crear cuenta</strong> y registra tu email y contraseña maestra. Inicia sesión y confirma que la bóveda carga.</p>
+        <p>Desde el navegador, en <code class="inline">https://IP_HOST_DOCKER:8444</code>, pulsa <strong>Crear cuenta</strong> y registra tu email y contraseña maestra. Inicia sesión y confirma que la bóveda carga.</p>
         <p>Entra en el panel de administración:</p>
         <div class="cmd">
           <div class="cmd-head">
             <div class="cmd-title">URL del panel admin</div>
             <button class="copy-btn" data-copy-target="cmd-admin">Copiar</button>
           </div>
-          <pre id="cmd-admin">https://IP_HOST_DOCKER:8443/admin</pre>
+          <pre id="cmd-admin">https://IP_HOST_DOCKER:8444/admin</pre>
         </div>
         <p>Usa la contraseña en claro de la sección 9 (no el hash). Una vez creada tu cuenta, cierra el registro público:</p>
         <div class="cmd">
@@ -379,7 +382,7 @@ docker compose up -d</pre>
             <div class="cmd-title">URL de acceso</div>
             <button class="copy-btn" data-copy-target="cmd-url">Copiar</button>
           </div>
-          <pre id="cmd-url">https://IP_HOST_DOCKER:8443</pre>
+          <pre id="cmd-url">https://IP_HOST_DOCKER:8444</pre>
         </div>
         <div class="note">El navegador mostrará un aviso de conexión no privada o certificado no confiable. Es esperado: el certificado es autofirmado. Pulsa <strong>"Avanzado"</strong> y <strong>"Continuar a IP_HOST_DOCKER (no seguro)"</strong> (el texto exacto varía según el navegador) para seguir.</div>
         <div class="ok">Tras aceptar el aviso, debería cargar el login de Vaultwarden sin errores de "navegador no compatible". Inicia sesión, crea una entrada de prueba en la bóveda y confirma que se guarda correctamente.</div>
@@ -390,7 +393,7 @@ docker compose up -d</pre>
         <table>
           <thead><tr><th>Puerto</th><th>Componente</th><th>Sentido de la conexión</th><th>Para qué sirve</th></tr></thead>
           <tbody>
-            <tr><td>8443/tcp</td><td>vaultwarden (Docker)</td><td>Navegador → contenedor</td><td>HTTPS servido por el propio Vaultwarden (certificado autofirmado, sin proxy)</td></tr>
+            <tr><td>8444/tcp</td><td>vaultwarden (Docker)</td><td>Navegador → contenedor</td><td>HTTPS servido por el propio Vaultwarden (certificado autofirmado, sin proxy)</td></tr>
             <tr><td>&mdash;</td><td>./vw-data (volumen)</td><td>Contenedor ↔ host</td><td>Persistencia de la bóveda, adjuntos y configuración</td></tr>
             <tr><td>&mdash;</td><td>./certs (volumen)</td><td>Host → contenedor (solo lectura)</td><td>Certificado y clave usados por ROCKET_TLS</td></tr>
           </tbody>
@@ -403,14 +406,19 @@ docker compose up -d</pre>
           <thead><tr><th>Problema</th><th>Causa probable</th><th>Solución</th></tr></thead>
           <tbody>
             <tr>
+              <td>El contenedor no arranca, error de <code class="inline">port is already allocated</code></td>
+              <td>Otro contenedor en el mismo servidor ya está publicando el puerto 8444 (o el que hayas elegido)</td>
+              <td><code class="inline">docker ps</code> para localizar qué lo está usando; cambiar el puerto en las secciones 7, 8, 10, 11 y 12, o parar el otro servicio</td>
+            </tr>
+            <tr>
               <td>El contenedor no arranca, error relacionado con <code class="inline">ROCKET_TLS</code></td>
               <td>Ruta incorrecta en el valor de <code class="inline">ROCKET_TLS</code>, o los ficheros <code class="inline">cert.pem</code>/<code class="inline">key.pem</code> no están en <code class="inline">./certs</code></td>
               <td>Revisar que <code class="inline">./certs</code> contiene ambos ficheros (sección 6) y que la ruta en <code class="inline">.env</code> es exactamente <code class="inline">/ssl/cert.pem</code> y <code class="inline">/ssl/key.pem</code> (sección 7)</td>
             </tr>
             <tr>
-              <td>El navegador no llega a cargar nada en <code class="inline">https://IP_HOST_DOCKER:8443</code></td>
-              <td>El puerto 8443 no está publicado, o un firewall interno del servidor (<code class="inline">ufw</code>) lo bloquea</td>
-              <td><code class="inline">docker compose ps</code> para confirmar que el puerto aparece publicado; si hay <code class="inline">ufw</code> activo, <code class="inline">sudo ufw allow 8443/tcp</code></td>
+              <td>El navegador o <code class="inline">curl -k</code> dan un error de protocolo TLS raro (no el aviso normal de certificado no confiable, sino algo tipo <code class="inline">alert internal error</code> o conexión que se corta a medias)</td>
+              <td>Puede ser un problema del propio sistema o del contenedor, no del certificado en sí</td>
+              <td>Aislarlo probando el mismo <code class="inline">cert.pem</code>/<code class="inline">key.pem</code> directamente con <code class="inline">openssl s_server -key certs/key.pem -cert certs/cert.pem -accept 9999 -www</code> fuera de Docker; si eso también falla, el problema es del sistema, no de Vaultwarden</td>
             </tr>
             <tr>
               <td><code class="inline">/admin</code> da "no autorizado"</td>
