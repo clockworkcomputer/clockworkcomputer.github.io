@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>ERP y CRM propio: Odoo en Docker con HTTPS</title>
+  <link rel="icon" type="image/png" href="https://blogger.googleusercontent.com/img/a/AVvXsEjuquj9lFaN9zfg8H5FofNIUKAHWWRiOUbDhHragpU14TfF6RYKxb5w62mfAClxDkDrzCMAilRatibcoWFbuqMnXMBh30p_sfbxp4D2gUny70NbjyHLrs42VXeBB4Qtc8NovIS_DqIU5iq3dMMx1TuNZkW70MeW8Ryemwk_tDv6iKZi9ngKfaskUG1yCWo=s1600"/>
+  <style>
+    :root {
+      --bg: #060606;
+      --panel: #111111;
+      --panel-2: #1a1a1a;
+      --text: #f5f5f5;
+      --muted: #b9b9b9;
+      --accent: #ff7a00;
+      --accent-2: #ff9a3d;
+      --border: #2b2b2b;
+      --code: #050505;
+      --success: #24b36b;
+      --shadow: 0 12px 30px rgba(0,0,0,.35);
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+      background: linear-gradient(180deg, #050505 0%, #0a0a0a 100%);
+      color: var(--text);
+      line-height: 1.6;
+    }
+    .container { width: min(1100px, calc(100% - 32px)); margin: 0 auto; }
+    header {
+      padding: 48px 0 28px;
+      border-bottom: 1px solid rgba(255,255,255,.06);
+      background:
+        radial-gradient(circle at top right, rgba(255,122,0,.16), transparent 30%),
+        radial-gradient(circle at top left, rgba(255,154,61,.10), transparent 20%),
+        linear-gradient(180deg, #080808 0%, #101010 100%);
+      z-index: 20;
+    }
+    .header-inner { display: flex; gap: 18px; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; }
+    .header-brand { display: flex; gap: 18px; align-items: center; flex: 1 1 720px; }
+    .channel-logo {
+      display: inline-flex; align-items: center; justify-content: center;
+      border-radius: 18px; padding: 0; overflow: hidden;
+      border: 1px solid rgba(255,255,255,.08); box-shadow: var(--shadow);
+      background: rgba(255,255,255,.03); flex: 0 0 auto;
+    }
+    .channel-logo img { display: block; width: 200px; height: auto; object-fit: contain; }
+    h1 { font-size: clamp(1.8rem, 3vw, 3rem); margin: 0; line-height: 1.15; color: var(--accent); }
+    .brand { margin-top: 8px; font-weight: 700; letter-spacing: .4px; color: var(--accent-2); }
+    .subtitle { color: var(--muted); margin: 10px 0 0; max-width: 850px; }
+    main { padding: 28px 0 64px; }
+    .layout { display: grid; grid-template-columns: 260px 1fr; gap: 24px; align-items: start; }
+    .toc {
+      position: sticky; top: 20px; width: 260px;
+      background: rgba(17,17,17,.92); border: 1px solid var(--border);
+      border-radius: 18px; padding: 18px; box-shadow: var(--shadow); margin: 0;
+    }
+    .toc h2 { margin: 0 0 12px; font-size: 1rem; color: var(--accent); }
+    .toc a {
+      display: block; color: var(--muted); text-decoration: none;
+      padding: 8px 10px; border-radius: 10px;
+      transition: background .15s ease, color .15s ease; font-size: .95rem;
+    }
+    .toc a:hover { color: var(--text); background: rgba(255,122,0,.08); }
+    .content { display: grid; gap: 18px; }
+    .card {
+      background: linear-gradient(180deg, rgba(17,17,17,.97), rgba(12,12,12,.97));
+      border: 1px solid var(--border); border-radius: 22px; padding: 24px; box-shadow: var(--shadow);
+    }
+    .card h2 { margin-top: 0; font-size: 1.5rem; color: var(--accent); }
+    .card h3 { margin-bottom: 10px; margin-top: 22px; font-size: 1.08rem; color: #ffd1a8; }
+    .muted { color: var(--muted); }
+    ul, ol { margin-top: 10px; padding-left: 20px; }
+    li + li { margin-top: 6px; }
+    p, .note, .ok { text-align: justify; }
+    .note {
+      background: rgba(255,122,0,.08); border: 1px solid rgba(255,122,0,.22);
+      border-radius: 14px; padding: 14px 16px; color: #ffe2c4; margin-top: 14px;
+    }
+    .ok {
+      background: rgba(36,179,107,.10); border: 1px solid rgba(36,179,107,.28);
+      border-radius: 14px; padding: 14px 16px; color: #d8ffe8; margin-top: 14px;
+    }
+    .cmd { margin-top: 14px; border: 1px solid var(--border); background: var(--code); border-radius: 16px; overflow: hidden; }
+    .cmd-head {
+      display: flex; justify-content: space-between; align-items: center; gap: 12px;
+      padding: 10px 12px; background: rgba(255,255,255,.03); border-bottom: 1px solid rgba(255,255,255,.06);
+    }
+    .cmd-title { font-size: .92rem; color: var(--muted); font-weight: 600; }
+    .copy-btn {
+      border: 1px solid #6a3408; background: linear-gradient(180deg, #ff7a00, #d76200);
+      color: #111; border-radius: 10px; padding: 8px 10px; cursor: pointer;
+      font-size: .9rem; font-weight: 800; transition: .15s ease;
+    }
+    .copy-btn:hover { filter: brightness(1.06); }
+    .copy-btn.copied { background: rgba(36,179,107,.18); border-color: rgba(36,179,107,.45); color: #d7ffe8; }
+    pre {
+      margin: 0; padding: 16px; overflow-x: auto; white-space: pre-wrap; word-break: break-word;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      font-size: .94rem; color: #ffbf85;
+    }
+    code.inline {
+      background: rgba(255,255,255,.06); padding: 2px 8px; border-radius: 8px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: .92em; color: #ffd2aa;
+    }
+    table { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: .95rem; }
+    th, td { border: 1px solid var(--border); padding: 10px 12px; text-align: left; vertical-align: top; }
+    th { background: rgba(255,255,255,.04); color: #ffd1a8; }
+    footer { margin-top: 24px; color: var(--muted); text-align: center; font-size: .95rem; }
+    @media (max-width: 920px) {
+      .layout { grid-template-columns: 1fr; }
+      .toc { position: static; width: 100%; }
+    }
+  </style>
+</head>
+<body>
+<header>
+  <div class="container header-inner">
+    <div class="header-brand">
+      <a class="channel-logo" href="https://www.youtube.com/c/ClockworkComputerIP" target="_blank" rel="noopener noreferrer" aria-label="Clockwork Computer">
+        <img src="https://blogger.googleusercontent.com/img/a/AVvXsEjuquj9lFaN9zfg8H5FofNIUKAHWWRiOUbDhHragpU14TfF6RYKxb5w62mfAClxDkDrzCMAilRatibcoWFbuqMnXMBh30p_sfbxp4D2gUny70NbjyHLrs42VXeBB4Qtc8NovIS_DqIU5iq3dMMx1TuNZkW70MeW8Ryemwk_tDv6iKZi9ngKfaskUG1yCWo=s1600" alt="Clockwork Computer"/>
+      </a>
+      <div>
+        <h1>ERP y CRM propio: Odoo en Docker con HTTPS</h1>
+        <div class="brand">Base de datos, servidor Odoo y proxy inverso con certificado propio</div>
+        <p class="subtitle">Guía técnica para levantar Odoo (ERP, CRM, facturación e inventario en una sola plataforma) con Docker Compose, con PostgreSQL como base de datos, HTTPS propio mediante un proxy inverso y las dos medidas de hardening que cualquier instalación real debería tener desde el primer día: contraseña maestra propia y gestor de bases de datos cerrado al público.</p>
+      </div>
+    </div>
+  </div>
+</header>
+<main>
+  <div class="container layout">
+    <aside class="toc">
+      <h2>Contenido</h2>
+      <a href="#introduccion">1. Introducción</a>
+      <a href="#variables">2. Variables de esta guía</a>
+      <a href="#arquitectura">3. Arquitectura y flujo</a>
+      <a href="#requisitos">4. Requisitos</a>
+      <a href="#paso-stack">5. Levantar PostgreSQL y Odoo con Docker</a>
+      <a href="#paso-conf">6. Configurar Odoo (odoo.conf)</a>
+      <a href="#paso-proxy">7. Configurar el proxy inverso con HTTPS propio</a>
+      <a href="#paso-arranque">8. Arrancar el stack y verificar</a>
+      <a href="#paso-db">9. Crear la primera base de datos</a>
+      <a href="#paso-cerrar">10. Cerrar el gestor de bases de datos</a>
+      <a href="#paso-navegador">11. Acceder desde el navegador</a>
+      <a href="#puertos">12. Tabla de puertos y componentes</a>
+      <a href="#errores">13. Errores comunes</a>
+      <a href="#ampliacion">14. Notas de ampliación</a>
+    </aside>
+    <div class="content">
+
+      <section class="card" id="introduccion">
+        <h2>1. Introducción</h2>
+        <p><strong>Odoo</strong> es una suite de gestión empresarial de código abierto: CRM, facturación, inventario, ventas, proyectos y decenas de módulos más, todos integrados sobre la misma base de datos. Esta guía lo levanta con Docker Compose, con <strong>PostgreSQL</strong> como base de datos y un proxy inverso con HTTPS propio delante, siguiendo el mismo patrón ya probado en otras prácticas de este canal.</p>
+        <div class="note">Odoo no obliga a usar HTTPS para las pantallas básicas de gestión, pero varias funciones reales sí lo necesitan: las notificaciones en tiempo real del chat interno, el modo sin conexión del punto de venta, o el escaneo de códigos de barras con la cámara, todas dependen de APIs del navegador que solo funcionan en un <strong>contexto seguro</strong> (HTTPS, o <code class="inline">localhost</code>). Por eso esta guía monta HTTPS desde el principio, con un proxy inverso y un certificado autofirmado, en vez de dejarlo para más adelante.</div>
+      </section>
+
+      <section class="card" id="variables">
+        <h2>2. Variables de esta guía</h2>
+        <p>Todos los bloques de configuración usan los siguientes marcadores en <strong>MAYÚSCULAS</strong>. Sustitúyelos por los valores reales del entorno donde se aplique esta guía.</p>
+        <table>
+          <thead><tr><th>Marcador</th><th>Qué es</th><th>Dónde se obtiene</th></tr></thead>
+          <tbody>
+            <tr><td><code class="inline">IP_HOST_DOCKER</code></td><td>IP del host donde corre el stack con Docker</td><td>La interfaz de red de ese host</td></tr>
+            <tr><td><code class="inline">POSTGRES_PASSWORD</code></td><td>Contraseña del usuario <code class="inline">odoo</code> en la base de datos</td><td>Se define en <code class="inline">/docker/odoo/.env</code></td></tr>
+            <tr><td><code class="inline">MASTER_PASSWORD_ODOO</code></td><td>Contraseña maestra de Odoo: protege la creación y el borrado de bases de datos completas</td><td>La eliges tú; se escribe en <code class="inline">odoo.conf</code> (sección 6)</td></tr>
+          </tbody>
+        </table>
+        <div class="note">Si en el mismo servidor ya tienes otros servicios publicando puertos (por ejemplo otras prácticas de este canal en <code class="inline">8443</code> u <code class="inline">8444</code>), comprueba que el puerto <code class="inline">8445</code> que usa esta guía está libre, o cámbialo por otro en las secciones 7, 8 y 11.</div>
+      </section>
+
+      <section class="card" id="arquitectura">
+        <h2>3. Arquitectura y flujo</h2>
+        <p>Tres piezas: la base de datos, el propio Odoo, y un proxy inverso que sirve HTTPS delante de los dos.</p>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Resumen visual</div>
+            <button class="copy-btn" data-copy-target="cmd-arch">Copiar</button>
+          </div>
+          <pre id="cmd-arch">[Navegador, en cualquier equipo de la red]
+      |
+      |  https://IP_HOST_DOCKER:8445  (certificado autofirmado)
+      v
+[proxy] :8445  (Nginx, proxy inverso HTTPS)
+      |
+      v
+[odoo] :8069  (ERP, sin exponer directamente al host)
+      |
+      v
+[db]  (PostgreSQL)</pre>
+        </div>
+        <div class="note">Odoo no gestiona una única base de datos fija, como sí hacían Synapse o Vaultwarden: puede alojar <strong>varias bases de datos independientes</strong> en el mismo servidor (por ejemplo, una por cliente o una de pruebas y otra real), cada una con sus propios usuarios y datos. La contraseña maestra (sección 6) es justo lo que protege esa capacidad de crear o borrar bases de datos enteras, no el acceso a una empresa concreta.</div>
+      </section>
+
+      <section class="card" id="requisitos">
+        <h2>4. Requisitos</h2>
+        <ul>
+          <li>Un host Linux con <strong>Docker Engine</strong> y el plugin <strong>Docker Compose</strong> (<code class="inline">docker compose</code>, sin guion) ya instalados.</li>
+          <li><strong>No hace falta salida a Internet</strong> desde ese host para el funcionamiento básico: todo el flujo vive dentro de la red local.</li>
+          <li>Un navegador cualquiera en algún equipo de la misma red.</li>
+          <li>Al menos 2 GB de RAM libres para el contenedor de Odoo; con menos, el arranque puede ser muy lento o fallar bajo carga.</li>
+        </ul>
+      </section>
+
+      <section class="card" id="paso-stack">
+        <h2>5. Levantar PostgreSQL y Odoo con Docker</h2>
+        <p>Misma organización de siempre: cada stack en su carpeta dentro de <code class="inline">/docker</code>, credenciales en un <code class="inline">.env</code> aparte.</p>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Crear la carpeta del stack</div>
+            <button class="copy-btn" data-copy-target="cmd-1">Copiar</button>
+          </div>
+          <pre id="cmd-1">sudo mkdir -p /docker/odoo && cd /docker/odoo
+sudo mkdir -p addons</pre>
+        </div>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Crear .env</div>
+            <button class="copy-btn" data-copy-target="cmd-1b">Copiar</button>
+          </div>
+          <pre id="cmd-1b">sudo nano .env</pre>
+        </div>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">.env</div>
+            <button class="copy-btn" data-copy-target="cmd-2">Copiar</button>
+          </div>
+          <pre id="cmd-2">POSTGRES_PASSWORD=odoo_pwd</pre>
+        </div>
+        <p>Y ahora el <code class="inline">docker-compose.yml</code>:</p>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Crear docker-compose.yml</div>
+            <button class="copy-btn" data-copy-target="cmd-3b">Copiar</button>
+          </div>
+          <pre id="cmd-3b">sudo nano docker-compose.yml</pre>
+        </div>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">docker-compose.yml</div>
+            <button class="copy-btn" data-copy-target="cmd-4">Copiar</button>
+          </div>
+          <pre id="cmd-4">services:
+  db:
+    image: postgres:16-alpine
+    container_name: odoo-db
+    environment:
+      POSTGRES_USER: odoo
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: postgres
+    volumes:
+      - odoo-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U odoo -d postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
+    restart: unless-stopped
+
+  odoo:
+    image: odoo:19.0
+    container_name: odoo
+    environment:
+      HOST: db
+      USER: odoo
+      PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - odoo-web-data:/var/lib/odoo
+      - ./addons:/mnt/extra-addons
+      - ./odoo.conf:/etc/odoo/odoo.conf:ro
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  proxy:
+    image: nginx:alpine
+    container_name: proxy
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./proxy-selfsigned.crt:/etc/nginx/certs/proxy-selfsigned.crt:ro
+      - ./proxy-selfsigned.key:/etc/nginx/certs/proxy-selfsigned.key:ro
+    ports:
+      - "8445:8445"
+    depends_on:
+      - odoo
+    restart: unless-stopped
+
+volumes:
+  odoo-db-data:
+  odoo-web-data:</pre>
+        </div>
+        <div class="note">El dato de la base de datos (<code class="inline">odoo-db-data</code>) y el de Odoo (<code class="inline">odoo-web-data</code>) van en volúmenes con nombre, no en carpetas del host: el proceso de Odoo dentro del contenedor corre con un usuario concreto (UID 101), y una carpeta del host montada directamente tendría el propietario equivocado, provocando errores de permisos al escribir datos. Con volúmenes con nombre, Docker gestiona esto sin que haya que tocar nada.</div>
+        <div class="note">La carpeta <code class="inline">./addons</code> sí es una carpeta normal del host: ahí es donde se colocarían módulos personalizados más adelante. Al ser de solo lectura para Odoo, no tiene el mismo problema de permisos.</div>
+      </section>
+
+      <section class="card" id="paso-conf">
+        <h2>6. Configurar Odoo (odoo.conf)</h2>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Crear odoo.conf</div>
+            <button class="copy-btn" data-copy-target="cmd-conf1">Copiar</button>
+          </div>
+          <pre id="cmd-conf1">sudo nano odoo.conf</pre>
+        </div>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">odoo.conf</div>
+            <button class="copy-btn" data-copy-target="cmd-conf2">Copiar</button>
+          </div>
+          <pre id="cmd-conf2">[options]
+addons_path = /mnt/extra-addons
+admin_passwd = MASTER_PASSWORD_ODOO
+db_host = db
+db_port = 5432
+db_user = odoo
+db_password = odoo_pwd
+proxy_mode = True</pre>
+        </div>
+        <div class="note"><code class="inline">db_password</code> aquí debe ser <strong>literal</strong>, igual que <code class="inline">POSTGRES_PASSWORD</code> del <code class="inline">.env</code> del paso 5: este archivo lo lee Odoo directamente dentro del contenedor, no pasa por la sustitución de variables de Docker Compose, así que no vale poner <code class="inline">${POSTGRES_PASSWORD}</code> aquí.</div>
+        <div class="note"><strong>Esta es la trampa de seguridad más repetida en instalaciones de Odoo expuestas a Internet:</strong> si no se fija <code class="inline">admin_passwd</code> a un valor propio, la instalación queda con la contraseña maestra por defecto, ampliamente conocida. Cualquiera que la sepa y llegue al gestor de bases de datos puede crear o borrar bases de datos completas. Pon aquí una contraseña larga y única, distinta de la de la base de datos. <code class="inline">proxy_mode = True</code> tampoco es opcional: le dice a Odoo que confíe en las cabeceras que le pasa el proxy inverso (IP real del visitante, esquema HTTPS), en vez de las del propio proxy.</div>
+      </section>
+
+      <section class="card" id="paso-proxy">
+        <h2>7. Configurar el proxy inverso con HTTPS propio</h2>
+        <p>Genera un certificado autofirmado con clave EC, válido para la IP del host:</p>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Generar el certificado autofirmado</div>
+            <button class="copy-btn" data-copy-target="cmd-cert1">Copiar</button>
+          </div>
+          <pre id="cmd-cert1">cd /docker/odoo
+sudo openssl ecparam -name prime256v1 -genkey -noout -out proxy-selfsigned.key
+sudo openssl req -new -x509 -key proxy-selfsigned.key -out proxy-selfsigned.crt -days 825 \
+  -subj "/CN=IP_HOST_DOCKER" \
+  -addext "subjectAltName=IP:IP_HOST_DOCKER"</pre>
+        </div>
+        <p>Ahora la configuración de Nginx:</p>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Crear nginx.conf</div>
+            <button class="copy-btn" data-copy-target="cmd-nginx1">Copiar</button>
+          </div>
+          <pre id="cmd-nginx1">sudo nano nginx.conf</pre>
+        </div>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">nginx.conf</div>
+            <button class="copy-btn" data-copy-target="cmd-nginx2">Copiar</button>
+          </div>
+          <pre id="cmd-nginx2">resolver 127.0.0.11 valid=10s;
+
+server {
+    listen 8445 ssl;
+    server_name IP_HOST_DOCKER;
+
+    ssl_certificate     /etc/nginx/certs/proxy-selfsigned.crt;
+    ssl_certificate_key /etc/nginx/certs/proxy-selfsigned.key;
+
+    location / {
+        set $upstream_odoo http://odoo:8069;
+        proxy_pass $upstream_odoo;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}</pre>
+        </div>
+        <div class="note">El <code class="inline">resolver 127.0.0.11</code> (el DNS interno de Docker) junto con <code class="inline">set $upstream_odoo; proxy_pass $upstream_odoo;</code> es imprescindible: sin la variable, Nginx intenta resolver <code class="inline">odoo</code> una sola vez al arrancar, y si en ese instante el contenedor de Odoo (que tarda más en inicializar que Nginx) todavía no está listo, Nginx se niega a arrancar con un error de <code class="inline">host not found in upstream</code>.</div>
+      </section>
+
+      <section class="card" id="paso-arranque">
+        <h2>8. Arrancar el stack y verificar</h2>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Arrancar los contenedores</div>
+            <button class="copy-btn" data-copy-target="cmd-8">Copiar</button>
+          </div>
+          <pre id="cmd-8">cd /docker/odoo
+docker compose up -d
+docker compose ps</pre>
+        </div>
+        <p>Sigue el log de Odoo, que tarda algo más que otros servicios en estar listo la primera vez (crea el esquema base de datos vacío):</p>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Log de Odoo</div>
+            <button class="copy-btn" data-copy-target="cmd-9">Copiar</button>
+          </div>
+          <pre id="cmd-9">docker logs -f odoo</pre>
+        </div>
+        <p>Busca una línea similar a <code class="inline">HTTP service (werkzeug) running</code>, sin errores de conexión a la base de datos por el camino. <code class="inline">Ctrl+C</code> para salir del log.</p>
+      </section>
+
+      <section class="card" id="paso-db">
+        <h2>9. Crear la primera base de datos</h2>
+        <p>A diferencia de otras prácticas de este canal, Odoo no se configura por línea de comandos: la primera base de datos se crea desde un asistente web. Entra en:</p>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">URL de acceso</div>
+            <button class="copy-btn" data-copy-target="cmd-url1">Copiar</button>
+          </div>
+          <pre id="cmd-url1">https://IP_HOST_DOCKER:8445</pre>
+        </div>
+        <div class="note">El navegador mostrará un aviso de conexión no privada o certificado no confiable. Es esperado: el certificado es autofirmado. Pulsa <strong>"Avanzado"</strong> y <strong>"Continuar a IP_HOST_DOCKER (no seguro)"</strong> (el texto exacto varía según el navegador) para seguir.</div>
+        <p>Rellena el formulario:</p>
+        <ul>
+          <li><strong>Master Password:</strong> el mismo valor que pusiste en <code class="inline">admin_passwd</code> (paso 6)</li>
+          <li><strong>Nombre de la base de datos:</strong> el que quieras, por ejemplo <code class="inline">clockwork</code></li>
+          <li><strong>Email</strong> y <strong>contraseña</strong>: serán las credenciales del usuario administrador de esa empresa dentro de Odoo</li>
+          <li><strong>Cargar datos de demostración:</strong> actívalo si es solo para probar y grabar; desactívalo para una instalación real de cliente</li>
+        </ul>
+        <div class="ok">Al confirmar, Odoo tarda un minuto largo en crear el esquema completo de la base de datos. Al terminar, entra directamente en el escritorio de aplicaciones de Odoo con la sesión ya iniciada.</div>
+      </section>
+
+      <section class="card" id="paso-cerrar">
+        <h2>10. Cerrar el gestor de bases de datos</h2>
+        <p>Con la base de datos ya creada, cierra el acceso público al gestor de bases de datos (la pantalla que permite crear, duplicar o borrar bases de datos enteras), para que solo sea accesible desde la propia configuración del servidor:</p>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Editar odoo.conf</div>
+            <button class="copy-btn" data-copy-target="cmd-close1">Copiar</button>
+          </div>
+          <pre id="cmd-close1">sudo nano /docker/odoo/odoo.conf
+# Añade esta línea al final:
+# list_db = False</pre>
+        </div>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Recrear el contenedor de Odoo</div>
+            <button class="copy-btn" data-copy-target="cmd-close2">Copiar</button>
+          </div>
+          <pre id="cmd-close2">cd /docker/odoo
+docker compose up -d --force-recreate odoo</pre>
+        </div>
+        <div class="ok">Con <code class="inline">list_db = False</code>, la ruta del gestor de bases de datos deja de estar accesible desde fuera, aunque alguien conozca o adivine la contraseña maestra. Es el mismo tipo de cierre que ya hicisteis con el registro público de Vaultwarden: crear el recurso primero, cerrar el acceso público justo después.</div>
+      </section>
+
+      <section class="card" id="paso-navegador">
+        <h2>11. Acceder desde el navegador</h2>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">URL de acceso habitual</div>
+            <button class="copy-btn" data-copy-target="cmd-url2">Copiar</button>
+          </div>
+          <pre id="cmd-url2">https://IP_HOST_DOCKER:8445</pre>
+        </div>
+        <div class="ok">Con <code class="inline">list_db = False</code> y una sola base de datos creada, Odoo lleva directo a la pantalla de login de esa empresa, sin mostrar ningún selector. Inicia sesión con el email y la contraseña del paso 9, y confirma que el escritorio de aplicaciones carga con normalidad.</div>
+      </section>
+
+      <section class="card" id="puertos">
+        <h2>12. Tabla de puertos y componentes</h2>
+        <table>
+          <thead><tr><th>Puerto</th><th>Componente</th><th>Sentido de la conexión</th><th>Para qué sirve</th></tr></thead>
+          <tbody>
+            <tr><td>8445/tcp</td><td>proxy (Docker, Nginx)</td><td>Navegador → contenedor</td><td>Proxy inverso HTTPS (certificado autofirmado)</td></tr>
+            <tr><td>&mdash;</td><td>odoo (Docker, interno)</td><td>proxy → odoo</td><td>Servidor de aplicación de Odoo (Werkzeug); no publica ningún puerto al host</td></tr>
+            <tr><td>&mdash;</td><td>db (Docker, interno)</td><td>odoo → db</td><td>PostgreSQL; no necesita exponerse al host</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section class="card" id="errores">
+        <h2>13. Errores comunes</h2>
+        <table>
+          <thead><tr><th>Problema</th><th>Causa probable</th><th>Solución</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>El contenedor <code class="inline">odoo</code> no arranca, error de conexión a la base de datos</td>
+              <td><code class="inline">db_password</code> en <code class="inline">odoo.conf</code> no coincide con <code class="inline">POSTGRES_PASSWORD</code> del <code class="inline">.env</code></td>
+              <td>Revisar que ambos valores son literalmente iguales (sección 6)</td>
+            </tr>
+            <tr>
+              <td>El contenedor <code class="inline">proxy</code> se reinicia en bucle con <code class="inline">host not found in upstream "odoo"</code></td>
+              <td>Nginx intentó resolver el nombre del contenedor una sola vez al arrancar y Odoo todavía no estaba listo</td>
+              <td>Confirmar que <code class="inline">nginx.conf</code> usa <code class="inline">resolver 127.0.0.11</code> junto con la variable <code class="inline">$upstream_odoo</code> (sección 7), no un <code class="inline">proxy_pass</code> directo</td>
+            </tr>
+            <tr>
+              <td>El navegador o <code class="inline">curl -k</code> dan un error de protocolo TLS raro (no el aviso normal de certificado no confiable)</td>
+              <td>Puede ser un problema del propio sistema, no del certificado</td>
+              <td>Aislarlo con <code class="inline">openssl s_server -key proxy-selfsigned.key -cert proxy-selfsigned.crt -accept 9999 -www</code> fuera de Docker; si eso también falla, el problema es del sistema</td>
+            </tr>
+            <tr>
+              <td>El asistente de creación de base de datos no aparece, sale un error o una pantalla en blanco</td>
+              <td>Odoo aún no ha terminado de arrancar del todo</td>
+              <td>Esperar y revisar <code class="inline">docker logs odoo</code> hasta ver <code class="inline">HTTP service (werkzeug) running</code></td>
+            </tr>
+            <tr>
+              <td>Tras poner <code class="inline">list_db = False</code>, ya no se puede crear una segunda base de datos</td>
+              <td>Comportamiento esperado: esa es justo la protección que añade</td>
+              <td>Para crear otra base de datos, poner temporalmente <code class="inline">list_db = True</code>, recrear el contenedor, crear la base de datos, y volver a cerrarlo</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section class="card" id="ampliacion">
+        <h2>14. Notas de ampliación</h2>
+        <p>Este despliegue cubre una instalación funcional de un solo trabajador (proceso), suficiente para pruebas y demos. Para un uso en producción con varios usuarios simultáneos, conviene ampliar con:</p>
+        <ul>
+          <li><strong>Múltiples workers</strong> (<code class="inline">workers = N</code> en <code class="inline">odoo.conf</code>), para que Odoo atienda varias peticiones a la vez en vez de una sola; requiere también configurar un puerto adicional de <em>longpolling</em> para el chat y las notificaciones en tiempo real.</li>
+          <li><strong>Dominio propio + Let's Encrypt</strong> en vez de certificado autofirmado, si el servicio va a ser accesible desde fuera de la red local.</li>
+          <li><strong>Importar el certificado</strong> en el almacén de confianza de cada equipo cliente, para que el aviso de "certificado no confiable" desaparezca de forma permanente.</li>
+          <li><strong>Copias de seguridad</strong> del volumen de PostgreSQL y del volumen <code class="inline">odoo-web-data</code> (contiene los archivos adjuntos y documentos subidos, no solo la base de datos).</li>
+          <li><strong>Módulos personalizados</strong> colocados en <code class="inline">./addons</code>, para extender Odoo con funcionalidad propia del cliente.</li>
+        </ul>
+      </section>
+
+      <footer>
+        <p style="margin: 0 0 6px;">Guía técnica para autoalojar Odoo con Docker Compose, PostgreSQL y HTTPS propio mediante un proxy inverso.</p>
+        <p style="margin: 0; opacity: .75;">&copy; <span id="anio-actual">2026</span> Clockwork Computer. Todos los derechos reservados. Contenido educativo de libre consulta; su reproducción total o parcial en otros sitios requiere autorización previa.</p>
+      </footer>
+    </div>
+  </div>
+</main>
+<script>
+  async function copyText(text, button) {
+    try {
+      await navigator.clipboard.writeText(text);
+      const original = button.textContent;
+      button.textContent = 'Copiado';
+      button.classList.add('copied');
+      setTimeout(() => {
+        button.textContent = original;
+        button.classList.remove('copied');
+      }, 1400);
+    } catch (err) {
+      alert('No se pudo copiar automáticamente.');
+    }
+  }
+  document.querySelectorAll('.copy-btn').forEach(button => {
+    button.addEventListener('click', () => {
+      const targetId = button.getAttribute('data-copy-target');
+      const target = document.getElementById(targetId);
+      if (!target) return;
+      copyText(target.innerText.trim(), button);
+    });
+  });
+  const anioEl = document.getElementById('anio-actual');
+  if (anioEl) anioEl.textContent = new Date().getFullYear();
+</script>
+</body>
+</html>
