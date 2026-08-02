@@ -1,0 +1,686 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>MikroTik CHR en VMware Workstation 17 sobre Windows 11</title>
+  <link rel="icon" type="image/png" href="https://blogger.googleusercontent.com/img/a/AVvXsEjuquj9lFaN9zfg8H5FofNIUKAHWWRiOUbDhHragpU14TfF6RYKxb5w62mfAClxDkDrzCMAilRatibcoWFbuqMnXMBh30p_sfbxp4D2gUny70NbjyHLrs42VXeBB4Qtc8NovIS_DqIU5iq3dMMx1TuNZkW70MeW8Ryemwk_tDv6iKZi9ngKfaskUG1yCWo=s1600"/>
+  <style>
+    :root {
+      --bg: #060606;
+      --panel: #111111;
+      --panel-2: #1a1a1a;
+      --text: #f5f5f5;
+      --muted: #b9b9b9;
+      --accent: #ff7a00;
+      --accent-2: #ff9a3d;
+      --border: #2b2b2b;
+      --code: #050505;
+      --success: #24b36b;
+      --danger: #ed5b5b;
+      --blue: #4ca6ff;
+      --shadow: 0 12px 30px rgba(0,0,0,.35);
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+      background: linear-gradient(180deg, #050505 0%, #0a0a0a 100%);
+      color: var(--text);
+      line-height: 1.6;
+    }
+
+    a { color: #ffb067; }
+    .container { width: min(1100px, calc(100% - 32px)); margin: 0 auto; }
+
+    header {
+      padding: 48px 0 28px;
+      border-bottom: 1px solid rgba(255,255,255,.06);
+      background:
+        radial-gradient(circle at top right, rgba(255,122,0,.16), transparent 30%),
+        radial-gradient(circle at top left, rgba(255,154,61,.10), transparent 20%),
+        linear-gradient(180deg, #080808 0%, #101010 100%);
+    }
+
+    .header-inner {
+      display: flex;
+      gap: 18px;
+      align-items: flex-start;
+      justify-content: space-between;
+      flex-wrap: wrap;
+    }
+
+    .header-brand {
+      display: flex;
+      gap: 18px;
+      align-items: center;
+      flex: 1 1 720px;
+    }
+
+    .channel-logo {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 18px;
+      overflow: hidden;
+      border: 1px solid rgba(255,255,255,.08);
+      box-shadow: var(--shadow);
+      background: rgba(255,255,255,.03);
+      flex: 0 0 auto;
+    }
+
+    .channel-logo img {
+      display: block;
+      width: 200px;
+      height: auto;
+      object-fit: contain;
+    }
+
+    h1 {
+      font-size: clamp(1.8rem, 3vw, 3rem);
+      margin: 0;
+      line-height: 1.15;
+      color: var(--accent);
+    }
+
+    .brand {
+      margin-top: 8px;
+      font-weight: 700;
+      letter-spacing: .4px;
+      color: var(--accent-2);
+    }
+
+    .subtitle { color: var(--muted); margin: 10px 0 0; max-width: 850px; }
+    main { padding: 28px 0 64px; }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 260px 1fr;
+      gap: 24px;
+      align-items: start;
+    }
+
+    .toc {
+      position: sticky;
+      top: 20px;
+      width: 260px;
+      background: rgba(17,17,17,.92);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 18px;
+      box-shadow: var(--shadow);
+    }
+
+    .toc h2 { margin: 0 0 12px; font-size: 1rem; color: var(--accent); }
+    .toc a {
+      display: block;
+      color: var(--muted);
+      text-decoration: none;
+      padding: 8px 10px;
+      border-radius: 10px;
+      transition: background .15s ease, color .15s ease;
+      font-size: .94rem;
+    }
+    .toc a:hover { color: var(--text); background: rgba(255,122,0,.08); }
+    .content { display: grid; gap: 18px; }
+
+    .card {
+      background: linear-gradient(180deg, rgba(17,17,17,.97), rgba(12,12,12,.97));
+      border: 1px solid var(--border);
+      border-radius: 22px;
+      padding: 24px;
+      box-shadow: var(--shadow);
+    }
+
+    .card h2 { margin-top: 0; font-size: 1.5rem; color: var(--accent); }
+    .card h3 { margin: 22px 0 10px; font-size: 1.08rem; color: #ffd1a8; }
+    .muted { color: var(--muted); }
+    ul, ol { margin-top: 10px; padding-left: 20px; }
+    li + li { margin-top: 6px; }
+    p, .note, .ok, .warning, .info { text-align: justify; }
+
+    .note, .ok, .warning, .info {
+      border-radius: 14px;
+      padding: 14px 16px;
+      margin-top: 14px;
+    }
+    .note { background: rgba(255,122,0,.08); border: 1px solid rgba(255,122,0,.22); color: #ffe2c4; }
+    .ok { background: rgba(36,179,107,.10); border: 1px solid rgba(36,179,107,.28); color: #caf6dd; }
+    .warning { background: rgba(237,91,91,.10); border: 1px solid rgba(237,91,91,.30); color: #ffd1d1; }
+    .info { background: rgba(76,166,255,.09); border: 1px solid rgba(76,166,255,.26); color: #d5eaff; }
+
+    .cmd {
+      margin-top: 14px;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      overflow: hidden;
+      background: var(--code);
+    }
+
+    .cmd-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 10px 12px;
+      background: #151515;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .cmd-title { color: #ffd1a8; font-weight: 700; font-size: .92rem; }
+    .copy-btn {
+      border: 1px solid rgba(255,122,0,.35);
+      background: rgba(255,122,0,.10);
+      color: #ffd1a8;
+      border-radius: 9px;
+      padding: 6px 10px;
+      cursor: pointer;
+      font-weight: 700;
+    }
+    .copy-btn:hover, .copy-btn.copied { background: rgba(255,122,0,.24); color: #fff; }
+
+    pre {
+      margin: 0;
+      padding: 16px;
+      overflow-x: auto;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      color: #f3f3f3;
+      line-height: 1.5;
+    }
+
+    code.inline {
+      background: #202020;
+      border: 1px solid #303030;
+      padding: 2px 8px;
+      border-radius: 8px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: .92em;
+      color: #ffd2aa;
+    }
+
+    table { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: .95rem; }
+    th, td { border: 1px solid var(--border); padding: 10px 12px; text-align: left; vertical-align: top; }
+    th { background: rgba(255,255,255,.04); color: #ffd1a8; }
+
+    .flow {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 14px;
+    }
+    .flow-item {
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 14px;
+      background: rgba(255,255,255,.025);
+    }
+    .flow-item strong { color: var(--accent-2); display: block; margin-bottom: 6px; }
+
+    .badge {
+      display: inline-block;
+      border: 1px solid rgba(255,122,0,.30);
+      background: rgba(255,122,0,.10);
+      color: #ffd1a8;
+      padding: 3px 9px;
+      border-radius: 999px;
+      font-size: .82rem;
+      font-weight: 700;
+      margin: 0 5px 5px 0;
+    }
+
+    footer { margin-top: 24px; color: var(--muted); text-align: center; font-size: .95rem; }
+
+    @media (max-width: 920px) {
+      .layout { grid-template-columns: 1fr; }
+      .toc { position: static; width: 100%; }
+      .flow { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 640px) {
+      .header-brand { align-items: flex-start; flex-direction: column; }
+      .channel-logo img { width: 150px; }
+      .card { padding: 18px; }
+    }
+  </style>
+</head>
+<body>
+<header>
+  <div class="container header-inner">
+    <div class="header-brand">
+      <a class="channel-logo" href="https://www.youtube.com/c/ClockworkComputerIP" target="_blank" rel="noopener noreferrer" aria-label="Clockwork Computer">
+        <img src="https://blogger.googleusercontent.com/img/a/AVvXsEjuquj9lFaN9zfg8H5FofNIUKAHWWRiOUbDhHragpU14TfF6RYKxb5w62mfAClxDkDrzCMAilRatibcoWFbuqMnXMBh30p_sfbxp4D2gUny70NbjyHLrs42VXeBB4Qtc8NovIS_DqIU5iq3dMMx1TuNZkW70MeW8Ryemwk_tDv6iKZi9ngKfaskUG1yCWo=s1600" alt="Clockwork Computer"/>
+      </a>
+      <div>
+        <h1>MikroTik CHR en VMware Workstation 17 sobre Windows 11</h1>
+        <div class="brand">Instalación desde VMDK, disco SCSI, VBS/WHP y administración con Winbox</div>
+        <p class="subtitle">Guía técnica para desplegar RouterOS como Cloud Hosted Router en VMware Workstation, conservar las protecciones de Windows 11 y completar correctamente un arranque que puede permanecer entre 5 y 10 minutos en “Load system”.</p>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main>
+  <div class="container layout">
+    <aside class="toc">
+      <h2>Contenido</h2>
+      <a href="#introduccion">1. Introducción</a>
+      <a href="#ecosistema">2. MikroTik, RouterOS y CHR</a>
+      <a href="#alcance">3. Alcance de la guía</a>
+      <a href="#requisitos">4. Requisitos y descargas</a>
+      <a href="#vm-oficial">5. Creación oficial de la VM</a>
+      <a href="#vbs">6. Windows 11, VBS y WHP</a>
+      <a href="#sintoma">7. Tiempo de arranque de CHR</a>
+      <a href="#solucion">8. Procedimiento con VBS activo</a>
+      <a href="#arranque">9. Primer arranque</a>
+      <a href="#gestion">10. Acceso y gestión inicial</a>
+      <a href="#licencias">11. Licencias CHR</a>
+      <a href="#validacion">12. Validaciones</a>
+      <a href="#errores">13. Comprobaciones habituales</a>
+      <a href="#resumen">14. Resumen del procedimiento</a>
+      <a href="#siguiente">15. Continuación del laboratorio</a>
+      <a href="#fuentes">16. Fuentes</a>
+    </aside>
+
+    <div class="content">
+      <section class="card" id="introduccion">
+        <h2>1. Introducción</h2>
+        <p>Esta práctica describe el despliegue de <strong>MikroTik CHR</strong> sobre <strong>VMware Workstation 17</strong> en un equipo anfitrión con <strong>Windows 11</strong>. El objetivo consiste en obtener un router virtual instalado, operativo y accesible mediante Winbox. La configuración del bridge 802.1Q, las VLAN y la integración con Sophos se aborda en una guía independiente.</p>
+        <div class="note">La instalación se realiza directamente desde la imagen oficial <code class="inline">VMDK</code> de CHR. En equipos Windows 11 con VBS/HVCI activo, la pantalla <code class="inline">Load system</code> puede mantenerse visible entre 5 y 10 minutos. Durante ese intervalo no debe reiniciarse la máquina: finalizada la espera, RouterOS continúa el arranque normalmente.</div>
+      </section>
+
+      <section class="card" id="ecosistema">
+        <h2>2. MikroTik, RouterOS y CHR</h2>
+        <p><strong>MikroTik</strong> es un fabricante de equipamiento de red conocido por sus routers, switches, puntos de acceso y por RouterOS, su sistema operativo de red. RouterOS permite implementar routing, firewall, VPN, QoS, switching, VLAN, BGP, OSPF y muchas otras funciones desde una interfaz gráfica —Winbox— o mediante terminal.</p>
+
+        <div class="flow">
+          <div class="flow-item"><strong>MikroTik</strong>Fabricante y ecosistema de productos de red.</div>
+          <div class="flow-item"><strong>RouterOS</strong>Sistema operativo que ejecutan los equipos MikroTik.</div>
+          <div class="flow-item"><strong>CHR</strong>Edición x86-64 de RouterOS diseñada para ejecutarse como máquina virtual.</div>
+        </div>
+
+        <h3>Formato utilizado en la práctica</h3>
+        <p>CHR se distribuye mediante imágenes preparadas para distintos hipervisores. Para VMware se utiliza el archivo <code class="inline">VMDK</code>, que ya contiene RouterOS y se conecta a la máquina virtual como un disco existente. No es necesario ejecutar un instalador ni montar un medio óptico.</p>
+        <div class="ok">La práctica utiliza exclusivamente la imagen oficial <strong>CHR VMDK</strong> conectada mediante un controlador <strong>SCSI</strong>.</div>
+      </section>
+
+      <section class="card" id="alcance">
+        <h2>3. Alcance de la guía</h2>
+        <p>Al finalizar el procedimiento se dispondrá de:</p>
+        <ul>
+          <li>Una VM nueva de MikroTik CHR en VMware Workstation.</li>
+          <li>El disco oficial VMDK conectado como disco existente.</li>
+          <li>Una configuración compatible con el host Windows 11 del laboratorio.</li>
+          <li>Acceso a la consola y verificación de que el sistema es realmente CHR.</li>
+          <li>Una interfaz Host-only dedicada a la gestión mediante Winbox.</li>
+          <li>Winbox descargado desde la web oficial y la primera conexión gráfica al CHR, tanto por IP como por MAC.</li>
+        </ul>
+        <div class="info">La configuración de cuatro adaptadores, el bridge VLAN-aware, los puertos de acceso, el trunk y las subinterfaces de Sophos se documentan en la práctica posterior de VLAN.</div>
+      </section>
+
+      <section class="card" id="requisitos">
+        <h2>4. Requisitos y descargas</h2>
+        <ul>
+          <li>Windows 11 de 64 bits.</li>
+          <li>VMware Workstation 17.6.x o posterior dentro de la rama instalada.</li>
+          <li>CPU con AMD-V o Intel VT-x habilitado en BIOS/UEFI.</li>
+          <li>Imagen oficial <strong>CHR VMDK</strong> descargada desde MikroTik.</li>
+          <li>Winbox para realizar la primera conexión gráfica al finalizar la instalación.</li>
+        </ul>
+
+        <h3>Descargar la imagen correcta de CHR</h3>
+        <ol>
+          <li>Entrar en <a href="https://mikrotik.com/download" target="_blank" rel="noopener noreferrer">mikrotik.com/download</a>.</li>
+          <li>Localizar <strong>Cloud Hosted Router</strong>.</li>
+          <li>Elegir la rama que se vaya a utilizar, por ejemplo long-term o stable.</li>
+          <li>Descargar <strong>VMDK image</strong>, que es el formato preparado para VMware.</li>
+          <li>Descomprimir el archivo y mover el VMDK a la carpeta definitiva de la VM antes de conectarlo.</li>
+        </ol>
+
+        <div class="note">Mover primero el VMDK evita que la VM quede dependiendo de un archivo alojado en Descargas. VMware guarda en el <code class="inline">.vmx</code> la ruta exacta del disco.</div>
+
+        <h3>Descargar Winbox para Windows</h3>
+        <ol>
+          <li>En la misma web oficial, abrir la sección <a href="https://mikrotik.com/download/winbox/" target="_blank" rel="noopener noreferrer"><strong>WinBox</strong></a>.</li>
+          <li>Seleccionar <strong>Windows (64-bit)</strong> para un equipo Windows 11 convencional. La opción ARM64 solo corresponde a equipos Windows con procesador ARM.</li>
+          <li>Guardar el archivo ZIP y extraerlo en una carpeta conocida, por ejemplo <code class="inline">Descargas\Winbox</code>.</li>
+          <li>Ejecutar Winbox desde el archivo extraído. Es una utilidad ligera y no necesita un asistente de instalación tradicional.</li>
+        </ol>
+
+        <div class="info">Para evitar versiones modificadas, Winbox debe descargarse únicamente desde <code class="inline">mikrotik.com</code>. Como la versión disponible cambia con el tiempo, la referencia recomendada es “última versión oficial para Windows de 64 bits”, sin fijar un número concreto.</div>
+      </section>
+
+      <section class="card" id="vm-oficial">
+        <h2>5. Creación oficial de la VM</h2>
+        <p>El procedimiento inicial sigue el método previsto para la imagen VMware de CHR.</p>
+
+        <table>
+          <thead><tr><th>Parámetro</th><th>Valor recomendado</th></tr></thead>
+          <tbody>
+            <tr><td>Tipo de creación</td><td>Custom</td></tr>
+            <tr><td>Compatibilidad</td><td>Workstation 17.x</td></tr>
+            <tr><td>Instalación</td><td>I will install the operating system later</td></tr>
+            <tr><td>Guest OS</td><td>Linux → Other Linux 5.x kernel 64-bit</td></tr>
+            <tr><td>Firmware</td><td>BIOS heredada, no UEFI</td></tr>
+            <tr><td>CPU</td><td>1 procesador, 1 núcleo</td></tr>
+            <tr><td>RAM</td><td>1 GB recomendado; 256 MB es el mínimo oficial</td></tr>
+            <tr><td>Virtualización anidada</td><td>Desactivada</td></tr>
+            <tr><td>Red inicial</td><td>Host-only, preferiblemente Custom VMnet1</td></tr>
+            <tr><td>Tipo de adaptador</td><td>VMXNET3, con Connected y Connect at power on activados</td></tr>
+            <tr><td>Disco</td><td>VMDK oficial existente mediante controlador SCSI</td></tr>
+          </tbody>
+        </table>
+
+        <h3>Configurar la red Host-only de administración</h3>
+        <p>La conexión Host-only crea un segmento privado entre el equipo anfitrión y la máquina virtual. El tráfico no se publica directamente en la red física y Winbox puede utilizar tanto la dirección MAC como una dirección IP del segmento virtual.</p>
+        <ol>
+          <li>Abrir <strong>Edit → Virtual Network Editor</strong>.</li>
+          <li>Seleccionar <code class="inline">VMnet1</code> o crear una red virtual Host-only equivalente.</li>
+          <li>Activar <strong>Connect a host virtual adapter to this network</strong>. Esta opción incorpora Windows al mismo dominio de capa 2 que CHR y permite el acceso mediante MAC Winbox.</li>
+          <li>Activar <strong>Use local DHCP service to distribute IP addresses to VMs</strong> cuando se desee obtener también una dirección IP durante esta práctica.</li>
+          <li>En la configuración de la VM, seleccionar <strong>Network Adapter → Custom: VMnet1</strong>.</li>
+          <li>Comprobar que se trata del primer adaptador de la VM y que aparece como <strong>Network Adapter</strong>, no como <strong>Network Adapter 2</strong>.</li>
+        </ol>
+
+        <div class="warning">Solo debe existir un servidor DHCP en VMnet1. Cuando Sophos se incorpore posteriormente a este segmento y proporcione DHCP desde Port1, el servicio DHCP de VMware deberá desactivarse.</div>
+
+        <div class="note">El primer adaptador suele aparecer en RouterOS como <code class="inline">ether1</code>. Si la salida de <code class="inline">/interface print</code> muestra otro nombre, por ejemplo <code class="inline">ether2</code>, todos los comandos de administración deben utilizar el nombre realmente detectado.</div>
+
+        <h3>Conectar el VMDK</h3>
+        <ol>
+          <li>Crear la VM con un disco temporal si el asistente obliga a ello.</li>
+          <li>Con la VM apagada, abrir <strong>VM Settings</strong>.</li>
+          <li>Eliminar el disco temporal de la configuración.</li>
+          <li>Seleccionar <strong>Add → Hard Disk → SCSI → Use an existing virtual disk</strong>.</li>
+          <li>Elegir el VMDK oficial de CHR.</li>
+          <li>Si VMware propone convertirlo, seleccionar <strong>Keep Existing Format</strong>.</li>
+          <li>Comprobar que el disco SCSI de CHR es el único disco de arranque de la máquina.</li>
+        </ol>
+        <div class="ok">No existe una instalación tradicional: RouterOS ya está contenido en el VMDK. Al encender la VM, VMware inicia CHR directamente desde el disco SCSI.</div>
+      </section>
+
+      <section class="card" id="vbs">
+        <h2>6. Windows 11, VBS y Windows Hypervisor Platform</h2>
+        <p><strong>VBS</strong> significa <em>Virtualization-Based Security</em>. Windows utiliza la virtualización por hardware y su propio hipervisor para aislar una región protegida donde ejecuta mecanismos de seguridad. <strong>Integridad de memoria</strong>, también conocida como <strong>HVCI</strong>, es una de las funciones que pueden apoyarse en VBS.</p>
+
+        <p>Cuando el hipervisor de Microsoft está activo, VMware Workstation puede dejar de utilizar directamente AMD-V/Intel VT-x y lanzar las máquinas mediante <strong>Windows Hypervisor Platform (WHP)</strong>. Esto es compatible en muchas cargas, pero cambia el camino de ejecución y puede producir comportamientos distintos en sistemas invitados muy específicos.</p>
+
+        <div class="info"><strong>Importante:</strong> tener desmarcada la característica “Hyper-V” no garantiza que el hipervisor esté apagado. VBS, HVCI, Credential Guard, Windows Sandbox o Virtual Machine Platform pueden mantenerlo activo.</div>
+
+        <p>Esta situación no impide utilizar CHR. La máquina puede arrancar manteniendo VBS e Integridad de memoria activados; únicamente debe respetarse el tiempo necesario para que RouterOS complete la carga en esta combinación de host e hipervisor.</p>
+        <div class="ok">No es necesario desactivar VBS, HVCI, Credential Guard ni Integridad de memoria para completar esta práctica.</div>
+      </section>
+
+      <section class="card" id="sintoma">
+        <h2>7. Tiempo de arranque de CHR</h2>
+        <p>Después de encender la máquina, la consola puede mostrar durante varios minutos:</p>
+
+        <div class="cmd">
+          <div class="cmd-head"><div class="cmd-title">Pantalla de arranque</div><button class="copy-btn" data-copy-target="cmd-load">Copiar</button></div>
+          <pre id="cmd-load">Load system _</pre>
+        </div>
+
+        <p>El cursor puede continuar parpadeando mientras RouterOS carga el sistema. En el entorno descrito, el proceso tarda aproximadamente entre <strong>5 y 10 minutos</strong>, especialmente durante el primer inicio. Esta pantalla no debe interpretarse automáticamente como un bloqueo.</p>
+        <ul>
+          <li>Mantener la VM encendida.</li>
+          <li>No pulsar Reset ni retirar el disco.</li>
+          <li>Esperar al menos 10 minutos antes de revisar la configuración.</li>
+          <li>Comprobar que el disco SCSI y el adaptador de red permanecen conectados.</li>
+        </ul>
+
+        <h3>Comprobar el estado del hipervisor en Windows</h3>
+        <div class="cmd">
+          <div class="cmd-head"><div class="cmd-title">CMD o PowerShell</div><button class="copy-btn" data-copy-target="cmd-systeminfo">Copiar</button></div>
+          <pre id="cmd-systeminfo">systeminfo</pre>
+        </div>
+        <p>Si al final aparece una línea como <code class="inline">Se detectó un hipervisor</code>, Windows tiene cargado el hipervisor aunque la casilla principal de Hyper-V esté desmarcada.</p>
+
+        <div class="cmd">
+          <div class="cmd-head"><div class="cmd-title">Información del sistema</div><button class="copy-btn" data-copy-target="cmd-msinfo">Copiar</button></div>
+          <pre id="cmd-msinfo">msinfo32</pre>
+        </div>
+        <p>En <strong>Resumen del sistema</strong> se puede revisar el estado de <strong>Seguridad basada en virtualización</strong> y los servicios VBS activos.</p>
+
+        <div class="note"><code class="inline">systeminfo</code> y <code class="inline">msinfo32</code> sirven para comprender por qué VMware puede utilizar WHP, pero no es necesario modificar esas protecciones. El procedimiento consiste en conservar la configuración de Windows y permitir que CHR termine de iniciar.</div>
+      </section>
+
+      <section class="card" id="solucion">
+        <h2>8. Procedimiento con VBS activo</h2>
+        <p>CHR puede desplegarse conservando la configuración de seguridad de Windows 11. La combinación utilizada es directa: imagen VMDK oficial, firmware BIOS, disco SCSI y tiempo suficiente para completar el arranque.</p>
+
+        <h3>Procedimiento</h3>
+        <ol>
+          <li>Crear la VM sin instalar un sistema operativo desde un medio óptico.</li>
+          <li>Utilizar el perfil <strong>Other Linux 5.x kernel 64-bit</strong>.</li>
+          <li>Mantener el firmware en <strong>BIOS heredada</strong>.</li>
+          <li>Añadir un disco <strong>SCSI</strong> mediante <strong>Use an existing virtual disk</strong>.</li>
+          <li>Seleccionar el VMDK oficial de CHR.</li>
+          <li>Elegir <strong>Keep Existing Format</strong> si VMware solicita conversión.</li>
+          <li>Configurar una NIC VMXNET3 en modo Host-only para la administración inicial.</li>
+          <li>Arrancar la VM y esperar entre 5 y 10 minutos mientras aparezca <code class="inline">Load system</code>.</li>
+        </ol>
+
+        <div class="ok">Configuración utilizada: <strong>CHR VMDK + BIOS heredada + controlador SCSI + perfil Other Linux 5.x kernel 64-bit</strong>, manteniendo VBS/HVCI activo en Windows 11.</div>
+        <div class="info">La espera forma parte del procedimiento. Mientras VMware mantenga la VM encendida y el cursor de <code class="inline">Load system</code> siga activo, debe concederse el intervalo completo antes de intervenir.</div>
+      </section>
+
+      <section class="card" id="arranque">
+        <h2>9. Primer arranque</h2>
+        <p>Cuando CHR complete el inicio aparecerá el login de RouterOS:</p>
+        <div class="cmd">
+          <div class="cmd-head"><div class="cmd-title">Credenciales iniciales</div><button class="copy-btn" data-copy-target="cmd-login">Copiar</button></div>
+          <pre id="cmd-login">Login: admin
+Password: [vacía]</pre>
+        </div>
+        <p>RouterOS puede solicitar establecer una contraseña nueva. Para un laboratorio aislado se puede continuar temporalmente, pero debe configurarse una contraseña antes de conectar la VM a redes no confiables.</p>
+
+        <h3>Verificar que es CHR</h3>
+        <div class="cmd">
+          <div class="cmd-head"><div class="cmd-title">Comprobación de plataforma y licencia</div><button class="copy-btn" data-copy-target="cmd-check">Copiar</button></div>
+          <pre id="cmd-check">/system resource print
+/system license print
+/interface ethernet print</pre>
+        </div>
+        <p>La información debe identificar la plataforma/board como CHR y mostrar la licencia <code class="inline">free</code> si todavía no se ha solicitado una prueba superior.</p>
+      </section>
+
+      <section class="card" id="gestion">
+        <h2>10. Descargar Winbox y realizar la primera conexión</h2>
+        <p>Una vez completado el arranque, la administración puede trasladarse desde la consola de VMware a Winbox. El adaptador Host-only permite la conexión directa por MAC. Si el servicio DHCP de VMware está activado en VMnet1, también puede obtenerse conectividad IP configurando <code class="inline">ether1</code> como cliente DHCP:</p>
+
+        <div class="cmd">
+          <div class="cmd-head"><div class="cmd-title">Verificar el nombre de la interfaz y habilitar MAC Winbox</div><button class="copy-btn" data-copy-target="cmd-mac-winbox">Copiar</button></div>
+          <pre id="cmd-mac-winbox">/interface print
+/interface list add name=MGMT
+/interface list member add list=MGMT interface=ether1
+/ip neighbor discovery-settings set discover-interface-list=MGMT
+/tool mac-server mac-winbox set allowed-interface-list=MGMT
+/ip service enable winbox</pre>
+        </div>
+
+        <div class="note">Si la interfaz detectada no se denomina <code class="inline">ether1</code>, el parámetro <code class="inline">interface=ether1</code> debe sustituirse por el nombre mostrado en <code class="inline">/interface print</code>.</div>
+
+        <div class="cmd">
+          <div class="cmd-head"><div class="cmd-title">Obtener IP mediante DHCP</div><button class="copy-btn" data-copy-target="cmd-dhcp">Copiar</button></div>
+          <pre id="cmd-dhcp">/ip dhcp-client add interface=ether1 disabled=no
+/ip dhcp-client print detail
+/ip address print</pre>
+        </div>
+
+        <p>El campo <code class="inline">status=bound</code> confirma que ether1 ha recibido una concesión. La dirección mostrada en <code class="inline">address</code> será la utilizada posteriormente para la conexión IP desde Winbox.</p>
+
+        <h3>10.1 Abrir Winbox</h3>
+        <ol>
+          <li>Descargar Winbox desde <a href="https://mikrotik.com/download/winbox/" target="_blank" rel="noopener noreferrer">la página oficial de MikroTik</a>.</li>
+          <li>Extraer el archivo ZIP y ejecutar Winbox.</li>
+          <li>Localizar el apartado <strong>Neighbors</strong> en la pantalla inicial y actualizar el descubrimiento si fuera necesario.</li>
+          <li>El CHR debe aparecer con su MAC, dirección IP, identidad, versión de RouterOS y plataforma.</li>
+        </ol>
+
+        <h3>10.2 Primera conexión por dirección MAC</h3>
+        <ol>
+          <li>Seleccionar el MikroTik descubierto en <strong>Neighbors</strong>.</li>
+          <li>Utilizar su <strong>MAC address</strong> en el campo de conexión.</li>
+          <li>Usuario: <code class="inline">admin</code>.</li>
+          <li>Contraseña: la definida durante el primer arranque; inicialmente puede estar vacía si RouterOS todavía no obligó a cambiarla.</li>
+          <li>Seleccionar <strong>Connect</strong>.</li>
+        </ol>
+
+        <div class="note">La conexión por MAC solo funciona cuando el ordenador y ether1 comparten el mismo dominio de capa 2. Es muy útil para la puesta en marcha porque no depende de conocer previamente la IP, pero no atraviesa routers.</div>
+
+        <h3>10.3 Conexión por dirección IP</h3>
+        <ol>
+          <li>Cerrar la sesión establecida mediante MAC.</li>
+          <li>Escribir en <strong>Connect To</strong> la dirección obtenida por el DHCP Client de VMware Host-only.</li>
+          <li>Introducir <code class="inline">admin</code> y la contraseña configurada.</li>
+          <li>Seleccionar <strong>Connect</strong> y comprobar el estado desde <strong>Interfaces</strong>, <strong>IP → Addresses</strong> e <strong>IP → DHCP Client</strong>.</li>
+        </ol>
+
+        <h3>10.4 Si el CHR no aparece en Neighbors</h3>
+        <ul>
+          <li>Comprobar en VMware que el adaptador está marcado como <strong>Connected</strong> y <strong>Connect at power on</strong>.</li>
+          <li>Confirmar que el adaptador de la VM utiliza el mismo VMnet Host-only que el adaptador virtual del equipo anfitrión; el descubrimiento MAC no atraviesa redes enrutadas.</li>
+          <li>Actualizar la lista de vecinos y probar directamente con la IP obtenida mediante <code class="inline">/ip address print</code>.</li>
+          <li>Verificar que Windows considera privada la red de VMware y que el firewall no bloquea la aplicación.</li>
+          <li>Probar desde Windows <code class="inline">ping IP_DEL_CHR</code>. RouterOS puede no responder a ping si se ha aplicado una política previa, pero la prueba permite detectar errores básicos de red.</li>
+        </ul>
+
+        <div class="ok"><strong>Resultado esperado:</strong> Winbox conectado al CHR, identidad del router visible, ether1 en estado running y dirección DHCP accesible desde la interfaz gráfica.</div>
+        <div class="note">En la práctica de VLAN, <code class="inline">ether1</code> se reserva para gestión, mientras que los adaptadores restantes se utilizan como puertos de acceso y trunk. El bridge VLAN no forma parte de esta instalación inicial.</div>
+      </section>
+
+      <section class="card" id="licencias">
+        <h2>11. Licencias CHR</h2>
+        <table>
+          <thead><tr><th>Nivel</th><th>Límite por interfaz</th><th>Uso típico</th></tr></thead>
+          <tbody>
+            <tr><td>Free</td><td>1 Mbit/s</td><td>Laboratorio funcional y aprendizaje</td></tr>
+            <tr><td>P1</td><td>1 Gbit/s</td><td>Laboratorios avanzados y pequeños despliegues</td></tr>
+            <tr><td>P10</td><td>10 Gbit/s</td><td>Entornos de mayor rendimiento</td></tr>
+            <tr><td>P-Unlimited</td><td>Sin límite impuesto por licencia</td><td>Máximo rendimiento disponible</td></tr>
+          </tbody>
+        </table>
+        <div class="ok">Para demostrar routing, DHCP, firewall, bridge y VLAN, CHR Free es suficiente. El límite de 1 Mbit/s afecta al rendimiento, no al acceso a las funciones de RouterOS.</div>
+      </section>
+
+      <section class="card" id="validacion">
+        <h2>12. Validación final</h2>
+        <div class="cmd">
+          <div class="cmd-head"><div class="cmd-title">Checklist desde RouterOS</div><button class="copy-btn" data-copy-target="cmd-final">Copiar</button></div>
+          <pre id="cmd-final">/system resource print
+/system license print
+/interface ethernet print
+/ip dhcp-client print detail
+/ip address print
+/ping 8.8.8.8 count=4</pre>
+        </div>
+        <ul>
+          <li>La consola llega al prompt de RouterOS.</li>
+          <li>La plataforma se identifica como CHR.</li>
+          <li>La licencia aparece como free.</li>
+          <li><code class="inline">ether1</code> está en estado running.</li>
+          <li>El DHCP Client obtiene una IP cuando el servicio DHCP de VMware está activo en VMnet1.</li>
+          <li>La conexión por MAC funciona aunque el adaptador todavía no disponga de dirección IP.</li>
+          <li>Winbox descubre el CHR o permite conectarse escribiendo su IP.</li>
+          <li>La sesión gráfica abre Interfaces, IP Addresses y DHCP Client correctamente.</li>
+        </ul>
+      </section>
+
+      <section class="card" id="errores">
+        <h2>13. Comprobaciones habituales</h2>
+        <table>
+          <thead><tr><th>Problema o prueba</th><th>Resultado</th><th>Qué hacer</th></tr></thead>
+          <tbody>
+            <tr><td><code class="inline">Load system</code> continúa visible</td><td>CHR todavía está completando el arranque</td><td>Esperar entre 5 y 10 minutos sin reiniciar la VM</td></tr>
+            <tr><td>VMware ofrece convertir el VMDK</td><td>El hipervisor propone adaptar el formato del disco</td><td>Seleccionar <strong>Keep Existing Format</strong></td></tr>
+            <tr><td>La VM no encuentra un sistema de arranque</td><td>El VMDK no está conectado o no es el disco principal</td><td>Revisar que figure como disco SCSI existente y conectado</td></tr>
+            <tr><td>Winbox no descubre el CHR</td><td>Windows y CHR no comparten el mismo segmento de capa 2</td><td>Conectar ambos a VMnet1 Host-only y comprobar Connected</td></tr>
+            <tr><td>El CHR no tiene dirección IP</td><td>No existe un DHCP activo en la red Host-only</td><td>Conectarse por MAC o asignar una IP estática de gestión</td></tr>
+            <tr><td>Hyper-V aparece desmarcado, pero se detecta un hipervisor</td><td>VBS u otra función mantiene activo el hipervisor de Microsoft</td><td>Mantener la protección y permitir que CHR complete el arranque</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section class="card" id="resumen">
+        <h2>14. Resumen del procedimiento</h2>
+        <ol>
+          <li><strong>Identificación del producto:</strong> utilizar MikroTik CHR, la edición virtual de RouterOS.</li>
+          <li><strong>Descargas:</strong> obtener la imagen VMDK de CHR y Winbox para Windows de 64 bits.</li>
+          <li><strong>Creación de la VM:</strong> utilizar el perfil Other Linux 5.x 64-bit, BIOS, 1 vCPU, 1 GB de RAM y un adaptador VMXNET3 Host-only.</li>
+          <li><strong>Disco oficial:</strong> conectar el VMDK existente mediante un controlador SCSI y conservar su formato.</li>
+          <li><strong>Interacción VBS/WHP:</strong> comprender que Windows puede mantener activo el hipervisor de Microsoft.</li>
+          <li><strong>Arranque:</strong> esperar entre 5 y 10 minutos en <code class="inline">Load system</code> sin reiniciar la máquina.</li>
+          <li><strong>Primer arranque:</strong> iniciar sesión como admin y establecer una contraseña.</li>
+          <li><strong>Red de gestión:</strong> utilizar VMnet1 Host-only, habilitar MAC Winbox y, opcionalmente, activar el DHCP Client en ether1.</li>
+          <li><strong>Winbox:</strong> realizar una conexión por MAC y una segunda conexión por IP.</li>
+          <li><strong>Validación:</strong> comprobar plataforma, licencia, interfaces, dirección y estado del DHCP Client.</li>
+        </ol>
+      </section>
+
+      <section class="card" id="siguiente">
+        <h2>15. Continuación del laboratorio</h2>
+        <p>La práctica de VLAN utiliza esta VM como punto de partida y define cuatro adaptadores:</p>
+        <table>
+          <thead><tr><th>Interfaz CHR</th><th>Función futura</th></tr></thead>
+          <tbody>
+            <tr><td><code class="inline">ether1</code></td><td>Gestión mediante Host-only, Custom VMnet1</td></tr>
+            <tr><td><code class="inline">ether2</code></td><td>Puerto de acceso VLAN10</td></tr>
+            <tr><td><code class="inline">ether3</code></td><td>Puerto de acceso VLAN20</td></tr>
+            <tr><td><code class="inline">ether4</code></td><td>Trunk 802.1Q dedicado hacia Port5 de Sophos</td></tr>
+          </tbody>
+        </table>
+        <div class="note">La separación en dos fases facilita el diagnóstico: primero se valida el arranque y la administración de CHR; después se incorpora la configuración de switching, VLAN, DHCP, firewall y NAT.</div>
+      </section>
+
+      <section class="card" id="fuentes">
+        <h2>16. Fuentes técnicas</h2>
+        <ul>
+          <li><a href="https://help.mikrotik.com/docs/spaces/ROS/pages/18350234/Cloud+Hosted+Router+CHR" target="_blank" rel="noopener noreferrer">MikroTik: Cloud Hosted Router (CHR)</a> — requisitos, formatos de imagen, controladores y licencias.</li>
+          <li><a href="https://mikrotik.com/download/winbox/" target="_blank" rel="noopener noreferrer">MikroTik: descarga oficial de Winbox</a> — versiones oficiales para Windows, macOS y Linux.</li>
+          <li><a href="https://help.mikrotik.com/docs/spaces/ROS/pages/328129/WinBox" target="_blank" rel="noopener noreferrer">MikroTik: documentación de Winbox</a> — conexión, descubrimiento y administración de RouterOS.</li>
+          <li><a href="https://learn.microsoft.com/en-us/windows-hardware/design/device-experiences/oem-vbs" target="_blank" rel="noopener noreferrer">Microsoft Learn: Virtualization-based Security</a> — funcionamiento de VBS e Integridad de memoria/HVCI.</li>
+          <li><a href="https://knowledge.broadcom.com/external/article/315420/error-your-host-does-not-meet-minimum-r.html" target="_blank" rel="noopener noreferrer">Broadcom: VMware Workstation con Hyper-V/VBS habilitado</a> — uso de Windows Hypervisor Platform cuando el hipervisor está activo.</li>
+        </ul>
+        <div class="info">Las fuentes explican el funcionamiento general de CHR, Winbox y VBS. El tiempo de carga puede variar según el hardware del anfitrión y el motor de virtualización utilizado por VMware.</div>
+      </section>
+
+      <footer>
+        <p style="margin: 0 0 6px;">Guía técnica para desplegar MikroTik CHR mediante VMDK y disco SCSI en VMware Workstation 17 sobre Windows 11.</p>
+        <p style="margin: 0; opacity: .75;">&copy; <span id="anio-actual">2026</span> Clockwork Computer. Todos los derechos reservados. Contenido educativo de libre consulta; su reproducción total o parcial en otros sitios requiere autorización previa.</p>
+      </footer>
+    </div>
+  </div>
+</main>
+
+<script>
+  async function copyText(text, button) {
+    try {
+      await navigator.clipboard.writeText(text);
+      const original = button.textContent;
+      button.textContent = 'Copiado';
+      button.classList.add('copied');
+      setTimeout(() => {
+        button.textContent = original;
+        button.classList.remove('copied');
+      }, 1400);
+    } catch (err) {
+      alert('No se pudo copiar automáticamente.');
+    }
+  }
+
+  document.querySelectorAll('.copy-btn').forEach(button => {
+    button.addEventListener('click', () => {
+      const targetId = button.getAttribute('data-copy-target');
+      const target = document.getElementById(targetId);
+      if (!target) return;
+      copyText(target.innerText.trim(), button);
+    });
+  });
+
+  const anioEl = document.getElementById('anio-actual');
+  if (anioEl) anioEl.textContent = new Date().getFullYear();
+</script>
+</body>
+</html>
