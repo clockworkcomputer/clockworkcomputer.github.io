@@ -1,0 +1,1106 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>VLAN 802.1Q con MikroTik CHR y Sophos en VMware</title>
+  <link rel="icon" type="image/png" href="https://blogger.googleusercontent.com/img/a/AVvXsEjuquj9lFaN9zfg8H5FofNIUKAHWWRiOUbDhHragpU14TfF6RYKxb5w62mfAClxDkDrzCMAilRatibcoWFbuqMnXMBh30p_sfbxp4D2gUny70NbjyHLrs42VXeBB4Qtc8NovIS_DqIU5iq3dMMx1TuNZkW70MeW8Ryemwk_tDv6iKZi9ngKfaskUG1yCWo=s1600"/>
+  <style>
+    :root {
+      --bg: #060606;
+      --panel: #111111;
+      --panel-2: #1a1a1a;
+      --text: #f5f5f5;
+      --muted: #b9b9b9;
+      --accent: #ff7a00;
+      --accent-2: #ff9a3d;
+      --border: #2b2b2b;
+      --code: #050505;
+      --success: #24b36b;
+      --danger: #ed5b5b;
+      --blue: #4ca6ff;
+      --purple: #b58cff;
+      --shadow: 0 12px 30px rgba(0,0,0,.35);
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+      background: linear-gradient(180deg, #050505 0%, #0a0a0a 100%);
+      color: var(--text);
+      line-height: 1.6;
+    }
+
+    a { color: #ffb067; }
+    .container { width: min(1180px, calc(100% - 32px)); margin: 0 auto; }
+
+    header {
+      padding: 48px 0 28px;
+      border-bottom: 1px solid rgba(255,255,255,.06);
+      background:
+        radial-gradient(circle at top right, rgba(255,122,0,.16), transparent 30%),
+        radial-gradient(circle at top left, rgba(76,166,255,.10), transparent 22%),
+        linear-gradient(180deg, #080808 0%, #101010 100%);
+    }
+
+    .header-inner {
+      display: flex;
+      gap: 18px;
+      align-items: flex-start;
+      justify-content: space-between;
+      flex-wrap: wrap;
+    }
+
+    .header-brand {
+      display: flex;
+      gap: 18px;
+      align-items: center;
+      flex: 1 1 760px;
+    }
+
+    .channel-logo {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 18px;
+      overflow: hidden;
+      border: 1px solid rgba(255,255,255,.08);
+      box-shadow: var(--shadow);
+      background: rgba(255,255,255,.03);
+      flex: 0 0 auto;
+    }
+
+    .channel-logo img { display: block; width: 200px; height: auto; object-fit: contain; }
+    h1 { font-size: clamp(1.8rem, 3vw, 3rem); margin: 0; line-height: 1.15; color: var(--accent); }
+    .brand { margin-top: 8px; font-weight: 700; letter-spacing: .4px; color: var(--accent-2); }
+    .subtitle { color: var(--muted); margin: 10px 0 0; max-width: 900px; }
+    main { padding: 28px 0 64px; }
+
+    .layout { display: grid; grid-template-columns: 285px 1fr; gap: 24px; align-items: start; }
+    .toc {
+      position: sticky;
+      top: 20px;
+      width: 285px;
+      max-height: calc(100vh - 40px);
+      overflow-y: auto;
+      background: rgba(17,17,17,.94);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 18px;
+      box-shadow: var(--shadow);
+    }
+    .toc h2 { margin: 0 0 12px; font-size: 1rem; color: var(--accent); }
+    .toc a {
+      display: block;
+      color: var(--muted);
+      text-decoration: none;
+      padding: 7px 10px;
+      border-radius: 10px;
+      transition: background .15s ease, color .15s ease;
+      font-size: .91rem;
+    }
+    .toc a:hover { color: var(--text); background: rgba(255,122,0,.08); }
+    .content { display: grid; gap: 18px; min-width: 0; }
+
+    .card {
+      background: linear-gradient(180deg, rgba(17,17,17,.97), rgba(12,12,12,.97));
+      border: 1px solid var(--border);
+      border-radius: 22px;
+      padding: 24px;
+      box-shadow: var(--shadow);
+    }
+    .card h2 { margin-top: 0; font-size: 1.5rem; color: var(--accent); }
+    .card h3 { margin: 24px 0 10px; font-size: 1.12rem; color: #ffd1a8; }
+    .card h4 { margin: 18px 0 8px; color: #d5eaff; }
+    .muted { color: var(--muted); }
+    ul, ol { margin-top: 10px; padding-left: 22px; }
+    li + li { margin-top: 7px; }
+    p, .note, .ok, .warning, .info { text-align: justify; }
+
+    .note, .ok, .warning, .info {
+      border-radius: 14px;
+      padding: 14px 16px;
+      margin-top: 14px;
+    }
+    .note { background: rgba(255,122,0,.08); border: 1px solid rgba(255,122,0,.22); color: #ffe2c4; }
+    .ok { background: rgba(36,179,107,.10); border: 1px solid rgba(36,179,107,.28); color: #caf6dd; }
+    .warning { background: rgba(237,91,91,.10); border: 1px solid rgba(237,91,91,.30); color: #ffd1d1; }
+    .info { background: rgba(76,166,255,.09); border: 1px solid rgba(76,166,255,.26); color: #d5eaff; }
+
+    .cmd { margin-top: 14px; border: 1px solid var(--border); border-radius: 14px; overflow: hidden; background: var(--code); }
+    .cmd-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 10px 12px;
+      background: #151515;
+      border-bottom: 1px solid var(--border);
+    }
+    .cmd-title { color: #ffd1a8; font-weight: 700; font-size: .92rem; }
+    .copy-btn {
+      border: 1px solid rgba(255,122,0,.35);
+      background: rgba(255,122,0,.10);
+      color: #ffd1a8;
+      border-radius: 9px;
+      padding: 6px 10px;
+      cursor: pointer;
+      font-weight: 700;
+    }
+    .copy-btn:hover, .copy-btn.copied { background: rgba(255,122,0,.24); color: #fff; }
+    pre {
+      margin: 0;
+      padding: 16px;
+      overflow-x: auto;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      color: #f3f3f3;
+      line-height: 1.5;
+    }
+    code.inline {
+      background: #202020;
+      border: 1px solid #303030;
+      padding: 2px 8px;
+      border-radius: 8px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: .92em;
+      color: #ffd2aa;
+    }
+
+    table { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: .94rem; }
+    th, td { border: 1px solid var(--border); padding: 10px 12px; text-align: left; vertical-align: top; }
+    th { background: rgba(255,255,255,.04); color: #ffd1a8; }
+    tr:nth-child(even) td { background: rgba(255,255,255,.012); }
+    .table-wrap { overflow-x: auto; }
+
+    .flow { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 14px; }
+    .flow.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .flow-item { border: 1px solid var(--border); border-radius: 14px; padding: 14px; background: rgba(255,255,255,.025); }
+    .flow-item strong { color: var(--accent-2); display: block; margin-bottom: 6px; }
+
+    .packet-flow { display: grid; gap: 10px; margin-top: 14px; }
+    .packet-step {
+      display: grid;
+      grid-template-columns: 48px 155px 1fr;
+      gap: 12px;
+      align-items: center;
+      padding: 12px;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      background: rgba(255,255,255,.025);
+    }
+    .packet-number {
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      background: rgba(255,122,0,.16);
+      border: 1px solid rgba(255,122,0,.35);
+      color: #ffd1a8;
+      font-weight: 800;
+    }
+    .packet-node { font-weight: 800; color: #d5eaff; }
+
+    .badge {
+      display: inline-block;
+      border: 1px solid rgba(255,122,0,.30);
+      background: rgba(255,122,0,.10);
+      color: #ffd1a8;
+      padding: 3px 9px;
+      border-radius: 999px;
+      font-size: .82rem;
+      font-weight: 700;
+      margin: 0 5px 5px 0;
+    }
+    .badge.blue { border-color: rgba(76,166,255,.35); background: rgba(76,166,255,.10); color: #d5eaff; }
+    .badge.green { border-color: rgba(36,179,107,.35); background: rgba(36,179,107,.10); color: #caf6dd; }
+    .step-title { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .step-index {
+      display: inline-grid;
+      place-items: center;
+      min-width: 32px;
+      height: 32px;
+      padding: 0 9px;
+      border-radius: 10px;
+      color: #101010;
+      background: var(--accent-2);
+      font-weight: 900;
+    }
+
+    .split { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 14px; }
+    .method {
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 16px;
+      background: rgba(255,255,255,.02);
+    }
+    .method h3 { margin-top: 0; }
+    .mini { font-size: .9rem; color: var(--muted); }
+    .checklist { list-style: none; padding-left: 0; }
+    .checklist li { position: relative; padding-left: 29px; }
+    .checklist li::before { content: "✓"; position: absolute; left: 0; color: var(--success); font-weight: 900; }
+    footer { margin-top: 24px; color: var(--muted); text-align: center; font-size: .95rem; }
+
+    @media (max-width: 1040px) {
+      .layout { grid-template-columns: 1fr; }
+      .toc { position: static; width: 100%; max-height: none; }
+      .flow.four { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+    @media (max-width: 760px) {
+      .flow, .flow.four, .split { grid-template-columns: 1fr; }
+      .packet-step { grid-template-columns: 42px 1fr; }
+      .packet-step > :last-child { grid-column: 1 / -1; }
+    }
+    @media (max-width: 640px) {
+      .header-brand { align-items: flex-start; flex-direction: column; }
+      .channel-logo img { width: 150px; }
+      .card { padding: 18px; }
+    }
+  </style>
+</head>
+<body>
+<header>
+  <div class="container header-inner">
+    <div class="header-brand">
+      <a class="channel-logo" href="https://www.youtube.com/c/ClockworkComputerIP" target="_blank" rel="noopener noreferrer" aria-label="Clockwork Computer">
+        <img src="https://blogger.googleusercontent.com/img/a/AVvXsEjuquj9lFaN9zfg8H5FofNIUKAHWWRiOUbDhHragpU14TfF6RYKxb5w62mfAClxDkDrzCMAilRatibcoWFbuqMnXMBh30p_sfbxp4D2gUny70NbjyHLrs42VXeBB4Qtc8NovIS_DqIU5iq3dMMx1TuNZkW70MeW8Ryemwk_tDv6iKZi9ngKfaskUG1yCWo=s1600" alt="Clockwork Computer"/>
+      </a>
+      <div>
+        <h1>VLAN 802.1Q con MikroTik CHR y Sophos en VMware</h1>
+        <div class="brand">Port5 como trunk, RouterOS como switch gestionado y Sophos como gateway, DHCP, DNS y firewall</div>
+        <p class="subtitle">Práctica completa y reproducible: preparación de las redes virtuales, configuración gráfica y por comandos de MikroTik, creación de VLAN en Sophos, DHCP, políticas, NAT, pruebas de tráfico y diagnóstico de extremo a extremo.</p>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main>
+  <div class="container layout">
+    <aside class="toc">
+      <h2>Contenido</h2>
+      <a href="#objetivo">1. Objetivo y resultado</a>
+      <a href="#conceptos">2. Conceptos 802.1Q</a>
+      <a href="#topologia">3. Topología definitiva</a>
+      <a href="#direccionamiento">4. Plan de direccionamiento</a>
+      <a href="#vmware">5. Preparar VMware</a>
+      <a href="#orden-seguro">6. Orden seguro</a>
+      <a href="#sophos-port5">7. Sophos: Port5 y VLAN</a>
+      <a href="#sophos-dhcp">8. Sophos: DHCP y DNS</a>
+      <a href="#sophos-firewall">9. Sophos: firewall y NAT</a>
+      <a href="#mikrotik-gui">10. MikroTik por Winbox</a>
+      <a href="#mikrotik-cli">11. MikroTik por comandos</a>
+      <a href="#explicacion-cli">12. Qué hace cada comando</a>
+      <a href="#flujo">13. Recorrido del paquete</a>
+      <a href="#validacion">14. Pruebas de validación</a>
+      <a href="#capturas">15. Capturas y diagnóstico</a>
+      <a href="#problemas">16. Problemas frecuentes</a>
+      <a href="#migracion">17. Protección del acceso de gestión</a>
+      <a href="#estado-final">18. Estado final</a>
+      <a href="#resumen">19. Resumen del procedimiento</a>
+      <a href="#fuentes">20. Fuentes técnicas</a>
+    </aside>
+
+    <div class="content">
+      <section class="card" id="objetivo">
+        <h2>1. Objetivo y resultado de la práctica</h2>
+        <p>La práctica implementa un pequeño switch gestionado con <strong>MikroTik CHR</strong>. El CHR recibe tráfico sin etiqueta desde dos máquinas de prueba, asigna la VLAN correspondiente y transporta ambas VLAN etiquetadas por un único enlace troncal hacia <strong>Sophos Firewall</strong>. Sophos termina las VLAN y actúa como router, puerta de enlace, servidor DHCP, resolvedor DNS, firewall y punto de salida a internet.</p>
+
+        <div class="flow four">
+          <div class="flow-item"><strong>VLAN10</strong>Cliente de pruebas en <code class="inline">10.10.10.0/24</code>.</div>
+          <div class="flow-item"><strong>MikroTik CHR</strong>Switch de capa 2, sin routing ni NAT para las VLAN.</div>
+          <div class="flow-item"><strong>Sophos</strong>Gateway, DHCP, DNS, firewall y NAT.</div>
+          <div class="flow-item"><strong>VLAN20</strong>Segundo segmento en <code class="inline">10.10.20.0/24</code>.</div>
+        </div>
+
+        <div class="ok"><strong>Resultado esperado:</strong> una VM Windows conectada a <code class="inline">ether2</code> recibe una dirección del rango <code class="inline">10.10.10.0/24</code> y utiliza <code class="inline">10.10.10.1</code> como puerta de enlace, atravesando el trunk dedicado entre <code class="inline">ether4</code> y <code class="inline">Port5</code>.</div>
+
+        <h3>Responsabilidad de cada equipo</h3>
+        <table>
+          <thead><tr><th>Función</th><th>MikroTik CHR</th><th>Sophos Firewall</th></tr></thead>
+          <tbody>
+            <tr><td>Conmutación Ethernet</td><td>Sí, mediante <code class="inline">bridge-vlans</code></td><td>No es su función en este diseño</td></tr>
+            <tr><td>Asignar o retirar etiquetas 802.1Q</td><td>Sí</td><td>Termina las etiquetas en Port5.10 y Port5.20</td></tr>
+            <tr><td>Dirección IP de las VLAN</td><td>No</td><td>10.10.10.1 y 10.10.20.1</td></tr>
+            <tr><td>DHCP, DNS, firewall y NAT</td><td>No</td><td>Sí</td></tr>
+            <tr><td>Gestión del dispositivo</td><td><code class="inline">ether1</code> con IP estática 192.168.10.2/24</td><td><code class="inline">Port1</code> en 192.168.10.254/24 cuando comparte la red de gestión</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section class="card" id="conceptos">
+        <h2>2. Conceptos necesarios antes de configurar</h2>
+        <h3>Puerto de acceso</h3>
+        <p>Un puerto de acceso conecta un equipo final que no utiliza etiquetado VLAN. Los fotogramas entran y salen <strong>sin etiqueta</strong>. Internamente, el switch los asocia a una VLAN mediante el <strong>PVID</strong>. En este diseño, <code class="inline">ether2</code> pertenece a VLAN10 y <code class="inline">ether3</code> a VLAN20.</p>
+
+        <h3>Puerto trunk</h3>
+        <p>Un trunk transporta varias VLAN por el mismo enlace. Cada trama lleva una cabecera IEEE 802.1Q con su identificador. <code class="inline">ether4</code> transportará VLAN10 y VLAN20 etiquetadas hasta <code class="inline">Port5</code> de Sophos.</p>
+
+        <h3>PVID, tagged, untagged e ingress filtering</h3>
+        <table>
+          <thead><tr><th>Término</th><th>Significado en RouterOS</th><th>Aplicación</th></tr></thead>
+          <tbody>
+            <tr><td>PVID</td><td>VLAN que se asigna a una trama que entra sin etiqueta</td><td>PVID 10 en ether2; PVID 20 en ether3</td></tr>
+            <tr><td>Tagged</td><td>La trama abandona el puerto conservando la etiqueta 802.1Q</td><td>ether4 para VLAN10 y VLAN20</td></tr>
+            <tr><td>Untagged</td><td>La trama abandona el puerto sin etiqueta</td><td>ether2 en VLAN10; ether3 en VLAN20</td></tr>
+            <tr><td>Ingress filtering</td><td>Descarta al entrar las VLAN que el puerto no tiene permitidas</td><td>Activado en los tres puertos del bridge</td></tr>
+            <tr><td>Frame types</td><td>Limita si el puerto admite tramas etiquetadas o no etiquetadas</td><td>Access: untagged; trunk: tagged</td></tr>
+          </tbody>
+        </table>
+
+        <h3>Cómo interpretar Tagged y Untagged en RouterOS</h3>
+        <p>Los campos <strong>Tagged</strong> y <strong>Untagged</strong> de <strong>Bridge → VLANs</strong> definen la pertenencia de los puertos a cada VLAN y el formato con el que la trama abandona el bridge. El tratamiento de las tramas que entran se completa mediante PVID, Frame Types e Ingress Filtering.</p>
+        <table>
+          <thead><tr><th>Puerto</th><th>Tráfico de entrada</th><th>Tratamiento interno</th><th>Tráfico de salida</th></tr></thead>
+          <tbody>
+            <tr><td>ether2, acceso VLAN10</td><td>Entra sin etiqueta</td><td>El PVID 10 añade la asociación interna con VLAN10</td><td>Sale sin etiqueta porque ether2 figura como Untagged en VLAN10</td></tr>
+            <tr><td>ether3, acceso VLAN20</td><td>Entra sin etiqueta</td><td>El PVID 20 añade la asociación interna con VLAN20</td><td>Sale sin etiqueta porque ether3 figura como Untagged en VLAN20</td></tr>
+            <tr><td>ether4, trunk</td><td>Entra etiquetado con VID 10 o VID 20</td><td>El bridge conserva la VLAN indicada en la cabecera 802.1Q</td><td>Sale etiquetado porque ether4 figura como Tagged en ambas VLAN</td></tr>
+          </tbody>
+        </table>
+
+        <div class="note"><strong>Untagged no significa que la VLAN desaparezca dentro del switch.</strong> La trama sigue asociada internamente a su VID. La etiqueta solo se retira al entregarla a un equipo final que no trabaja con 802.1Q.</div>
+
+        <div class="info"><strong>Tagged no crea una subred IP.</strong> Únicamente conserva o añade la cabecera 802.1Q necesaria para transportar varias VLAN por el mismo enlace físico.</div>
+
+        <div class="info">El identificador VLAN no sustituye a una subred IP. VLAN10 es una separación de capa 2; <code class="inline">10.10.10.0/24</code> es la red de capa 3 que Sophos asigna a esa VLAN.</div>
+      </section>
+
+      <section class="card" id="topologia">
+        <h2>3. Topología definitiva</h2>
+        <p>La corrección clave consiste en <strong>no reutilizar el enlace de gestión como trunk</strong>. VMware mantiene un segmento para administración y crea otro LAN Segment completamente separado para el tráfico 802.1Q.</p>
+
+        <table>
+          <thead><tr><th>Equipo</th><th>Interfaz</th><th>Red VMware</th><th>Función</th></tr></thead>
+          <tbody>
+            <tr><td>MikroTik CHR</td><td>ether1</td><td>Host-only, Custom VMnet1</td><td>Gestión mediante Winbox; IP estática 192.168.10.2/24</td></tr>
+            <tr><td>MikroTik CHR</td><td>ether2</td><td>LAN Segment <strong>VLAN10</strong></td><td>Acceso sin etiqueta, PVID 10</td></tr>
+            <tr><td>MikroTik CHR</td><td>ether3</td><td>LAN Segment <strong>VLAN20</strong></td><td>Acceso sin etiqueta, PVID 20</td></tr>
+            <tr><td>MikroTik CHR</td><td>ether4</td><td>LAN Segment <strong>TRUNK-SOPHOS-MIKROTIK</strong></td><td>Trunk etiquetado VLAN10 y VLAN20</td></tr>
+            <tr><td>Sophos</td><td>Port1</td><td>Host-only, Custom VMnet1</td><td>Gestión 192.168.10.254/24; su DHCP no es necesario para administrar CHR</td></tr>
+            <tr><td>Sophos</td><td>Port2</td><td>Bridged o NAT</td><td>WAN hacia internet</td></tr>
+            <tr><td>Sophos</td><td>Port5</td><td>LAN Segment <strong>TRUNK-SOPHOS-MIKROTIK</strong></td><td>Interfaz padre del trunk, sin IP</td></tr>
+            <tr><td>Windows VLAN10</td><td>Ethernet0</td><td>LAN Segment <strong>VLAN10</strong></td><td>Cliente DHCP de VLAN10</td></tr>
+            <tr><td>Windows VLAN20</td><td>Ethernet0</td><td>LAN Segment <strong>VLAN20</strong></td><td>Cliente DHCP de VLAN20</td></tr>
+          </tbody>
+        </table>
+
+        <div class="warning"><strong>No conectar ether1 al bridge de VLAN.</strong> Si ether1 se usa simultáneamente para gestión nativa y trunk, se mezclan dos funciones y se complica tanto la seguridad como el diagnóstico. El trunk dedicado elimina esa ambigüedad.</div>
+      </section>
+
+      <section class="card" id="direccionamiento">
+        <h2>4. Plan de direccionamiento</h2>
+        <table>
+          <thead><tr><th>Red</th><th>Interfaz de Sophos</th><th>IP/Gateway</th><th>DHCP</th><th>Uso</th></tr></thead>
+          <tbody>
+            <tr><td>192.168.10.0/24</td><td>Port1, si comparte VMnet1</td><td>Host 192.168.10.1; CHR 192.168.10.2; Sophos 192.168.10.254</td><td>Opcional, 192.168.10.100–192.168.10.200</td><td>Gestión independiente</td></tr>
+            <tr><td>10.10.10.0/24</td><td>VLAN10 / Port5.10</td><td>10.10.10.1</td><td>10.10.10.10–10.10.10.200</td><td>Clientes VLAN10</td></tr>
+            <tr><td>10.10.20.0/24</td><td>VLAN20 / Port5.20</td><td>10.10.20.1</td><td>10.10.20.10–10.10.20.200</td><td>Clientes VLAN20</td></tr>
+          </tbody>
+        </table>
+
+        <div class="note"><strong>Port5 no necesita IP.</strong> Las direcciones residen en sus interfaces virtuales Port5.10 y Port5.20. El trunk es el medio de transporte; cada subinterfaz es el gateway de su red.</div>
+        <div class="info">La dirección 192.168.10.2 de CHR queda fuera del rango DHCP de Sophos. Por tanto, no existe conflicto y Winbox continúa funcionando aunque Sophos esté apagado.</div>
+      </section>
+
+      <section class="card" id="vmware">
+        <h2>5. Preparar las redes virtuales en VMware</h2>
+        <p>Sophos, MikroTik y las máquinas de prueba deben permanecer completamente apagados al añadir o reordenar adaptadores. En VMware, la numeración que recibe el sistema invitado depende del orden de las tarjetas virtuales.</p>
+
+        <h3>5.1 Crear los LAN Segments</h3>
+        <ol>
+          <li>Abrir <strong>VM Settings</strong> en cualquiera de las máquinas virtuales.</li>
+          <li>Seleccionar un adaptador de red y acceder a <strong>LAN Segments…</strong>.</li>
+          <li>Crear los segmentos <code class="inline">VLAN10</code>, <code class="inline">VLAN20</code> y <code class="inline">TRUNK-SOPHOS-MIKROTIK</code>.</li>
+          <li>Los LAN Segment no entregan DHCP ni internet por sí mismos; solo simulan cables/switches Ethernet aislados.</li>
+        </ol>
+
+        <h3>5.2 Mantener ether1 como red Host-only de gestión</h3>
+        <p>La primera interfaz de CHR conserva la red Host-only utilizada durante la instalación. Esta red permite que el equipo anfitrión permanezca en el mismo dominio de capa 2 y pueda administrar RouterOS mediante Winbox sin mezclar la gestión con las VLAN del laboratorio.</p>
+        <ol>
+          <li>Mantener <code class="inline">ether1</code> conectado a <strong>Custom: VMnet1</strong>.</li>
+          <li>Mantener activada la opción <strong>Connect a host virtual adapter to this network</strong> en VMnet1.</li>
+          <li>Configurar el adaptador virtual VMnet1 del host como <code class="inline">192.168.10.1/24</code>.</li>
+          <li>Asignar a ether1 la dirección estática <code class="inline">192.168.10.2/24</code>.</li>
+          <li>Conectar Sophos Port1 al mismo VMnet1 únicamente cuando se quiera administrar también Sophos desde esa red. Su dirección puede permanecer en <code class="inline">192.168.10.254/24</code>.</li>
+          <li>Mantener desactivado el DHCP de VMware para evitar que exista un segundo servidor DHCP. El DHCP de Sophos puede continuar activo para otros equipos, pero CHR no depende de él.</li>
+        </ol>
+
+        <div class="ok"><strong>Gestión independiente:</strong> Windows 192.168.10.1 y CHR 192.168.10.2 se comunican directamente en VMnet1. Sophos no participa en esa comunicación y puede permanecer apagado.</div>
+
+        <h3>5.3 Adaptadores de MikroTik CHR</h3>
+        <table>
+          <thead><tr><th>Orden VMware</th><th>RouterOS</th><th>Conexión</th></tr></thead>
+          <tbody>
+            <tr><td>Network Adapter</td><td>ether1</td><td>Host-only, Custom VMnet1</td></tr>
+            <tr><td>Network Adapter 2</td><td>ether2</td><td>LAN Segment VLAN10</td></tr>
+            <tr><td>Network Adapter 3</td><td>ether3</td><td>LAN Segment VLAN20</td></tr>
+            <tr><td>Network Adapter 4</td><td>ether4</td><td>LAN Segment TRUNK-SOPHOS-MIKROTIK</td></tr>
+          </tbody>
+        </table>
+
+        <h3>5.4 Adaptadores de Sophos</h3>
+        <p>Si todavía no existe, se añade un quinto adaptador virtual y se conecta al mismo LAN Segment <code class="inline">TRUNK-SOPHOS-MIKROTIK</code>. Después del arranque debe aparecer como <code class="inline">Port5</code>. El nombre se verifica en <strong>Red → Interfaces</strong> antes de crear las VLAN.</p>
+
+        <h3>5.5 Máquinas de prueba</h3>
+        <ul>
+          <li>La VM de VLAN10 debe tener su NIC en el LAN Segment <strong>VLAN10</strong>.</li>
+          <li>La VM de VLAN20 debe tener su NIC en el LAN Segment <strong>VLAN20</strong>.</li>
+          <li>Activar <strong>Connected</strong> y <strong>Connect at power on</strong>.</li>
+          <li>No configurar un VLAN ID dentro del adaptador de Windows; el cliente trabaja sin etiqueta.</li>
+        </ul>
+
+        <div class="ok">VMware Workstation transporta las tramas etiquetadas dentro del LAN Segment dedicado sin añadir ni retirar la cabecera 802.1Q. La etiqueta se genera en ether4 de MikroTik y se interpreta en Port5 de Sophos.</div>
+      </section>
+
+      <section class="card" id="orden-seguro">
+        <h2>6. Orden seguro de configuración</h2>
+        <p>El orden evita bloquear la administración y también facilita saber en qué punto aparece un fallo.</p>
+        <ol>
+          <li>Crear y comprobar los adaptadores en VMware.</li>
+          <li>Arrancar Sophos y verificar que aparecen Port1, Port2 y Port5.</li>
+          <li>Dejar Port5 como interfaz padre sin dirección.</li>
+          <li>Crear VLAN10 y VLAN20 en Port5.</li>
+          <li>Crear DHCP para ambas interfaces VLAN.</li>
+          <li>Comprobar acceso DNS, firewall LAN→WAN y SNAT.</li>
+          <li>En MikroTik, garantizar primero la gestión por ether1.</li>
+          <li>Crear el bridge con <code class="inline">vlan-filtering=no</code>.</li>
+          <li>Añadir puertos, PVID y tabla VLAN.</li>
+          <li>Activar <code class="inline">vlan-filtering=yes</code> únicamente al final.</li>
+          <li>Renovar DHCP en cada cliente y validar de capa 2 a capa 3.</li>
+        </ol>
+
+        <div class="warning"><strong>La dirección de gestión debe configurarse antes de crear el bridge.</strong> Ether1 permanecerá fuera de <code class="inline">bridge-vlans</code>; de esta manera, activar VLAN Filtering no puede cortar la sesión de Winbox.</div>
+      </section>
+
+      <section class="card" id="sophos-port5">
+        <h2>7. Sophos: habilitar Port5 y crear las VLAN</h2>
+
+        <h3>7.1 Qué hacer con la interfaz física Port5</h3>
+        <p>Port5 es la <strong>interfaz padre del trunk</strong>. No se asignan sobre ella <code class="inline">10.10.10.1</code>, <code class="inline">10.10.20.1</code> ni una IP de gestión, y tampoco se crea un servidor DHCP directamente sobre Port5. Las direcciones pertenecen a las subinterfaces VLAN.</p>
+
+        <div class="info">Port5 no necesita configurarse como una interfaz LAN con dirección propia. Debe permanecer sin enlazar y sin dirección; las interfaces VLAN se crean mediante <strong>Añadir interfaz → Añadir VLAN</strong> y reciben individualmente la zona LAN.</div>
+
+        <p>Cuando Port5 recibe una trama etiquetada, Sophos examina el VLAN ID de la cabecera 802.1Q:</p>
+        <ul>
+          <li>Una etiqueta VID 10 dirige la trama hacia la interfaz lógica <code class="inline">Port5.10</code>.</li>
+          <li>Una etiqueta VID 20 dirige la trama hacia la interfaz lógica <code class="inline">Port5.20</code>.</li>
+          <li>En sentido contrario, una trama enviada por Port5.10 abandona Port5 con etiqueta 10, y una trama enviada por Port5.20 lo hace con etiqueta 20.</li>
+        </ul>
+
+        <div class="note">Sophos no necesita configurar Port5 como “Tagged” mediante una lista independiente. La creación de las subinterfaces Port5.10 y Port5.20 define qué etiquetas acepta y genera el firewall sobre el trunk.</div>
+
+        <h3>7.2 Crear VLAN10 desde la interfaz web</h3>
+        <ol>
+          <li>Acceder a <strong>Red → Interfaces</strong>.</li>
+          <li>Seleccionar <strong>Añadir interfaz → Añadir VLAN</strong>.</li>
+          <li>Nombre: <code class="inline">VLAN10</code>.</li>
+          <li>Interfaz: <code class="inline">Port5</code>.</li>
+          <li>ID de VLAN: <code class="inline">10</code>.</li>
+          <li>Zona de red: <code class="inline">LAN</code>.</li>
+          <li>Configuración IPv4: <strong>Estática</strong>.</li>
+          <li>IPv4/máscara: <code class="inline">10.10.10.1 /24</code>.</li>
+          <li>No especificar gateway en una interfaz LAN conectada.</li>
+          <li>Guardar la configuración. Sophos mostrará el hardware lógico como <code class="inline">Port5.10</code>.</li>
+        </ol>
+
+        <div class="info"><strong>Qué se consigue con este paso:</strong> Sophos asocia todas las tramas con etiqueta 10 recibidas por Port5 a la red 10.10.10.0/24. La dirección 10.10.10.1 se convierte en el gateway de los clientes de VLAN10.</div>
+
+        <h3>7.3 Crear VLAN20</h3>
+        <p>El mismo procedimiento se aplica a VLAN20 con los siguientes valores:</p>
+        <table>
+          <thead><tr><th>Campo</th><th>VLAN10</th><th>VLAN20</th></tr></thead>
+          <tbody>
+            <tr><td>Nombre</td><td>VLAN10</td><td>VLAN20</td></tr>
+            <tr><td>Interfaz padre</td><td>Port5</td><td>Port5</td></tr>
+            <tr><td>ID VLAN</td><td>10</td><td>20</td></tr>
+            <tr><td>Zona</td><td>LAN</td><td>LAN</td></tr>
+            <tr><td>Dirección</td><td>10.10.10.1/24</td><td>10.10.20.1/24</td></tr>
+            <tr><td>Hardware resultante</td><td>Port5.10</td><td>Port5.20</td></tr>
+          </tbody>
+        </table>
+
+        <div class="info"><strong>Qué se consigue con VLAN20:</strong> las tramas con etiqueta 20 quedan separadas de VLAN10 y se entregan a la interfaz 10.10.20.1/24. Ambas VLAN comparten Port5 físicamente, pero mantienen dominios de broadcast y direccionamientos independientes.</div>
+
+        <h3>7.4 Si las VLAN estaban creadas sobre Port1</h3>
+        <p>Sophos no permite cambiar la interfaz padre de una VLAN existente. La migración se realiza en este orden:</p>
+        <ol>
+          <li>Desactivar o eliminar primero los servidores DHCP vinculados a VLAN10 y VLAN20.</li>
+          <li>Documentar rangos, reservas, DNS y opciones.</li>
+          <li>Eliminar las interfaces VLAN de Port1.</li>
+          <li>Crear nuevamente las interfaces sobre Port5.</li>
+          <li>Recrear los servidores DHCP y revisar las reglas que hagan referencia a objetos de interfaz antiguos.</li>
+        </ol>
+
+        <div class="warning">Una interfaz VLAN no debe eliminarse mientras existan objetos dependientes sin documentar. Sophos puede impedir la eliminación o conservar reglas que ya no coincidan con la interfaz esperada.</div>
+      </section>
+
+      <section class="card" id="sophos-dhcp">
+        <h2>8. Sophos: DHCP, DNS y acceso al dispositivo</h2>
+
+        <h3>8.1 Servidor DHCP de VLAN10</h3>
+        <ol>
+          <li>Acceder a <strong>Red → DHCP</strong>.</li>
+          <li>Seleccionar <strong>Añadir</strong> en el bloque de servidores.</li>
+          <li>Nombre: <code class="inline">vlan10</code>.</li>
+          <li>Interfaz: <code class="inline">VLAN10 - 10.10.10.1</code>.</li>
+          <li>Rango dinámico: desde <code class="inline">10.10.10.10</code> hasta <code class="inline">10.10.10.200</code>.</li>
+          <li>Máscara: <code class="inline">255.255.255.0</code>.</li>
+          <li>Gateway: <code class="inline">10.10.10.1</code> o “usar IP de la interfaz”.</li>
+          <li>DNS: <code class="inline">10.10.10.1</code> si Sophos resolverá DNS; alternativamente, servidores públicos o corporativos.</li>
+          <li>Activar el servidor y guardar la configuración.</li>
+        </ol>
+
+        <h3>8.2 Servidor DHCP de VLAN20</h3>
+        <p>Se crea un segundo servidor con interfaz <code class="inline">VLAN20 - 10.10.20.1</code>, rango <code class="inline">10.10.20.10–10.10.20.200</code>, gateway <code class="inline">10.10.20.1</code> y la opción DNS correspondiente.</p>
+
+        <h3>8.3 Permitir que las VLAN consulten el DNS de Sophos</h3>
+        <ol>
+          <li>Acceder a <strong>Administración → Acceso al dispositivo</strong>.</li>
+          <li>Localizar la zona <strong>LAN</strong> en la matriz de servicios locales.</li>
+          <li>Activar <strong>DNS</strong> para LAN cuando los clientes reciben como DNS la IP de Sophos.</li>
+          <li>Activar temporalmente <strong>Ping/Ping6</strong> desde LAN cuando se requieran pruebas de diagnóstico.</li>
+          <li>No habilitar administración web o SSH en zonas donde no resulte necesario.</li>
+        </ol>
+
+        <div class="note">El acceso al DNS del propio firewall es un <strong>servicio local</strong>; no se controla igual que el tráfico LAN→WAN. Por eso una regla de salida correcta no basta si DNS está deshabilitado en “Acceso al dispositivo”.</div>
+      </section>
+
+      <section class="card" id="sophos-firewall">
+        <h2>9. Sophos: regla de firewall, NAT y WAN</h2>
+
+        <h3>9.1 Crear o revisar la regla LAN → WAN</h3>
+        <ol>
+          <li>Acceder a <strong>Reglas y políticas → Reglas de firewall</strong>.</li>
+          <li>Seleccionar <strong>Añadir regla de firewall → Nueva regla de firewall</strong>.</li>
+          <li>Nombre: <code class="inline">VLANs_LAN_TO_WAN</code>.</li>
+          <li>Acción: <strong>Aceptar</strong>.</li>
+          <li>Zona de origen: <strong>LAN</strong>.</li>
+          <li>Dispositivos y redes de origen: para la primera prueba, <strong>Cualquiera</strong>; después puede limitarse a objetos 10.10.10.0/24 y 10.10.20.0/24.</li>
+          <li>Zona de destino: <strong>WAN</strong>.</li>
+          <li>Red de destino: <strong>Cualquiera</strong>.</li>
+          <li>Servicios: <strong>Cualquiera</strong> durante la validación.</li>
+          <li>Horario: <strong>Siempre</strong>.</li>
+          <li>Activar temporalmente el registro para observar coincidencias.</li>
+          <li>Guardar y situar la regla por encima de cualquier bloqueo LAN→WAN.</li>
+        </ol>
+
+        <div class="warning"><strong>Las reglas se evalúan de arriba abajo y se detienen en la primera coincidencia.</strong> Una regla de rechazo LAN→WAN situada por encima de la autorización provoca que el cliente reciba “Red de destino inaccesible” desde su gateway. La regla debe desactivarse, limitarse a orígenes/destinos concretos o situarse por debajo de la autorización específica.</div>
+
+        <h3>9.2 NAT de salida</h3>
+        <p>En la pestaña <strong>Reglas NAT</strong> puede utilizarse la regla predeterminada <code class="inline">Default SNAT IPv4</code> si contiene estos valores:</p>
+        <table>
+          <thead><tr><th>Campo</th><th>Valor</th><th>Explicación</th></tr></thead>
+          <tbody>
+            <tr><td>Origen original</td><td>Cualquier host o redes VLAN</td><td>Incluye 10.10.10.0/24 y 10.10.20.0/24</td></tr>
+            <tr><td>Destino original</td><td>Cualquier host</td><td>Salida general</td></tr>
+            <tr><td>Servicio original</td><td>Cualquier servicio</td><td>Prueba inicial sin limitar puertos</td></tr>
+            <tr><td>Interfaz saliente</td><td>Port2</td><td>WAN del laboratorio</td></tr>
+            <tr><td>Origen traducido</td><td>MASQ</td><td>Usa la IP actual de Port2</td></tr>
+            <tr><td>Destino/servicio traducido</td><td>Original</td><td>No es una publicación DNAT</td></tr>
+          </tbody>
+        </table>
+
+        <h3>9.3 Distinguir un fallo de VLAN de un fallo WAN</h3>
+        <p>Desde <strong>Diagnósticos → Herramientas → Ping</strong> se realiza una prueba hacia <code class="inline">8.8.8.8</code>, seleccionando la WAN/Port2 como origen cuando la interfaz lo permita.</p>
+        <ul>
+          <li>Si Sophos tampoco llega a 8.8.8.8, el problema está en Port2, la ruta predeterminada, el gateway o el Bridged de VMware.</li>
+          <li>Si Sophos alcanza el destino pero el cliente no, se revisan la regla LAN→WAN, su orden y la regla SNAT.</li>
+          <li>Si 8.8.8.8 responde pero un nombre no resuelve, se revisan DNS y Acceso al dispositivo.</li>
+        </ul>
+
+        <div class="info">Un adaptador VMware en modo Bridged depende del adaptador físico activo del host. Al cambiar entre Wi-Fi y Ethernet, el bridge automático puede quedar asociado al dispositivo equivocado. Desde Virtual Network Editor se puede vincular VMnet0 al adaptador físico correcto o utilizar NAT cuando el laboratorio no necesita una dirección WAN perteneciente a la red real.</div>
+
+        <h3>Configuración por CLI en Sophos: aclaración importante</h3>
+        <p>Sophos Firewall guarda interfaces, DHCP, reglas y NAT como objetos de su base de configuración. Su consola no ofrece una equivalencia pública y soportada “comando por comando” de todos los formularios web. Por eso esta guía utiliza la <strong>interfaz web como método autoritativo</strong> y los comandos solamente para comprobar tráfico desde MikroTik y los clientes. Modificar archivos internos desde Advanced Shell no es una alternativa segura ni persistente.</p>
+      </section>
+
+      <section class="card" id="mikrotik-gui">
+        <h2>10. MikroTik: configuración completa mediante Winbox</h2>
+        <p>Winbox permite visualizar el modelo de bridge, los puertos y la tabla VLAN. La ruta gráfica y la ruta CLI son alternativas equivalentes y no deben ejecutarse consecutivamente sobre la misma VM, ya que ambas crean los mismos objetos. Los comandos de la sección siguiente también pueden utilizarse para verificar la configuración.</p>
+
+        <h3 class="step-title"><span class="step-index">1</span> Confirmar las interfaces</h3>
+        <ol>
+          <li>Acceder mediante Winbox a la IP de gestión de ether1 o mediante su dirección MAC.</li>
+          <li>Abrir <strong>Interfaces</strong>.</li>
+          <li>Comprobar que existen ether1, ether2, ether3 y ether4 y que muestran la bandera <strong>R</strong> cuando disponen de enlace.</li>
+          <li>Opcionalmente, añadir los comentarios MANAGEMENT, ACCESS-VLAN10, ACCESS-VLAN20 y TRUNK-SOPHOS.</li>
+        </ol>
+
+        <h3 class="step-title"><span class="step-index">2</span> Gestión por ether1</h3>
+        <ol>
+          <li>Acceder a <strong>IP → Addresses</strong>.</li>
+          <li>Seleccionar <strong>+</strong>.</li>
+          <li>Address: <code class="inline">192.168.10.2/24</code>.</li>
+          <li>Interface: <code class="inline">ether1</code>.</li>
+          <li>Añadir el comentario <code class="inline">Gestion Host-only</code> y guardar.</li>
+          <li>Comprobar desde el host el acceso de Winbox a <code class="inline">192.168.10.2</code> antes de continuar.</li>
+        </ol>
+
+        <div class="warning">Ether1 debe permanecer fuera de <code class="inline">bridge-vlans</code>. No se crea ningún DHCP Client sobre ether1 ni sobre el bridge para la administración de esta práctica.</div>
+
+        <h3 class="step-title"><span class="step-index">3</span> Crear el bridge</h3>
+        <ol>
+          <li>Abrir <strong>Bridge → pestaña Bridge</strong>.</li>
+          <li>Seleccionar <strong>+</strong>.</li>
+          <li>Name: <code class="inline">bridge-vlans</code>.</li>
+          <li>Protocol Mode: <strong>RSTP</strong>.</li>
+          <li>Mantener <strong>VLAN Filtering desactivado</strong> durante la construcción.</li>
+          <li>Guardar la configuración.</li>
+        </ol>
+
+        <div class="info"><strong>Qué se consigue con este paso:</strong> <code class="inline">bridge-vlans</code> actúa como un switch Ethernet virtual. VLAN Filtering permanece desactivado durante la preparación para evitar que una tabla todavía incompleta descarte tráfico de forma accidental.</div>
+
+        <h3 class="step-title"><span class="step-index">4</span> Añadir ether2 como acceso VLAN10</h3>
+        <ol>
+          <li>Abrir <strong>Bridge → Ports → +</strong>.</li>
+          <li>Interface: <code class="inline">ether2</code>.</li>
+          <li>Bridge: <code class="inline">bridge-vlans</code>.</li>
+          <li>PVID: <code class="inline">10</code>.</li>
+          <li>Ingress Filtering: <strong>yes</strong>.</li>
+          <li>Frame Types: <strong>admit only untagged and priority tagged</strong>.</li>
+          <li>Guardar la configuración.</li>
+        </ol>
+
+        <div class="note"><strong>Tratamiento de ether2:</strong> el cliente Windows envía tramas sin etiqueta. El PVID 10 las clasifica internamente como VLAN10. <code class="inline">admit-only-untagged-and-priority-tagged</code> evita que el cliente introduzca etiquetas VLAN arbitrarias y <code class="inline">ingress-filtering=yes</code> obliga a respetar la tabla del bridge.</div>
+
+        <h3 class="step-title"><span class="step-index">5</span> Añadir ether3 como acceso VLAN20</h3>
+        <p>El paso anterior se repite con <code class="inline">ether3</code>, PVID <code class="inline">20</code>, ingress filtering activado y admisión únicamente de tramas sin etiqueta/prioridad.</p>
+
+        <div class="note"><strong>Tratamiento de ether3:</strong> una trama sin etiqueta recibida en este puerto pasa a pertenecer internamente a VLAN20. Al regresar tráfico hacia el cliente, la etiqueta se retirará porque ether3 se declarará como Untagged para VLAN20.</div>
+
+        <h3 class="step-title"><span class="step-index">6</span> Añadir ether4 como trunk</h3>
+        <ol>
+          <li>En <strong>Bridge → Ports → +</strong>, seleccionar <code class="inline">ether4</code>.</li>
+          <li>Bridge: <code class="inline">bridge-vlans</code>.</li>
+          <li>Ingress Filtering: <strong>yes</strong>.</li>
+          <li>Frame Types: <strong>admit only VLAN tagged</strong>.</li>
+          <li>El PVID no se usa para el tráfico normal del trunk; puede quedarse en el valor predeterminado.</li>
+        </ol>
+
+        <div class="note"><strong>Tratamiento de ether4:</strong> el trunk no representa una tercera VLAN. Es un enlace compartido que transporta VLAN10 y VLAN20 manteniendo sus etiquetas. La opción <code class="inline">admit-only-vlan-tagged</code> descarta tramas sin etiqueta porque este diseño no utiliza una VLAN nativa en el trunk.</div>
+
+        <h3 class="step-title"><span class="step-index">7</span> Crear la tabla VLAN</h3>
+        <p>Abrir <strong>Bridge → VLANs</strong> y crear dos entradas:</p>
+        <table>
+          <thead><tr><th>Bridge</th><th>VLAN IDs</th><th>Tagged</th><th>Untagged</th></tr></thead>
+          <tbody>
+            <tr><td>bridge-vlans</td><td>10</td><td>ether4</td><td>ether2</td></tr>
+            <tr><td>bridge-vlans</td><td>20</td><td>ether4</td><td>ether3</td></tr>
+          </tbody>
+        </table>
+
+        <h4>Interpretación de la entrada VLAN10</h4>
+        <ul>
+          <li><code class="inline">tagged=ether4</code>: las tramas de VLAN10 salen hacia Sophos conservando o recibiendo la etiqueta VID 10.</li>
+          <li><code class="inline">untagged=ether2</code>: las tramas de VLAN10 salen hacia el cliente sin cabecera 802.1Q.</li>
+        </ul>
+
+        <h4>Interpretación de la entrada VLAN20</h4>
+        <ul>
+          <li><code class="inline">tagged=ether4</code>: las tramas de VLAN20 salen hacia Sophos con etiqueta VID 20.</li>
+          <li><code class="inline">untagged=ether3</code>: las tramas de VLAN20 salen hacia el cliente sin etiqueta.</li>
+        </ul>
+
+        <div class="ok">La tabla VLAN establece así dos caminos independientes: ether2 ↔ VLAN10 ↔ ether4 y ether3 ↔ VLAN20 ↔ ether4. El único puerto compartido es el trunk, que distingue ambos tráficos mediante la etiqueta 802.1Q.</div>
+
+        <div class="note"><code class="inline">bridge-vlans</code> no debe incluirse en Tagged para VLAN10/20. El nombre del bridge representa el puerto CPU. Solo sería necesario si RouterOS necesitara una interfaz VLAN con IP o servicios propios dentro de esas VLAN. En este diseño, CHR actúa como switch puro.</div>
+
+        <h3 class="step-title"><span class="step-index">8</span> Activar VLAN Filtering al final</h3>
+        <ol>
+          <li>Volver a <strong>Bridge → pestaña Bridge</strong>.</li>
+          <li>Abrir <code class="inline">bridge-vlans</code>.</li>
+          <li>Activar <strong>VLAN Filtering</strong>.</li>
+          <li>Aplicar los cambios y verificar que Winbox continúa conectado mediante ether1.</li>
+        </ol>
+
+        <div class="info"><strong>Qué cambia al activar VLAN Filtering:</strong> el bridge deja de comportarse como un switch plano y comienza a aplicar PVID, Frame Types, Ingress Filtering y la tabla Tagged/Untagged. A partir de este momento, VLAN10 y VLAN20 quedan aisladas en capa 2.</div>
+
+        <h3>Qué no se debe crear en MikroTik</h3>
+        <ul>
+          <li>No crear interfaces <code class="inline">VLAN10</code> o <code class="inline">VLAN20</code> en <strong>Interfaces → VLAN</strong>.</li>
+          <li>No asignar 10.10.10.x ni 10.10.20.x a CHR.</li>
+          <li>No activar DHCP Server, DHCP Relay, NAT o firewall IP para estas VLAN.</li>
+          <li>No utilizar Quick Set después de construir el bridge: puede añadir IP, NAT o DHCP no deseados.</li>
+        </ul>
+      </section>
+
+      <section class="card" id="mikrotik-cli">
+        <h2>11. MikroTik: configuración completa por comandos</h2>
+        <p>Esta ruta se utiliza sobre una CHR nueva o limpia. Se recomienda abrir la <strong>consola de VMware</strong> para evitar que un error de red interrumpa la sesión. En una terminal remota, <strong>Safe Mode</strong> se activa mediante <code class="inline">Ctrl+X</code> antes de realizar cambios sensibles.</p>
+
+        <h3>11.1 Configuración completa</h3>
+        <div class="cmd">
+          <div class="cmd-head"><div class="cmd-title">RouterOS 7 — bridge VLAN-aware y gestión separada</div><button class="copy-btn" data-copy-target="cmd-mikrotik-full">Copiar</button></div>
+          <pre id="cmd-mikrotik-full">/interface bridge
+add name=bridge-vlans protocol-mode=rstp vlan-filtering=no comment="Bridge L2 para VLAN10 y VLAN20"
+
+/interface bridge port
+add bridge=bridge-vlans interface=ether2 pvid=10 ingress-filtering=yes frame-types=admit-only-untagged-and-priority-tagged comment="ACCESS VLAN10"
+add bridge=bridge-vlans interface=ether3 pvid=20 ingress-filtering=yes frame-types=admit-only-untagged-and-priority-tagged comment="ACCESS VLAN20"
+add bridge=bridge-vlans interface=ether4 ingress-filtering=yes frame-types=admit-only-vlan-tagged comment="TRUNK hacia Sophos Port5"
+
+/interface bridge vlan
+add bridge=bridge-vlans vlan-ids=10 tagged=ether4 untagged=ether2 comment="VLAN10"
+add bridge=bridge-vlans vlan-ids=20 tagged=ether4 untagged=ether3 comment="VLAN20"
+
+/interface bridge
+set bridge-vlans vlan-filtering=yes
+
+/ip address
+add address=192.168.10.2/24 interface=ether1 comment="Gestion Host-only independiente"
+
+/interface bridge port print detail
+/interface bridge vlan print detail
+/ip address print</pre>
+        </div>
+
+        <div class="warning">El bloque supone una CHR nueva. Antes de aplicarlo debe comprobarse que <code class="inline">192.168.10.2</code> no está siendo utilizada por otro dispositivo y que el adaptador Host-only del equipo anfitrión pertenece a 192.168.10.0/24.</div>
+
+        <h3>11.2 Configuración dividida por bloques</h3>
+        <div class="cmd">
+          <div class="cmd-head"><div class="cmd-title">Bloque A — crear bridge sin filtrar todavía</div><button class="copy-btn" data-copy-target="cmd-block-a">Copiar</button></div>
+          <pre id="cmd-block-a">/interface bridge
+add name=bridge-vlans protocol-mode=rstp vlan-filtering=no</pre>
+        </div>
+
+        <div class="cmd">
+          <div class="cmd-head"><div class="cmd-title">Bloque B — puertos de acceso y trunk</div><button class="copy-btn" data-copy-target="cmd-block-b">Copiar</button></div>
+          <pre id="cmd-block-b">/interface bridge port
+add bridge=bridge-vlans interface=ether2 pvid=10 ingress-filtering=yes frame-types=admit-only-untagged-and-priority-tagged
+add bridge=bridge-vlans interface=ether3 pvid=20 ingress-filtering=yes frame-types=admit-only-untagged-and-priority-tagged
+add bridge=bridge-vlans interface=ether4 ingress-filtering=yes frame-types=admit-only-vlan-tagged</pre>
+        </div>
+
+        <div class="cmd">
+          <div class="cmd-head"><div class="cmd-title">Bloque C — membresía y tratamiento de salida</div><button class="copy-btn" data-copy-target="cmd-block-c">Copiar</button></div>
+          <pre id="cmd-block-c">/interface bridge vlan
+add bridge=bridge-vlans vlan-ids=10 tagged=ether4 untagged=ether2
+add bridge=bridge-vlans vlan-ids=20 tagged=ether4 untagged=ether3</pre>
+        </div>
+
+        <div class="cmd">
+          <div class="cmd-head"><div class="cmd-title">Bloque D — configurar gestión y activar filtrado</div><button class="copy-btn" data-copy-target="cmd-block-d">Copiar</button></div>
+          <pre id="cmd-block-d">/ip address add address=192.168.10.2/24 interface=ether1 comment="Gestion Host-only independiente"
+/interface bridge set bridge-vlans vlan-filtering=yes</pre>
+        </div>
+
+        <h3>11.3 Comandos de comprobación</h3>
+        <div class="cmd">
+          <div class="cmd-head"><div class="cmd-title">Estado esperado del CHR</div><button class="copy-btn" data-copy-target="cmd-mikrotik-check">Copiar</button></div>
+          <pre id="cmd-mikrotik-check">/interface ethernet monitor ether1,ether2,ether3,ether4 once
+/interface bridge print detail
+/interface bridge port print detail
+/interface bridge vlan print detail
+/interface bridge host print
+/ip address print</pre>
+        </div>
+      </section>
+
+      <section class="card" id="explicacion-cli">
+        <h2>12. Explicación comando por comando</h2>
+        <table>
+          <thead><tr><th>Elemento</th><th>Qué hace</th><th>Por qué se usa</th></tr></thead>
+          <tbody>
+            <tr><td><code class="inline">add name=bridge-vlans</code></td><td>Crea el switch software</td><td>Une los puertos de capa 2 aplicando una tabla VLAN común</td></tr>
+            <tr><td><code class="inline">protocol-mode=rstp</code></td><td>Activa Rapid Spanning Tree</td><td>Protege frente a bucles si en el futuro se añaden enlaces redundantes</td></tr>
+            <tr><td><code class="inline">vlan-filtering=no</code></td><td>Crea el bridge sin aplicar aún la tabla</td><td>Permite preparar todo antes de que el filtrado pueda cortar tráfico</td></tr>
+            <tr><td><code class="inline">interface=ether2 pvid=10</code></td><td>Asocia tramas entrantes sin etiqueta a VID 10</td><td>El cliente Windows no etiqueta sus paquetes</td></tr>
+            <tr><td><code class="inline">interface=ether3 pvid=20</code></td><td>Asocia tramas entrantes sin etiqueta a VID 20</td><td>Convierte ether3 en puerto de acceso de VLAN20</td></tr>
+            <tr><td><code class="inline">ingress-filtering=yes</code></td><td>Comprueba la VLAN cuando entra por el puerto</td><td>Evita aceptar VLAN no autorizadas en ese puerto</td></tr>
+            <tr><td><code class="inline">admit-only-untagged-and-priority-tagged</code></td><td>Rechaza tramas 802.1Q ordinarias en access</td><td>Un cliente no debe poder inyectar otra VLAN etiquetada</td></tr>
+            <tr><td><code class="inline">admit-only-vlan-tagged</code></td><td>En el trunk solo admite tramas con etiqueta</td><td>El diseño no usa una VLAN nativa sin etiquetar en ether4</td></tr>
+            <tr><td><code class="inline">tagged=ether4</code></td><td>Conserva/inserta la etiqueta al salir por el trunk</td><td>Sophos necesita saber si la trama pertenece a VLAN10 o VLAN20</td></tr>
+            <tr><td><code class="inline">untagged=ether2</code></td><td>Retira la etiqueta al enviar al cliente VLAN10</td><td>Windows recibe Ethernet normal, sin 802.1Q</td></tr>
+            <tr><td><code class="inline">untagged=ether3</code></td><td>Retira la etiqueta al enviar al cliente VLAN20</td><td>Convierte ether3 en acceso real</td></tr>
+            <tr><td><code class="inline">vlan-filtering=yes</code></td><td>Activa la decisión VLAN en ingress y egress</td><td>Hace efectiva la segmentación configurada</td></tr>
+            <tr><td><code class="inline">address=192.168.10.2/24 interface=ether1</code></td><td>Configura una IP de gestión estática</td><td>Mantiene la administración separada e independiente de Sophos</td></tr>
+          </tbody>
+        </table>
+
+        <h3>¿Por qué no se etiqueta también el bridge?</h3>
+        <p>En RouterOS, añadir <code class="inline">bridge-vlans</code> a <strong>tagged</strong> permite que el puerto CPU participe en la VLAN. Eso se necesita si el propio MikroTik tendrá una IP, DHCP, routing o gestión en esa VLAN. En esta práctica no debe participar: Sophos es el único router. Omitir el bridge reduce superficie de ataque y evita rutas/IP innecesarias.</p>
+      </section>
+
+      <section class="card" id="flujo">
+        <h2>13. Qué ocurre con un DHCP Discover</h2>
+        <p>Seguir un paquete permite entender toda la práctica sin memorizar pantallas.</p>
+
+        <div class="packet-flow">
+          <div class="packet-step"><div class="packet-number">1</div><div class="packet-node">Windows VLAN10</div><div>Emite un DHCP Discover broadcast sin etiqueta: 0.0.0.0:68 → 255.255.255.255:67.</div></div>
+          <div class="packet-step"><div class="packet-number">2</div><div class="packet-node">MikroTik ether2</div><div>Recibe la trama sin etiqueta. El PVID 10 la clasifica internamente como VLAN10.</div></div>
+          <div class="packet-step"><div class="packet-number">3</div><div class="packet-node">bridge-vlans</div><div>Consulta la tabla. VLAN10 permite ether2 como untagged y ether4 como tagged.</div></div>
+          <div class="packet-step"><div class="packet-number">4</div><div class="packet-node">MikroTik ether4</div><div>Envía el broadcast con etiqueta 802.1Q VID 10 por el trunk.</div></div>
+          <div class="packet-step"><div class="packet-number">5</div><div class="packet-node">Sophos Port5.10</div><div>Recibe VID 10, lo entrega a la interfaz VLAN10 y al servidor DHCP vinculado a 10.10.10.1.</div></div>
+          <div class="packet-step"><div class="packet-number">6</div><div class="packet-node">Respuesta</div><div>Sophos ofrece una IP; la respuesta vuelve etiquetada por Port5, cruza ether4 y CHR retira la etiqueta al salir por ether2.</div></div>
+        </div>
+
+        <div class="ok">Cuando el cliente recibe 10.10.10.x ya se han validado VMware, el puerto de acceso, el PVID, la tabla VLAN, el trunk, la subinterfaz de Sophos y el servidor DHCP.</div>
+      </section>
+
+      <section class="card" id="validacion">
+        <h2>14. Validación ordenada de extremo a extremo</h2>
+
+        <h3>14.1 Renovar la dirección en Windows</h3>
+        <div class="cmd">
+          <div class="cmd-head"><div class="cmd-title">CMD como administrador</div><button class="copy-btn" data-copy-target="cmd-windows-dhcp">Copiar</button></div>
+          <pre id="cmd-windows-dhcp">ipconfig /release
+ipconfig /renew
+ipconfig /all</pre>
+        </div>
+
+        <p>En la VM de VLAN10 se esperan los siguientes parámetros:</p>
+        <ul>
+          <li>IPv4 entre 10.10.10.10 y 10.10.10.200.</li>
+          <li>Máscara 255.255.255.0.</li>
+          <li>Puerta de enlace 10.10.10.1.</li>
+          <li>DNS 10.10.10.1 si se eligió Sophos como resolvedor.</li>
+        </ul>
+
+        <h3>14.2 Probar por capas</h3>
+        <div class="cmd">
+          <div class="cmd-head"><div class="cmd-title">VLAN10: gateway, internet y DNS</div><button class="copy-btn" data-copy-target="cmd-windows-tests">Copiar</button></div>
+          <pre id="cmd-windows-tests">ping 10.10.10.1
+ping 8.8.8.8
+nslookup google.es
+tracert 8.8.8.8</pre>
+        </div>
+
+        <table>
+          <thead><tr><th>Resultado</th><th>Conclusión</th><th>Siguiente revisión</th></tr></thead>
+          <tbody>
+            <tr><td>No obtiene IP</td><td>Fallo antes o durante DHCP</td><td>Access, trunk, VLAN de Sophos y DHCP</td></tr>
+            <tr><td>Obtiene IP pero no llega a 10.10.10.1</td><td>Fallo L2 o acceso local bloqueado</td><td>Capturas en ether4/Port5 y Ping en Device Access</td></tr>
+            <tr><td>Llega al gateway pero no a 8.8.8.8</td><td>Firewall, NAT, ruta o WAN</td><td>Orden de reglas y ping desde Sophos</td></tr>
+            <tr><td>Llega a 8.8.8.8 pero no resuelve</td><td>Problema DNS</td><td>DHCP Option DNS y Device Access</td></tr>
+            <tr><td>Todo funciona</td><td>Práctica completada</td><td>Repetir en VLAN20</td></tr>
+          </tbody>
+        </table>
+
+        <h3>14.3 Repetir con VLAN20</h3>
+        <p>La segunda VM se conecta al LAN Segment VLAN20 y renueva su concesión DHCP. El resultado esperado es una dirección <code class="inline">10.10.20.x/24</code> con gateway <code class="inline">10.10.20.1</code>. El funcionamiento de una VLAN no valida automáticamente la tabla ni el PVID de la otra.</p>
+      </section>
+
+      <section class="card" id="capturas">
+        <h2>15. Capturas y comandos de diagnóstico</h2>
+
+        <h3>15.1 Ver el DHCP sin etiqueta en ether2</h3>
+        <div class="cmd">
+          <div class="cmd-head"><div class="cmd-title">MikroTik — entrada del cliente</div><button class="copy-btn" data-copy-target="cmd-sniff-access">Copiar</button></div>
+          <pre id="cmd-sniff-access">/tool sniffer quick interface=ether2 port=67,68</pre>
+        </div>
+        <p>Debe aparecer el DHCP Discover de la MAC del cliente, sin columna VLAN. La dirección origen será 0.0.0.0:68 y el destino 255.255.255.255:67.</p>
+
+        <h3>15.2 Ver la misma trama etiquetada en ether4</h3>
+        <div class="cmd">
+          <div class="cmd-head"><div class="cmd-title">MikroTik — trunk VLAN10</div><button class="copy-btn" data-copy-target="cmd-sniff-trunk10">Copiar</button></div>
+          <pre id="cmd-sniff-trunk10">/tool sniffer quick interface=ether4 vlan-id=10 port=67,68</pre>
+        </div>
+        <p>El Discover debe salir con VLAN 10. Cuando Sophos responda, también veremos el Offer entrar por ether4 con VID 10.</p>
+
+        <h3>15.3 Tabla de aprendizaje MAC</h3>
+        <div class="cmd">
+          <div class="cmd-head"><div class="cmd-title">MAC del cliente asociada a VID 10</div><button class="copy-btn" data-copy-target="cmd-bridge-host">Copiar</button></div>
+          <pre id="cmd-bridge-host">/interface bridge host print where vid=10</pre>
+        </div>
+        <p>La MAC del cliente debe aprenderse sobre ether2 con VID 10. Para VLAN20 se consulta <code class="inline">where vid=20</code> y debe aparecer en ether3.</p>
+
+        <h3>15.4 Estado efectivo de la tabla VLAN</h3>
+        <div class="cmd">
+          <div class="cmd-head"><div class="cmd-title">Membresía configurada y actual</div><button class="copy-btn" data-copy-target="cmd-vlan-detail">Copiar</button></div>
+          <pre id="cmd-vlan-detail">/interface bridge vlan print detail</pre>
+        </div>
+        <p>Los campos esperados son:</p>
+        <ul>
+          <li>VLAN10: <code class="inline">current-tagged=ether4</code> y <code class="inline">current-untagged=ether2</code>.</li>
+          <li>VLAN20: <code class="inline">current-tagged=ether4</code> y <code class="inline">current-untagged=ether3</code>.</li>
+        </ul>
+
+        <h3>15.5 Captura en Sophos</h3>
+        <ol>
+          <li>Acceder a <strong>Diagnósticos → Captura de paquetes</strong>.</li>
+          <li>Seleccionar <strong>Configurar</strong> y activar la captura en Port5 o en todas las interfaces durante una prueba breve.</li>
+          <li>Iniciar el seguimiento.</li>
+          <li>Renovar la concesión DHCP en Windows.</li>
+          <li>Filtrar por UDP y puertos 67/68. Si el filtro no muestra resultados, eliminarlo temporalmente para confirmar la presencia de tráfico sin filtrar.</li>
+          <li>Revisar la interfaz de entrada, la interfaz de salida, la regla coincidente y la razón.</li>
+        </ol>
+
+        <div class="note">El “Filtro de visualización” solo oculta o muestra paquetes ya capturados. No modifica la configuración del trunk. Si el buffer crece pero la tabla permanece vacía, el filtro debe revisarse en primer lugar.</div>
+
+        <h3>15.6 Simular la política en Sophos</h3>
+        <p>En <strong>Reglas y políticas → Test your policies</strong> se simula una conexión con origen <code class="inline">10.10.10.10</code> desde LAN hacia <code class="inline">8.8.8.8</code> en WAN. El resultado debe coincidir con la regla de aceptación y con el SNAT de salida, no con una regla de rechazo superior.</p>
+      </section>
+
+      <section class="card" id="problemas">
+        <h2>16. Matriz de problemas frecuentes</h2>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Síntoma</th><th>Causa probable</th><th>Comprobación</th><th>Corrección</th></tr></thead>
+            <tbody>
+              <tr><td>Windows muestra 169.254.x.x</td><td>No llega DHCP</td><td>Sniffer en ether2 y ether4</td><td>Revisar NIC conectada, PVID, tabla VLAN, Port5.10 y DHCP</td></tr>
+              <tr><td>Discover entra por ether2 pero no sale por ether4</td><td>Tabla VLAN o puerto trunk incorrectos</td><td><code class="inline">bridge vlan print detail</code></td><td>ether4 tagged, ether2 untagged y filtering activo</td></tr>
+              <tr><td>Discover sale por ether4 pero Sophos no lo ve</td><td>NIC no comparte el mismo LAN Segment o VLAN creada sobre otro puerto</td><td>VM Settings de ambas VMs</td><td>Conectar ether4 y Port5 a TRUNK-SOPHOS-MIKROTIK</td></tr>
+              <tr><td>Winbox deja de responder al activar VLAN Filtering</td><td>ether1 fue añadido por error al bridge</td><td><code class="inline">bridge port print</code> desde la consola VMware</td><td>Mantener ether1 fuera del bridge y usar 192.168.10.2/24 como gestión</td></tr>
+              <tr><td>Cliente recibe IP pero 10.10.10.1 no responde</td><td>Ping local no permitido o retorno L2 incorrecto</td><td>Captura Offer/ARP y Device Access</td><td>Permitir ping temporal y revisar tagged/untagged inverso</td></tr>
+              <tr><td>Respuesta “Red de destino inaccesible” desde 10.10.10.1</td><td>Sophos rechaza o no tiene salida/ruta</td><td>Log y Test your policies</td><td>Reordenar reglas; verificar gateway WAN</td></tr>
+              <tr><td>8.8.8.8 no responde ni desde Sophos</td><td>WAN/Port2 o VMware Bridged</td><td>Ping desde Sophos y estado de gateway</td><td>Corregir VMnet0/adaptador físico, DHCP WAN o ruta predeterminada</td></tr>
+              <tr><td>8.8.8.8 funciona, google.es no</td><td>DNS</td><td><code class="inline">nslookup google.es</code></td><td>Corregir DNS entregado y permitir DNS local desde LAN</td></tr>
+              <tr><td>VLAN10 funciona y VLAN20 no</td><td>PVID, LAN Segment o DHCP de VLAN20</td><td>Repetir capturas con VID 20</td><td>Comparar toda la configuración 10/20 campo por campo</td></tr>
+              <tr><td>Port5 pide una IP al editarlo</td><td>Se está intentando configurar el padre como interfaz LAN</td><td>Revisar acción elegida</td><td>Cancelar y usar Añadir interfaz → Añadir VLAN</td></tr>
+              <tr><td>No se puede cambiar Port1.10 a Port5.10</td><td>El padre de una VLAN no es editable</td><td>Campo Hardware bloqueado</td><td>Eliminar dependencias, borrar VLAN y recrearla sobre Port5</td></tr>
+              <tr><td>La captura de Sophos está vacía pero el buffer crece</td><td>Filtro de visualización demasiado estricto</td><td>Quitar filtros</td><td>Capturar primero sin filtro y reducir después</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="card" id="migracion">
+        <h2>17. Proteger el acceso de gestión</h2>
+        <p>La forma más segura de configurar VLAN Filtering consiste en separar físicamente el plano de gestión del bridge. Ether1 permanece conectado a VMnet1, utiliza una dirección estática y no se añade nunca a <code class="inline">bridge-vlans</code>.</p>
+
+        <h3>17.1 Preparación obligatoria</h3>
+        <ol>
+          <li>Comprobar que el adaptador VMnet1 del host utiliza <code class="inline">192.168.10.1/24</code>.</li>
+          <li>Asignar <code class="inline">192.168.10.2/24</code> a ether1 antes de crear el bridge.</li>
+          <li>Conectar Winbox a 192.168.10.2 y mantener abierta la consola de VMware como acceso alternativo.</li>
+          <li>Comprobar que ether1 no aparece en <strong>Bridge → Ports</strong>.</li>
+          <li>Activar Safe Mode con <code class="inline">Ctrl+X</code> cuando los cambios se realicen desde una terminal remota.</li>
+        </ol>
+
+        <h3>17.2 Comprobación preventiva por terminal</h3>
+        <p>Los siguientes comandos no eliminan configuraciones. Confirman la IP de administración y permiten verificar que ether1 no es un puerto esclavo del bridge.</p>
+
+        <div class="cmd">
+          <div class="cmd-head"><div class="cmd-title">Verificación segura de la gestión</div><button class="copy-btn" data-copy-target="cmd-safe-migration">Copiar</button></div>
+          <pre id="cmd-safe-migration">/ip address print where interface=ether1
+/interface bridge port print where interface=ether1
+/interface print where name=ether1
+/ip address print
+/ping 192.168.10.1 count=4</pre>
+        </div>
+
+        <div class="note">La consulta <code class="inline">bridge port print where interface=ether1</code> no debe devolver ninguna fila. Si muestra ether1, debe corregirse desde la consola local o mediante Winbox por MAC antes de activar VLAN Filtering.</div>
+
+        <h3>17.3 Recuperación desde la consola de VMware</h3>
+        <p>Si el acceso IP no está disponible, la consola de VMware permite comprobar y volver a crear la dirección de gestión sin depender de Sophos:</p>
+        <div class="cmd">
+          <div class="cmd-head"><div class="cmd-title">Comprobar o añadir la IP de gestión</div><button class="copy-btn" data-copy-target="cmd-recovery">Copiar</button></div>
+          <pre id="cmd-recovery">/interface print
+/ip address print</pre>
+        </div>
+        <p>Si no existe la dirección, se añade desde <strong>IP → Addresses</strong> en Winbox por MAC o mediante <code class="inline">/ip address add address=192.168.10.2/24 interface=ether1</code> desde la consola. Antes de ejecutarlo debe verificarse el nombre real de la interfaz.</p>
+        <div class="warning">No se incluyen comandos automáticos de eliminación de DHCP o de puertos del bridge. Una operación de recuperación debe realizarse desde la consola local, comprobando primero qué interfaz mantiene la administración.</div>
+      </section>
+
+      <section class="card" id="estado-final">
+        <h2>18. Estado final esperado</h2>
+
+        <h3>MikroTik CHR</h3>
+        <ul class="checklist">
+          <li>ether1 permanece en Host-only VMnet1, utiliza 192.168.10.2/24 y no pertenece a ningún bridge.</li>
+          <li>bridge-vlans tiene VLAN Filtering activado.</li>
+          <li>ether2 es acceso VLAN10 con PVID 10.</li>
+          <li>ether3 es acceso VLAN20 con PVID 20.</li>
+          <li>ether4 es trunk etiquetado para VLAN10 y VLAN20.</li>
+          <li>No hay IP, DHCP Server ni NAT de las VLAN en CHR.</li>
+        </ul>
+
+        <h3>Sophos</h3>
+        <ul class="checklist">
+          <li>Port5 está conectado al trunk y no tiene IP de usuario.</li>
+          <li>Port5.10 tiene 10.10.10.1/24 y zona LAN.</li>
+          <li>Port5.20 tiene 10.10.20.1/24 y zona LAN.</li>
+          <li>Ambos servidores DHCP están activos y vinculados a su interfaz correcta.</li>
+          <li>La regla LAN→WAN permite las redes antes de cualquier bloqueo.</li>
+          <li>El SNAT MASQ utiliza Port2 como interfaz saliente.</li>
+          <li>Sophos tiene gateway WAN activo y puede llegar a internet.</li>
+        </ul>
+
+        <h3>Clientes</h3>
+        <ul class="checklist">
+          <li>VLAN10 recibe 10.10.10.x y gateway 10.10.10.1.</li>
+          <li>VLAN20 recibe 10.10.20.x y gateway 10.10.20.1.</li>
+          <li>Ambas redes llegan a internet y resuelven DNS.</li>
+        </ul>
+      </section>
+
+      <section class="card" id="resumen">
+        <h2>19. Resumen del procedimiento</h2>
+        <ol>
+          <li><strong>Estado inicial:</strong> CHR operativo en VMware con cuatro interfaces de red.</li>
+          <li><strong>Funciones:</strong> MikroTik actúa como switch de capa 2 y Sophos como router.</li>
+          <li><strong>Conceptos:</strong> acceso, trunk, PVID, tagged y untagged.</li>
+          <li><strong>Topología VMware:</strong> VMnet1, VLAN10, VLAN20 y LAN Segment de trunk.</li>
+          <li><strong>Separación funcional:</strong> gestión mediante ether1 y trunk mediante ether4.</li>
+          <li><strong>Sophos:</strong> Port5 sin dirección y subinterfaces Port5.10/Port5.20.</li>
+          <li><strong>DHCP:</strong> rangos independientes, gateway y DNS para cada VLAN.</li>
+          <li><strong>Políticas:</strong> orden de firewall, reglas de rechazo, SNAT y conectividad WAN.</li>
+          <li><strong>Winbox:</strong> bridge con VLAN Filtering desactivado durante la construcción, puertos y tabla VLAN.</li>
+          <li><strong>Terminal:</strong> comandos equivalentes como método alternativo de configuración.</li>
+          <li><strong>Activación:</strong> VLAN Filtering habilitado como último cambio.</li>
+          <li><strong>Validación DHCP:</strong> concesión 10.10.10.0/24 en el cliente de VLAN10.</li>
+          <li><strong>Validación 802.1Q:</strong> DHCP Discover sin etiqueta en ether2 y etiquetado en ether4.</li>
+          <li><strong>Conectividad:</strong> pruebas hacia gateway, 8.8.8.8 y DNS.</li>
+          <li><strong>VLAN20:</strong> repetición de las pruebas sobre 10.10.20.0/24.</li>
+          <li><strong>Estado final:</strong> comprobación conjunta de CHR, Sophos y clientes.</li>
+        </ol>
+
+        <div class="note"><strong>Metodología recomendada:</strong> cada bloque de configuración debe ir seguido de una comprobación. Esta estructura permite aislar errores y relacionar cada ajuste con el tráfico al que afecta.</div>
+      </section>
+
+      <section class="card" id="fuentes">
+        <h2>20. Fuentes técnicas oficiales</h2>
+        <ul>
+          <li><a href="https://help.mikrotik.com/docs/spaces/ROS/pages/28606465/Bridge%20VLAN%20Table" target="_blank" rel="noopener noreferrer">MikroTik — Bridge VLAN Table</a>: PVID, puertos tagged/untagged, frame-types, ingress filtering y recomendaciones contra bloqueos.</li>
+          <li><a href="https://docs.sophos.com/nsg/sophos-firewall/21.0/help/en-us/webhelp/onlinehelp/AdministratorHelp/Network/Interfaces/NetworkVLANInterfaceAdd/index.html" target="_blank" rel="noopener noreferrer">Sophos Firewall — Add a VLAN interface</a>: interfaz padre, VLAN ID, zona y dirección.</li>
+          <li><a href="https://docs.sophos.com/nsg/sophos-firewall/21.0/help/en-us/webhelp/onlinehelp/AdministratorHelp/Network/DHCP/index.html" target="_blank" rel="noopener noreferrer">Sophos Firewall — DHCP</a>: servidores DHCP sobre interfaces VLAN y parámetros de concesión.</li>
+          <li><a href="https://docs.sophos.com/nsg/sophos-firewall/21.0/help/en-us/webhelp/onlinehelp/AdministratorHelp/RulesAndPolicies/FirewallRules/FirewallRuleAdd/index.html" target="_blank" rel="noopener noreferrer">Sophos Firewall — Add a firewall rule</a>: zonas, redes, servicios, orden y coincidencia.</li>
+          <li><a href="https://docs.sophos.com/nsg/sophos-firewall/21.0/help/en-us/webhelp/onlinehelp/AdministratorHelp/RulesAndPolicies/NATRules/NATRuleAdd/index.html" target="_blank" rel="noopener noreferrer">Sophos Firewall — Add a NAT rule</a>: SNAT, MASQ e interfaz de salida.</li>
+          <li><a href="https://docs.sophos.com/nsg/sophos-firewall/22.0/help/en-us/webhelp/onlinehelp/AdministratorHelp/Diagnostics/PacketCapture/index.html" target="_blank" rel="noopener noreferrer">Sophos Firewall — Packet capture</a>: captura, filtro de visualización e interpretación.</li>
+          <li><a href="https://docs.sophos.com/nsg/sophos-firewall/21.0/help/en-us/webhelp/onlinehelp/AdministratorHelp/Administration/DeviceAccess/index.html" target="_blank" rel="noopener noreferrer">Sophos Firewall — Device access</a>: acceso local a DNS, ping y servicios administrativos por zona.</li>
+        </ul>
+        <div class="info">Los nombres exactos de algunos menús pueden variar ligeramente según el idioma o la versión de Sophos Firewall. Los conceptos, campos y orden de configuración se mantienen.</div>
+      </section>
+
+      <footer>
+        <p style="margin: 0 0 6px;">Guía técnica para desplegar un trunk 802.1Q entre MikroTik CHR y Sophos Firewall en VMware Workstation.</p>
+        <p style="margin: 0; opacity: .75;">&copy; <span id="anio-actual">2026</span> Clockwork Computer. Todos los derechos reservados. Contenido educativo de libre consulta; su reproducción total o parcial en otros sitios requiere autorización previa.</p>
+      </footer>
+    </div>
+  </div>
+</main>
+
+<script>
+  async function copyText(text, button) {
+    try {
+      await navigator.clipboard.writeText(text);
+      const original = button.textContent;
+      button.textContent = 'Copiado';
+      button.classList.add('copied');
+      setTimeout(() => {
+        button.textContent = original;
+        button.classList.remove('copied');
+      }, 1400);
+    } catch (err) {
+      alert('No se pudo realizar la copia automática. El bloque puede copiarse manualmente.');
+    }
+  }
+
+  document.querySelectorAll('.copy-btn').forEach(button => {
+    button.addEventListener('click', () => {
+      const targetId = button.getAttribute('data-copy-target');
+      const target = document.getElementById(targetId);
+      if (!target) return;
+      copyText(target.innerText.trim(), button);
+    });
+  });
+
+  const anioEl = document.getElementById('anio-actual');
+  if (anioEl) anioEl.textContent = new Date().getFullYear();
+</script>
+</body>
+</html>
