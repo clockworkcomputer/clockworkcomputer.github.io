@@ -1,0 +1,725 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Inventario y tickets: GLPI en Docker con agentes en Ubuntu y Windows</title>
+  <link rel="icon" type="image/png" href="https://blogger.googleusercontent.com/img/a/AVvXsEjuquj9lFaN9zfg8H5FofNIUKAHWWRiOUbDhHragpU14TfF6RYKxb5w62mfAClxDkDrzCMAilRatibcoWFbuqMnXMBh30p_sfbxp4D2gUny70NbjyHLrs42VXeBB4Qtc8NovIS_DqIU5iq3dMMx1TuNZkW70MeW8Ryemwk_tDv6iKZi9ngKfaskUG1yCWo=s1600"/>
+  <style>
+    :root {
+      --bg: #060606;
+      --panel: #111111;
+      --text: #f5f5f5;
+      --muted: #b9b9b9;
+      --accent: #ff7a00;
+      --accent-2: #ff9a3d;
+      --border: #2b2b2b;
+      --code: #050505;
+      --success: #24b36b;
+      --danger: #ed5b5b;
+      --blue: #4ca6ff;
+      --shadow: 0 12px 30px rgba(0,0,0,.35);
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+      background: linear-gradient(180deg, #050505 0%, #0a0a0a 100%);
+      color: var(--text);
+      line-height: 1.6;
+    }
+    a { color: #ffb067; }
+    .container { width: min(1100px, calc(100% - 32px)); margin: 0 auto; }
+    header {
+      padding: 48px 0 28px;
+      border-bottom: 1px solid rgba(255,255,255,.06);
+      background:
+        radial-gradient(circle at top right, rgba(255,122,0,.16), transparent 30%),
+        radial-gradient(circle at top left, rgba(255,154,61,.10), transparent 20%),
+        linear-gradient(180deg, #080808 0%, #101010 100%);
+    }
+    .header-inner { display: flex; gap: 18px; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; }
+    .header-brand { display: flex; gap: 18px; align-items: center; flex: 1 1 720px; }
+    .channel-logo {
+      display: inline-flex; align-items: center; justify-content: center;
+      border-radius: 18px; overflow: hidden;
+      border: 1px solid rgba(255,255,255,.08); box-shadow: var(--shadow);
+      background: rgba(255,255,255,.03); flex: 0 0 auto;
+    }
+    .channel-logo img { display: block; width: 200px; height: auto; object-fit: contain; }
+    h1 { font-size: clamp(1.8rem, 3vw, 3rem); margin: 0; line-height: 1.15; color: var(--accent); }
+    .brand { margin-top: 8px; font-weight: 700; letter-spacing: .4px; color: var(--accent-2); }
+    .subtitle { color: var(--muted); margin: 10px 0 0; max-width: 850px; }
+    main { padding: 28px 0 64px; }
+    .layout { display: grid; grid-template-columns: 260px 1fr; gap: 24px; align-items: start; }
+    .toc {
+      position: sticky; top: 20px; width: 260px;
+      max-height: calc(100vh - 40px); overflow-y: auto;
+      background: rgba(17,17,17,.92); border: 1px solid var(--border);
+      border-radius: 18px; padding: 18px; box-shadow: var(--shadow); margin: 0;
+    }
+    .toc h2 { margin: 0 0 12px; font-size: 1rem; color: var(--accent); }
+    .toc a {
+      display: block; color: var(--muted); text-decoration: none;
+      padding: 8px 10px; border-radius: 10px;
+      transition: background .15s ease, color .15s ease; font-size: .93rem;
+    }
+    .toc a:hover { color: var(--text); background: rgba(255,122,0,.08); }
+    .content { display: grid; gap: 18px; min-width: 0; }
+    .card {
+      background: linear-gradient(180deg, rgba(17,17,17,.97), rgba(12,12,12,.97));
+      border: 1px solid var(--border); border-radius: 22px; padding: 24px; box-shadow: var(--shadow);
+    }
+    .card h2 { margin-top: 0; font-size: 1.5rem; color: var(--accent); }
+    .card h3 { margin-bottom: 10px; margin-top: 22px; font-size: 1.08rem; color: #ffd1a8; }
+    .muted { color: var(--muted); }
+    ul, ol { margin-top: 10px; padding-left: 20px; }
+    li + li { margin-top: 6px; }
+    p, .note, .ok, .warning, .info { text-align: justify; }
+    .note, .ok, .warning, .info { border-radius: 14px; padding: 14px 16px; margin-top: 14px; }
+    .note { background: rgba(255,122,0,.08); border: 1px solid rgba(255,122,0,.22); color: #ffe2c4; }
+    .ok { background: rgba(36,179,107,.10); border: 1px solid rgba(36,179,107,.28); color: #d8ffe8; }
+    .warning { background: rgba(237,91,91,.10); border: 1px solid rgba(237,91,91,.30); color: #ffd1d1; }
+    .info { background: rgba(76,166,255,.09); border: 1px solid rgba(76,166,255,.26); color: #d5eaff; }
+    .cmd { margin-top: 14px; border: 1px solid var(--border); background: var(--code); border-radius: 16px; overflow: hidden; }
+    .cmd-head {
+      display: flex; justify-content: space-between; align-items: center; gap: 12px;
+      padding: 10px 12px; background: rgba(255,255,255,.03); border-bottom: 1px solid rgba(255,255,255,.06);
+    }
+    .cmd-title { font-size: .92rem; color: var(--muted); font-weight: 600; }
+    .copy-btn {
+      border: 1px solid #6a3408; background: linear-gradient(180deg, #ff7a00, #d76200);
+      color: #111; border-radius: 10px; padding: 8px 10px; cursor: pointer;
+      font-size: .9rem; font-weight: 800; transition: .15s ease;
+    }
+    .copy-btn:hover { filter: brightness(1.06); }
+    .copy-btn.copied { background: rgba(36,179,107,.18); border-color: rgba(36,179,107,.45); color: #d7ffe8; }
+    pre {
+      margin: 0; padding: 16px; overflow-x: auto; white-space: pre-wrap; word-break: break-word;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      font-size: .94rem; color: #ffbf85;
+    }
+    code.inline {
+      background: rgba(255,255,255,.06); padding: 2px 8px; border-radius: 8px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: .92em; color: #ffd2aa;
+    }
+    table { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: .95rem; }
+    th, td { border: 1px solid var(--border); padding: 10px 12px; text-align: left; vertical-align: top; }
+    th { background: rgba(255,255,255,.04); color: #ffd1a8; }
+    .table-wrap { overflow-x: auto; }
+    footer { margin-top: 24px; color: var(--muted); text-align: center; font-size: .95rem; }
+    @media (max-width: 920px) {
+      .layout { grid-template-columns: 1fr; }
+      .toc { position: static; width: 100%; max-height: none; }
+    }
+  </style>
+</head>
+<body>
+<header>
+  <div class="container header-inner">
+    <div class="header-brand">
+      <a class="channel-logo" href="https://www.youtube.com/c/ClockworkComputerIP" target="_blank" rel="noopener noreferrer" aria-label="Clockwork Computer">
+        <img src="https://blogger.googleusercontent.com/img/a/AVvXsEjuquj9lFaN9zfg8H5FofNIUKAHWWRiOUbDhHragpU14TfF6RYKxb5w62mfAClxDkDrzCMAilRatibcoWFbuqMnXMBh30p_sfbxp4D2gUny70NbjyHLrs42VXeBB4Qtc8NovIS_DqIU5iq3dMMx1TuNZkW70MeW8Ryemwk_tDv6iKZi9ngKfaskUG1yCWo=s1600" alt="Clockwork Computer"/>
+      </a>
+      <div>
+        <h1>Inventario y tickets: GLPI en Docker con agentes en Ubuntu y Windows</h1>
+        <div class="brand">Servidor GLPI en contenedores, HTTPS propio e inventario automático de dos endpoints reales</div>
+        <p class="subtitle">Guía técnica para levantar GLPI (inventario de activos y mesa de ayuda) con Docker Compose y MariaDB, servirlo por HTTPS con un proxy inverso, y desplegar el agente oficial GLPI-Agent en un Ubuntu Server y en un Windows 11 para que ambos se inventaríen solos.</p>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main>
+  <div class="container layout">
+    <aside class="toc">
+      <h2>Contenido</h2>
+      <a href="#introduccion">1. Introducción</a>
+      <a href="#variables">2. Variables de esta guía</a>
+      <a href="#arquitectura">3. Arquitectura y flujo</a>
+      <a href="#requisitos">4. Requisitos</a>
+      <a href="#paso-stack">5. Levantar MariaDB y GLPI</a>
+      <a href="#paso-proxy">6. Proxy inverso con HTTPS propio</a>
+      <a href="#paso-arranque">7. Arrancar el stack y verificar</a>
+      <a href="#paso-acceso">8. Primer acceso y cuentas por defecto</a>
+      <a href="#paso-timezones">9. Activar las zonas horarias</a>
+      <a href="#paso-inventario">10. Activar el inventario nativo</a>
+      <a href="#paso-agente-ubuntu">11. Agente en Ubuntu Server</a>
+      <a href="#paso-agente-windows">12. Agente en Windows 11</a>
+      <a href="#paso-verificar">13. Verificar el inventario</a>
+      <a href="#puertos">14. Tabla de puertos y componentes</a>
+      <a href="#errores">15. Errores comunes</a>
+      <a href="#ampliacion">16. Notas de ampliación</a>
+    </aside>
+
+    <div class="content">
+
+      <section class="card" id="introduccion">
+        <h2>1. Introducción</h2>
+        <p><strong>GLPI</strong> es una plataforma libre de gestión de activos informáticos y mesa de ayuda: mantiene el inventario de equipos, software y licencias, y gestiona los tickets de soporte sobre esos mismos activos. Esta guía la despliega con <strong>Docker Compose</strong>, usando <strong>MariaDB</strong> como base de datos y un proxy inverso <strong>Nginx</strong> con certificado autofirmado por delante, y añade el agente oficial <strong>GLPI-Agent</strong> en dos equipos reales para que el inventario se rellene solo.</p>
+        <div class="info">A diferencia de casi todo lo que se encuentra buscando "GLPI Docker", esta guía usa la <strong>imagen oficial del proyecto</strong> (<code class="inline">glpi/glpi</code>), publicada por el propio equipo de GLPI en Docker Hub y en el registro de GitHub. Durante años solo existieron imágenes mantenidas por la comunidad, y por eso la mayoría de tutoriales antiguos siguen apuntando a ellas. La imagen oficial se reconstruye periódicamente para incorporar parches de seguridad del sistema base y de PHP, sin tocar el código de la aplicación.</div>
+        <div class="note">Dos detalles condicionan el montaje y conviene tenerlos claros desde el principio. El primero: la imagen oficial <strong>instala la base de datos sola</strong> en el primer arranque si le pasas las cinco variables de conexión; si falta alguna, desactiva esa función y muestra el asistente web clásico. El segundo: GLPI necesita que la base de datos tenga cargada la información de <strong>zonas horarias</strong>, algo que no viene activado de fábrica y que hasta resolverse deja la instalación sin poder fijar su zona horaria (sección 9).</div>
+      </section>
+
+      <section class="card" id="variables">
+        <h2>2. Variables de esta guía</h2>
+        <p>Todos los bloques usan los siguientes marcadores en <strong>MAYÚSCULAS</strong>. Sustitúyelos por los valores reales del entorno donde se aplique esta guía.</p>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Marcador</th><th>Qué es</th><th>Dónde se obtiene</th></tr></thead>
+            <tbody>
+              <tr><td><code class="inline">IP_HOST_DOCKER</code></td><td>IP del host Linux donde corre el stack con Docker</td><td>La interfaz de red de ese host (<code class="inline">ip a</code>)</td></tr>
+              <tr><td><code class="inline">IP_HOST_DOCKER_2</code></td><td>Segunda IP del host, solo si dispone de más de una interfaz de red y los agentes van a alcanzarlo por una distinta a la de administración</td><td>La segunda interfaz de ese host (<code class="inline">ip a</code>). Si el servidor solo tiene una IP, este marcador se ignora</td></tr>
+              <tr><td><code class="inline">GLPI_DB_PASSWORD</code></td><td>Contraseña del usuario <code class="inline">glpi</code> en la base de datos</td><td>Se define en <code class="inline">/docker/glpi/.env</code> (sección 5)</td></tr>
+              <tr><td><code class="inline">MARIADB_ROOT_PASSWORD</code></td><td>Contraseña root de MariaDB, necesaria para el paso de zonas horarias</td><td>Se define en <code class="inline">/docker/glpi/.env</code> (sección 5)</td></tr>
+              <tr><td><code class="inline">FINGERPRINT_CERT</code></td><td>Huella SHA256 del certificado autofirmado, que los agentes usarán para confiar en el servidor</td><td>La revela el propio agente en su primer intento (secciones 11 y 12)</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="note">Esta guía publica el servicio en el puerto <strong>8446</strong>. Si en el mismo servidor ya tienes otros stacks ocupando puertos, compruébalo antes con <code class="inline">ss -tlnp | grep 8446</code> y elige otro libre si hiciera falta, cambiándolo en las secciones 5, 6, 7, 8, 11 y 12.</div>
+      </section>
+
+      <section class="card" id="arquitectura">
+        <h2>3. Arquitectura y flujo</h2>
+        <p>Tres contenedores en el servidor, y un agente nativo instalado en cada equipo a inventariar. El agente no vive en un contenedor: se instala directamente sobre el sistema operativo de cada máquina, tal y como se haría en un despliegue real sobre equipos físicos o virtuales.</p>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Resumen visual</div>
+            <button class="copy-btn" data-copy-target="cmd-arch">Copiar</button>
+          </div>
+          <pre id="cmd-arch">[UBUNTU SERVER]            [WINDOWS 11]
+  glpi-agent                 GLPI-Agent
+       |                          |
+       |  inventario por HTTPS    |
+       |  (el agente inicia la conexión)
+       +------------+-------------+
+                    |
+                    v
+        https://IP_HOST_DOCKER:8446   (certificado autofirmado)
+                    |
+                    v
+            [glpi-proxy] :8446   (Nginx)
+                    |
+                    v
+              [glpi] :80   (GLPI + cron interno)
+                    |
+                    v
+             [glpi-db]   (MariaDB)</pre>
+        </div>
+        <div class="info">El sentido de la conexión importa: <strong>es el agente quien contacta al servidor</strong>, enviando su inventario al endpoint <code class="inline">/front/inventory.php</code>. Ningún equipo inventariado necesita abrir puertos de entrada para que esto funcione, lo que mantiene toda la superficie expuesta concentrada en un único punto.</div>
+        <div class="note">El agente sí abre por su cuenta un pequeño servidor web local en el puerto <strong>62354</strong>, pensado para que el servidor GLPI pueda pedirle una ejecución bajo demanda. No es necesario para el inventario programado de esta práctica, y puede desactivarse si no se va a usar.</div>
+      </section>
+
+      <section class="card" id="requisitos">
+        <h2>4. Requisitos</h2>
+        <ul>
+          <li>Un host Linux con <strong>Docker Engine</strong> y el plugin <strong>Docker Compose</strong> (<code class="inline">docker compose</code>, sin guion) ya instalados.</li>
+          <li>Un <strong>Ubuntu Server</strong> y un <strong>Windows 11</strong> en la misma red, que serán los equipos inventariados.</li>
+          <li>Salida a Internet desde los equipos donde se instale el agente, únicamente para descargar el instalador desde GitHub.</li>
+          <li>Al menos 2 GB de RAM libres para el contenedor de GLPI.</li>
+        </ul>
+      </section>
+
+      <section class="card" id="paso-stack">
+        <h2>5. Levantar MariaDB y GLPI con Docker</h2>
+        <p>Misma organización de siempre: cada stack en su carpeta dentro de <code class="inline">/docker</code>, y las credenciales en un <code class="inline">.env</code> aparte, nunca escritas dentro del <code class="inline">docker-compose.yml</code>.</p>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Crear la carpeta del stack</div>
+            <button class="copy-btn" data-copy-target="cmd-1">Copiar</button>
+          </div>
+          <pre id="cmd-1">sudo mkdir -p /docker/glpi && cd /docker/glpi</pre>
+        </div>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Crear .env</div>
+            <button class="copy-btn" data-copy-target="cmd-2">Copiar</button>
+          </div>
+          <pre id="cmd-2">sudo nano .env</pre>
+        </div>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">.env</div>
+            <button class="copy-btn" data-copy-target="cmd-3">Copiar</button>
+          </div>
+          <pre id="cmd-3">MARIADB_ROOT_PASSWORD=glpi_root_pwd
+GLPI_DB_NAME=glpi
+GLPI_DB_USER=glpi
+GLPI_DB_PASSWORD=glpi_pwd</pre>
+        </div>
+        <div class="note">Estos valores sirven para un entorno de pruebas; en una instalación real conviene generar las contraseñas de forma aleatoria. Buena costumbre en cualquier caso: <code class="inline">sudo chmod 600 .env</code> para que solo root pueda leer el archivo.</div>
+        <p>Ahora el archivo del stack, en la misma carpeta:</p>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Crear docker-compose.yml</div>
+            <button class="copy-btn" data-copy-target="cmd-4">Copiar</button>
+          </div>
+          <pre id="cmd-4">sudo nano docker-compose.yml</pre>
+        </div>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">docker-compose.yml</div>
+            <button class="copy-btn" data-copy-target="cmd-5">Copiar</button>
+          </div>
+          <pre id="cmd-5">services:
+  glpi-db:
+    image: mariadb:11
+    container_name: glpi-db
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+    environment:
+      MARIADB_ROOT_PASSWORD: ${MARIADB_ROOT_PASSWORD}
+      MARIADB_DATABASE: ${GLPI_DB_NAME}
+      MARIADB_USER: ${GLPI_DB_USER}
+      MARIADB_PASSWORD: ${GLPI_DB_PASSWORD}
+    volumes:
+      - glpi-db-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "healthcheck.sh --connect --innodb_initialized"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+    restart: unless-stopped
+
+  glpi:
+    image: glpi/glpi:11.0
+    container_name: glpi
+    environment:
+      GLPI_DB_HOST: glpi-db
+      GLPI_DB_PORT: 3306
+      GLPI_DB_NAME: ${GLPI_DB_NAME}
+      GLPI_DB_USER: ${GLPI_DB_USER}
+      GLPI_DB_PASSWORD: ${GLPI_DB_PASSWORD}
+      TZ: Europe/Madrid
+    volumes:
+      - glpi-data:/var/glpi
+    depends_on:
+      glpi-db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  proxy:
+    image: nginx:alpine
+    container_name: glpi-proxy
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./proxy-selfsigned.crt:/etc/nginx/certs/proxy-selfsigned.crt:ro
+      - ./proxy-selfsigned.key:/etc/nginx/certs/proxy-selfsigned.key:ro
+    ports:
+      - "8446:8446"
+    depends_on:
+      - glpi
+    restart: unless-stopped
+
+volumes:
+  glpi-db-data:
+  glpi-data:</pre>
+        </div>
+        <div class="note">Las cinco variables <code class="inline">GLPI_DB_*</code> del servicio <code class="inline">glpi</code> son las que activan la instalación automática. La documentación oficial es explícita: si falta cualquiera de ellas, GLPI desactiva tanto la instalación como la actualización automáticas y presenta en su lugar el asistente web. No es un fallo, pero conviene saberlo para no confundirse si aparece esa pantalla.</div>
+        <div class="note">El volumen <code class="inline">glpi-data</code> monta <code class="inline">/var/glpi</code> completo, que es donde la imagen coloca la configuración, los archivos subidos, los registros y el marketplace de plugins. Persistir esa ruta es lo que marca la diferencia entre poder recrear el contenedor sin consecuencias y perder la configuración al hacerlo.</div>
+      </section>
+
+      <section class="card" id="paso-proxy">
+        <h2>6. Configurar el proxy inverso con HTTPS propio</h2>
+        <p>Genera un certificado autofirmado con clave EC, válido para la IP del host:</p>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Generar el certificado autofirmado</div>
+            <button class="copy-btn" data-copy-target="cmd-6">Copiar</button>
+          </div>
+          <pre id="cmd-6">cd /docker/glpi
+sudo openssl ecparam -name prime256v1 -genkey -noout -out proxy-selfsigned.key
+sudo openssl req -new -x509 -key proxy-selfsigned.key -out proxy-selfsigned.crt -days 825 \
+  -subj "/CN=IP_HOST_DOCKER" \
+  -addext "subjectAltName=IP:IP_HOST_DOCKER"</pre>
+        </div>
+
+        <h3>Servidor con varias interfaces de red</h3>
+        <p>Es habitual que el servidor tenga más de una interfaz: una en la red de administración, desde la que se accede a la interfaz web, y otra en una red interna donde viven los equipos a inventariar. En ese escenario, los agentes alcanzarán el servidor por una IP <strong>distinta</strong> a la que se usa desde el navegador.</p>
+        <div class="warning">La publicación del puerto no supone ningún problema: Docker lo expone en todas las interfaces del host a la vez, sin configuración adicional. El punto delicado es <strong>el certificado</strong>, que solo es válido para las direcciones que se le indiquen al generarlo. Si se emite únicamente para la IP de administración, los clientes que lleguen por la otra red estarán validando contra un certificado que no incluye la dirección que están usando.</div>
+        <p>La solución es emitir un único certificado válido para ambas direcciones, añadiendo las dos al campo <code class="inline">subjectAltName</code> separadas por comas:</p>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Certificado válido para dos interfaces</div>
+            <button class="copy-btn" data-copy-target="cmd-6b">Copiar</button>
+          </div>
+          <pre id="cmd-6b">cd /docker/glpi
+sudo openssl ecparam -name prime256v1 -genkey -noout -out proxy-selfsigned.key
+sudo openssl req -new -x509 -key proxy-selfsigned.key -out proxy-selfsigned.crt -days 825 \
+  -subj "/CN=IP_HOST_DOCKER" \
+  -addext "subjectAltName=IP:IP_HOST_DOCKER,IP:IP_HOST_DOCKER_2"</pre>
+        </div>
+        <div class="note">El mismo patrón vale para más de dos direcciones, o para combinar IPs y nombres de host: basta con seguir añadiendo entradas separadas por comas, usando <code class="inline">IP:</code> para direcciones y <code class="inline">DNS:</code> para nombres. El valor de <code class="inline">CN</code> es indiferente mientras las direcciones reales estén todas en <code class="inline">subjectAltName</code>, que es lo que los clientes modernos comprueban en realidad.</div>
+        <div class="warning"><strong>Decide esto antes de continuar.</strong> Regenerar el certificado más adelante cambia su huella, y los agentes configurados con la huella anterior (secciones 11 y 12) dejarían de conectar hasta actualizarlos uno por uno. Conviene emitir el certificado definitivo ahora, con todas las direcciones necesarias, y capturar la huella una sola vez.</div>
+
+        <p>Ahora la configuración de Nginx:</p>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Crear nginx.conf</div>
+            <button class="copy-btn" data-copy-target="cmd-7">Copiar</button>
+          </div>
+          <pre id="cmd-7">sudo nano nginx.conf</pre>
+        </div>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">nginx.conf</div>
+            <button class="copy-btn" data-copy-target="cmd-8">Copiar</button>
+          </div>
+          <pre id="cmd-8">resolver 127.0.0.11 valid=10s;
+
+server {
+    listen 8446 ssl;
+    server_name IP_HOST_DOCKER;
+
+    ssl_certificate     /etc/nginx/certs/proxy-selfsigned.crt;
+    ssl_certificate_key /etc/nginx/certs/proxy-selfsigned.key;
+
+    # Los inventarios y los documentos adjuntos pueden superar el limite por defecto
+    client_max_body_size 64M;
+
+    location / {
+        set $upstream_glpi http://glpi:80;
+        proxy_pass $upstream_glpi;
+        proxy_set_header Host $host:$server_port;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}</pre>
+        </div>
+        <div class="note">El <code class="inline">resolver 127.0.0.11</code> (el DNS interno de Docker) junto con <code class="inline">set $upstream_glpi; proxy_pass $upstream_glpi;</code> no es cosmético: sin la variable, Nginx intenta resolver el nombre <code class="inline">glpi</code> una sola vez al arrancar, y si en ese instante el contenedor todavía no está listo, se niega a arrancar con un error de <code class="inline">host not found in upstream</code>. Con la variable, la resolución se hace en cada petición.</div>
+        <div class="note"><code class="inline">client_max_body_size 64M</code> evita un problema que aparece más tarde y cuesta relacionar con el proxy: los inventarios de equipos con mucho software instalado, y los documentos que se adjuntan a los tickets, pueden superar el límite por defecto de Nginx (1 MB) y ser rechazados antes de llegar a GLPI.</div>
+      </section>
+
+      <section class="card" id="paso-arranque">
+        <h2>7. Arrancar el stack y verificar</h2>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Arrancar los contenedores</div>
+            <button class="copy-btn" data-copy-target="cmd-9">Copiar</button>
+          </div>
+          <pre id="cmd-9">cd /docker/glpi
+docker compose up -d
+docker compose ps</pre>
+        </div>
+        <p>El primer arranque tarda más de lo normal porque GLPI crea el esquema completo de la base de datos. Sigue el registro para verlo:</p>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Log de GLPI</div>
+            <button class="copy-btn" data-copy-target="cmd-10">Copiar</button>
+          </div>
+          <pre id="cmd-10">docker logs -f glpi</pre>
+        </div>
+        <p>Cuando termine la instalación automática y no aparezcan errores de conexión a la base de datos, sal con <code class="inline">Ctrl+C</code> y comprueba que el proxy responde:</p>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Probar el proxy desde el propio host</div>
+            <button class="copy-btn" data-copy-target="cmd-11">Copiar</button>
+          </div>
+          <pre id="cmd-11">curl -kI https://IP_HOST_DOCKER:8446</pre>
+        </div>
+        <div class="ok">Una respuesta <code class="inline">HTTP/1.1 200 OK</code> o una redirección confirma que el TLS funciona y que Nginx está alcanzando el contenedor de GLPI.</div>
+        <div class="note">Si el servidor tiene varias interfaces, conviene repetir la comprobación contra cada una de sus direcciones antes de pasar a los agentes. Deben responder todas: el puerto está publicado en todas las interfaces, así que un fallo en una de ellas apunta a un problema de red o de enrutado, no al despliegue.</div>
+      </section>
+
+      <section class="card" id="paso-acceso">
+        <h2>8. Primer acceso y cuentas por defecto</h2>
+        <p>Abre en el navegador:</p>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">URL de acceso</div>
+            <button class="copy-btn" data-copy-target="cmd-12">Copiar</button>
+          </div>
+          <pre id="cmd-12">https://IP_HOST_DOCKER:8446</pre>
+        </div>
+        <div class="note">El navegador mostrará un aviso de conexión no privada. Es esperado: el certificado es autofirmado, no lo ha emitido una autoridad pública reconocida. Pulsa <strong>"Avanzado"</strong> y continúa. Es la misma situación de cualquier servicio interno antes de tener un certificado firmado por una entidad pública.</div>
+        <p>GLPI se instala con cuatro cuentas de demostración, una por cada perfil, y todas con la contraseña igual al nombre de usuario:</p>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Usuario</th><th>Contraseña</th><th>Perfil</th></tr></thead>
+            <tbody>
+              <tr><td><code class="inline">glpi</code></td><td><code class="inline">glpi</code></td><td>Super-administrador</td></tr>
+              <tr><td><code class="inline">tech</code></td><td><code class="inline">tech</code></td><td>Técnico</td></tr>
+              <tr><td><code class="inline">normal</code></td><td><code class="inline">normal</code></td><td>Usuario normal</td></tr>
+              <tr><td><code class="inline">post-only</code></td><td><code class="inline">postonly</code></td><td>Autoservicio, solo abrir tickets</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="warning"><strong>Estas cuatro cuentas son de dominio público y hay que tratarlas como el primer paso de la instalación, no como un detalle posterior.</strong> Cualquiera que alcance la dirección del servicio y pruebe <code class="inline">glpi</code>/<code class="inline">glpi</code> entra como super-administrador. El propio GLPI muestra un aviso de seguridad en el panel mientras alguna siga con su contraseña original. Nada más entrar por primera vez: cambia la contraseña de <code class="inline">glpi</code>, y elimina o desactiva <code class="inline">tech</code>, <code class="inline">normal</code> y <code class="inline">post-only</code> si no las vas a usar, desde <code class="inline">Administración &rarr; Usuarios</code>.</div>
+        <div class="ok">Con la contraseña cambiada y las cuentas sobrantes desactivadas, el aviso de seguridad del panel debería desaparecer. Ese aviso funciona como una lista de comprobación: mientras siga visible, indica exactamente qué queda pendiente de asegurar.</div>
+      </section>
+
+      <section class="card" id="paso-timezones">
+        <h2>9. Activar el soporte de zonas horarias</h2>
+        <p>GLPI necesita que MariaDB tenga cargada su tabla de zonas horarias y que el usuario de la aplicación pueda consultarla. Sin esto, la instalación no puede fijar su zona horaria y las fechas quedan atadas a la configuración por defecto del servidor.</p>
+        <p>Primero, dale permiso de lectura al usuario de GLPI sobre esa tabla (te pedirá la contraseña root que definiste en el <code class="inline">.env</code>):</p>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Permiso sobre la tabla de zonas horarias</div>
+            <button class="copy-btn" data-copy-target="cmd-13">Copiar</button>
+          </div>
+          <pre id="cmd-13">docker exec -it glpi-db mariadb -u root -p \
+  -e "GRANT SELECT ON mysql.time_zone_name TO 'glpi'@'%'; FLUSH PRIVILEGES;"</pre>
+        </div>
+        <p>Después, dile a GLPI que active el soporte:</p>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Habilitar zonas horarias en GLPI</div>
+            <button class="copy-btn" data-copy-target="cmd-14">Copiar</button>
+          </div>
+          <pre id="cmd-14">docker exec -it glpi /var/www/glpi/bin/console database:enable_timezones</pre>
+        </div>
+        <div class="ok">La confirmación fiable es la propia salida del comando anterior, que indica si el soporte se ha activado correctamente. Hecho esto, el selector de zona horaria queda disponible en <code class="inline">Setup &rarr; General &rarr; General setup</code>.</div>
+        <div class="warning">Conviene no buscar un mensaje de error antes de dar este paso, porque no lo hay: mientras el soporte no esté activado, GLPI sencillamente <strong>no ofrece</strong> el selector de zona horaria, sin mostrar ninguna advertencia visible en la interfaz. La ausencia de la opción es el único síntoma. Por eso el orden correcto es ejecutar primero los dos comandos y comprobar después, en lugar de intentar localizar un aviso que no va a aparecer.</div>
+        <div class="info">Conviene no confundir dos cosas distintas que suenan igual: la zona horaria del <em>contenedor</em> (la variable <code class="inline">TZ</code> del <code class="inline">docker-compose.yml</code>, que afecta a los registros y al reloj del sistema) no es lo mismo que el soporte de zonas horarias de la <em>base de datos</em>, que es lo que permite a GLPI almacenar y convertir fechas correctamente entre distintas ubicaciones. Configurar solo la primera no elimina el aviso.</div>
+      </section>
+
+      <section class="card" id="paso-inventario">
+        <h2>10. Activar el inventario nativo</h2>
+        <p>Desde GLPI 10, el inventario viene integrado en el producto y ya no hace falta el antiguo complemento FusionInventory. Pero <strong>llega desactivado de fábrica</strong>: si instalas los agentes sin dar este paso, enviarán su inventario y el servidor lo descartará sin decir gran cosa.</p>
+        <ul>
+          <li>Entra como administrador y ve a <code class="inline">Administración &rarr; Inventario</code>.</li>
+          <li>Abre la pestaña de configuración general del inventario.</li>
+          <li>Activa la opción para <strong>habilitar el inventario</strong>.</li>
+          <li>Revisa las opciones de importación (equipos, monitores, impresoras, componentes) y déjalas según lo que quieras que entre en el inventario.</li>
+          <li>Guarda.</li>
+        </ul>
+        <div class="warning">Este es el paso que más veces se olvida y el que peor se diagnostica, porque no produce un error visible: los agentes parecen funcionar, el servidor responde, y sin embargo no aparece ningún equipo. Si al llegar a la sección 13 no ves nada inventariado, vuelve aquí antes de tocar los agentes.</div>
+        <div class="info">El endpoint al que los agentes envían su inventario es <code class="inline">/front/inventory.php</code>. No hace falta escribirlo en la configuración del agente: basta con darle la URL base del servidor y él resuelve la ruta por su cuenta.</div>
+      </section>
+
+      <section class="card" id="paso-agente-ubuntu">
+        <h2>11. Instalar el agente en Ubuntu Server</h2>
+        <p>El proyecto GLPI publica un instalador en Perl que detecta la distribución y coloca el paquete adecuado. Descárgalo desde las publicaciones oficiales del agente, sustituyendo el número de versión por el actual que veas en <a href="https://github.com/glpi-project/glpi-agent/releases" target="_blank" rel="noopener noreferrer">la página de releases</a>:</p>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Descargar e instalar el agente</div>
+            <button class="copy-btn" data-copy-target="cmd-15">Copiar</button>
+          </div>
+          <pre id="cmd-15">cd /tmp
+wget https://github.com/glpi-project/glpi-agent/releases/download/1.19/glpi-agent-1.19-linux-installer.pl
+sudo perl glpi-agent-1.19-linux-installer.pl</pre>
+        </div>
+        <p>Ahora configura a qué servidor debe reportar. En lugar de editar el archivo principal, se añade un fichero propio en la carpeta de configuración adicional, que es la forma recomendada porque sobrevive a las actualizaciones del paquete:</p>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Crear la configuración del agente</div>
+            <button class="copy-btn" data-copy-target="cmd-16">Copiar</button>
+          </div>
+          <pre id="cmd-16">sudo nano /etc/glpi-agent/conf.d/00-clockwork.cfg</pre>
+        </div>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">00-clockwork.cfg (primer intento, solo para obtener la huella)</div>
+            <button class="copy-btn" data-copy-target="cmd-17">Copiar</button>
+          </div>
+          <pre id="cmd-17">server = https://IP_HOST_DOCKER:8446
+no-ssl-check = 1
+tag = laboratorio</pre>
+        </div>
+        <div class="note">Si el servidor tiene varias interfaces, aquí debe ir la dirección por la que el agente <strong>alcanza realmente</strong> al servidor desde su propia red, que no tiene por qué ser la misma que se usa para administrarlo desde el navegador. Esa dirección debe estar incluida en el certificado emitido en la sección 6.</div>
+        <p>Fuerza una ejecución inmediata para comprobar que llega:</p>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Forzar un inventario y ver el resultado</div>
+            <button class="copy-btn" data-copy-target="cmd-18">Copiar</button>
+          </div>
+          <pre id="cmd-18">sudo systemctl restart glpi-agent
+sudo glpi-agent --force --debug</pre>
+        </div>
+
+        <h3>Del atajo a la configuración correcta</h3>
+        <div class="warning">La opción <code class="inline">no-ssl-check</code> desactiva por completo la validación del certificado del servidor. La documentación oficial de GLPI es tajante en que <strong>no debe quedarse así en producción</strong>: sin validación, el agente enviaría su inventario a cualquiera que suplantara la dirección del servidor. Su uso correcto es puntual, exactamente como aquí: activarla una sola vez para que el agente muestre en su registro la huella del certificado.</div>
+        <p>En la salida del comando anterior, con <code class="inline">no-ssl-check</code> activo, el agente indica la huella SHA256 del certificado del servidor. Cópiala, y sustituye el contenido del archivo de configuración por esta versión definitiva:</p>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">00-clockwork.cfg (versión definitiva)</div>
+            <button class="copy-btn" data-copy-target="cmd-19">Copiar</button>
+          </div>
+          <pre id="cmd-19">server = https://IP_HOST_DOCKER:8446
+ssl-fingerprint = FINGERPRINT_CERT
+tag = laboratorio</pre>
+        </div>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Aplicar y volver a probar</div>
+            <button class="copy-btn" data-copy-target="cmd-20">Copiar</button>
+          </div>
+          <pre id="cmd-20">sudo systemctl restart glpi-agent
+sudo glpi-agent --force --debug</pre>
+        </div>
+        <div class="ok">Con <code class="inline">ssl-fingerprint</code>, el agente sigue validando el certificado, pero contra la huella concreta que le has indicado en lugar de contra una autoridad pública. Se conserva la autenticación del servidor sin necesidad de un certificado firmado por una entidad reconocida: es la solución recomendada por el propio proyecto para certificados privados.</div>
+        <div class="note">El campo <code class="inline">tag</code> es opcional pero muy útil en cuanto crece el parque: es una etiqueta libre que viaja con el inventario y permite después clasificar automáticamente los equipos por sede, departamento o entidad mediante las reglas de importación de GLPI.</div>
+      </section>
+
+      <section class="card" id="paso-agente-windows">
+        <h2>12. Instalar el agente en Windows 11</h2>
+        <p>Descarga el instalador MSI de 64 bits desde <a href="https://github.com/glpi-project/glpi-agent/releases" target="_blank" rel="noopener noreferrer">la misma página de releases</a> y ejecútalo en modo silencioso desde PowerShell <strong>como administrador</strong>. Igual que en Linux, el primer intento sirve para obtener la huella del certificado:</p>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Instalación silenciosa (primer intento)</div>
+            <button class="copy-btn" data-copy-target="cmd-21">Copiar</button>
+          </div>
+          <pre id="cmd-21">msiexec /i "C:\Users\$env:USERNAME\Downloads\GLPI-Agent-1.19-x64.msi" /quiet SERVER="https://IP_HOST_DOCKER:8446" NO_SSL_CHECK=1 TAG="laboratorio" RUNNOW=1 EXECMODE=1 /l*v "C:\Users\$env:USERNAME\Downloads\glpi-agent-install.log"</pre>
+        </div>
+        <p>Comprueba que el servicio quedó instalado y en marcha:</p>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Estado del servicio</div>
+            <button class="copy-btn" data-copy-target="cmd-22">Copiar</button>
+          </div>
+          <pre id="cmd-22">Get-Service -Name "glpi-agent"</pre>
+        </div>
+        <p>Y revisa el registro del agente, donde aparecerá la huella del certificado:</p>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Log del agente en Windows</div>
+            <button class="copy-btn" data-copy-target="cmd-23">Copiar</button>
+          </div>
+          <pre id="cmd-23">Get-Content "C:\Program Files\GLPI-Agent\logs\glpi-agent.log" -Tail 40</pre>
+        </div>
+        <p>Con la huella ya conocida, reinstala pasando la configuración correcta en lugar de desactivar la validación:</p>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Instalación definitiva con validación por huella</div>
+            <button class="copy-btn" data-copy-target="cmd-24">Copiar</button>
+          </div>
+          <pre id="cmd-24">msiexec /i "C:\Users\$env:USERNAME\Downloads\GLPI-Agent-1.19-x64.msi" /quiet SERVER="https://IP_HOST_DOCKER:8446" SSL_FINGERPRINT="FINGERPRINT_CERT" TAG="laboratorio" RUNNOW=1 EXECMODE=1</pre>
+        </div>
+        <div class="note">Si prefieres no reinstalar, la configuración del agente en Windows vive en el registro, bajo <code class="inline">HKEY_LOCAL_MACHINE\SOFTWARE\GLPI-Agent</code>. Se puede editar ahí directamente y reiniciar el servicio para aplicar el cambio; el resultado es el mismo.</div>
+        <div class="info">Parámetros del MSI que conviene conocer: <code class="inline">EXECMODE=1</code> lo instala como servicio (la alternativa es tarea programada, útil en servidores donde no interesa un servicio permanente), <code class="inline">RUNNOW=1</code> lanza un inventario nada más terminar la instalación, y <code class="inline">ADD_FIREWALL_EXCEPTION=1</code> abriría el puerto 62354 si se quisiera permitir ejecuciones bajo demanda desde el servidor.</div>
+      </section>
+
+      <section class="card" id="paso-verificar">
+        <h2>13. Verificar el inventario en GLPI</h2>
+        <p>En la interfaz web, ve a <code class="inline">Activos &rarr; Equipos</code>. Deberían aparecer los dos equipos con su nombre, y al abrir cualquiera de ellos verás la información recogida automáticamente: procesador, memoria, discos, tarjetas de red, sistema operativo y el listado completo de software instalado.</p>
+        <p>Para revisar los agentes en sí y cuándo contactaron por última vez:</p>
+        <ul>
+          <li><code class="inline">Administración &rarr; Inventario &rarr; Agentes</code> muestra cada agente registrado, su versión y la fecha del último contacto.</li>
+          <li>En la ficha de cada equipo, el historial permite ver qué cambió entre un inventario y el siguiente.</li>
+        </ul>
+        <div class="ok">Si los dos equipos aparecen con datos reales y fecha reciente, el montaje está completo de extremo a extremo: GLPI sirviendo por HTTPS desde Docker, y dos agentes nativos reportando su inventario desde sistemas operativos distintos, validando además el certificado del servidor por huella.</div>
+        <p>Una última comprobación confirma que el inventario se mantiene vivo y no es una foto fija: instalar o desinstalar cualquier programa en uno de los equipos, forzar un inventario nuevo y verificar que GLPI refleja el cambio en el listado de software y lo registra en el historial del activo.</p>
+      </section>
+
+      <section class="card" id="puertos">
+        <h2>14. Tabla de puertos y componentes</h2>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Puerto</th><th>Componente</th><th>Sentido de la conexión</th><th>Para qué sirve</th></tr></thead>
+            <tbody>
+              <tr><td>8446/tcp</td><td>glpi-proxy (Nginx)</td><td>Navegador y agentes &rarr; contenedor</td><td>Único punto de entrada: interfaz web y recepción de inventarios, por HTTPS</td></tr>
+              <tr><td>&mdash;</td><td>glpi (Docker, interno)</td><td>proxy &rarr; glpi</td><td>Aplicación GLPI y su cron interno; no publica ningún puerto al host</td></tr>
+              <tr><td>&mdash;</td><td>glpi-db (Docker, interno)</td><td>glpi &rarr; glpi-db</td><td>MariaDB; no necesita exponerse al host</td></tr>
+              <tr><td>62354/tcp</td><td>GLPI-Agent en cada endpoint</td><td>Servidor &rarr; agente</td><td>No se usa en esta guía. Solo hace falta para pedir al agente una ejecución bajo demanda</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="card" id="errores">
+        <h2>15. Errores comunes y cómo resolverlos</h2>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Problema</th><th>Causa probable</th><th>Solución</th></tr></thead>
+            <tbody>
+              <tr>
+                <td>Al entrar aparece el asistente de instalación web en vez de la pantalla de login</td>
+                <td>Falta alguna de las cinco variables <code class="inline">GLPI_DB_*</code>, así que la instalación automática se desactivó</td>
+                <td>Revisar el servicio <code class="inline">glpi</code> del compose y confirmar con <code class="inline">docker compose config</code> que las cinco se resolvieron (sección 5)</td>
+              </tr>
+              <tr>
+                <td>El contenedor <code class="inline">glpi-proxy</code> se reinicia en bucle con <code class="inline">host not found in upstream "glpi"</code></td>
+                <td>Nginx intentó resolver el nombre una sola vez al arrancar y GLPI aún no estaba listo</td>
+                <td>Confirmar que <code class="inline">nginx.conf</code> usa <code class="inline">resolver 127.0.0.11</code> con la variable <code class="inline">$upstream_glpi</code> (sección 6)</td>
+              </tr>
+              <tr>
+                <td>No aparece el selector de zona horaria en <code class="inline">Setup &rarr; General &rarr; General setup</code></td>
+                <td>La tabla de zonas horarias de MariaDB no está cargada o no es accesible para el usuario de GLPI. No se muestra ningún aviso: la opción simplemente no está</td>
+                <td>Ejecutar los dos comandos de la sección 9, en ese orden, y volver a comprobar la pestaña</td>
+              </tr>
+              <tr>
+                <td>Los agentes parecen funcionar pero no aparece ningún equipo</td>
+                <td>El inventario nativo sigue desactivado en el servidor</td>
+                <td>Activarlo en <code class="inline">Administración &rarr; Inventario</code> (sección 10) y forzar un nuevo inventario en los agentes</td>
+              </tr>
+              <tr>
+                <td>El agente registra <code class="inline">certificate verify failed</code></td>
+                <td>Comportamiento esperado con un certificado autofirmado: el agente no reconoce la autoridad que lo emitió</td>
+                <td>Obtener la huella con <code class="inline">no-ssl-check</code> una sola vez y configurar <code class="inline">ssl-fingerprint</code> de forma permanente (secciones 11 y 12)</td>
+              </tr>
+              <tr>
+                <td>El navegador o los agentes funcionan por una interfaz del servidor pero no por otra</td>
+                <td>El certificado se emitió solo para una de las direcciones del host, y no incluye aquella por la que se está accediendo</td>
+                <td>Regenerar el certificado incluyendo todas las direcciones en <code class="inline">subjectAltName</code> (sección 6). Al cambiar la huella, hay que actualizarla también en los agentes ya configurados</td>
+              </tr>
+              <tr>
+                <td>El inventario de un equipo concreto falla mientras otros funcionan</td>
+                <td>El envío supera el tamaño máximo admitido por el proxy</td>
+                <td>Confirmar <code class="inline">client_max_body_size</code> en <code class="inline">nginx.conf</code> y subirlo si hace falta (sección 6)</td>
+              </tr>
+              <tr>
+                <td>Tras recrear el contenedor se pierde la configuración de GLPI</td>
+                <td>No se persistió <code class="inline">/var/glpi</code>, que es donde vive la configuración</td>
+                <td>Comprobar que el volumen <code class="inline">glpi-data</code> está declarado y montado (sección 5)</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="card" id="ampliacion">
+        <h2>16. Notas de ampliación</h2>
+        <p>El montaje de esta guía cubre lo necesario para tener el inventario automático funcionando y la mesa de ayuda operativa. Para un uso continuado conviene ampliar con:</p>
+        <ul>
+          <li><strong>Reglas de importación de activos</strong>, para que los equipos entren clasificados solos en la entidad, ubicación o grupo que corresponda, apoyándose en la etiqueta <code class="inline">tag</code> que ya envían los agentes.</li>
+          <li><strong>Notificaciones por correo</strong>, para que la apertura y actualización de tickets avise automáticamente a quien corresponda.</li>
+          <li><strong>Descubrimiento de red por SNMP</strong>, que permite inventariar switches, impresoras y otros equipos donde no se puede instalar un agente.</li>
+          <li><strong>Dominio propio y certificado válido</strong> en lugar del autofirmado, lo que además simplifica los agentes: con un certificado reconocido dejan de necesitar la huella y basta con indicarles la URL.</li>
+          <li><strong>Copias de seguridad</strong> del volumen de MariaDB y del volumen <code class="inline">glpi-data</code>, que contiene la configuración y todos los documentos adjuntos a los tickets.</li>
+          <li><strong>Integración con la monitorización</strong>, para que una alerta de un sistema como Zabbix abra automáticamente un ticket sobre el activo correspondiente ya inventariado en GLPI.</li>
+        </ul>
+      </section>
+
+      <footer>
+        <p style="margin: 0 0 6px;">Guía técnica para autoalojar GLPI con Docker Compose y MariaDB, servirlo por HTTPS con proxy inverso e inventariar automáticamente equipos Linux y Windows con GLPI-Agent.</p>
+        <p style="margin: 0; opacity: .75;">&copy; <span id="anio-actual">2026</span> Clockwork Computer. Todos los derechos reservados. Contenido educativo de libre consulta; su reproducción total o parcial en otros sitios requiere autorización previa.</p>
+      </footer>
+    </div>
+  </div>
+</main>
+
+<script>
+  async function copyText(text, button) {
+    try {
+      await navigator.clipboard.writeText(text);
+      const original = button.textContent;
+      button.textContent = 'Copiado';
+      button.classList.add('copied');
+      setTimeout(() => {
+        button.textContent = original;
+        button.classList.remove('copied');
+      }, 1400);
+    } catch (err) {
+      alert('No se pudo copiar automáticamente.');
+    }
+  }
+
+  document.querySelectorAll('.copy-btn').forEach(button => {
+    button.addEventListener('click', () => {
+      const targetId = button.getAttribute('data-copy-target');
+      const target = document.getElementById(targetId);
+      if (!target) return;
+      copyText(target.innerText.trim(), button);
+    });
+  });
+
+  const anioEl = document.getElementById('anio-actual');
+  if (anioEl) anioEl.textContent = new Date().getFullYear();
+</script>
+</body>
+</html>
