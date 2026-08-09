@@ -1,0 +1,1316 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Copias inmutables anti-ransomware: MinIO como S3 propio y Kopia en Linux y Windows</title>
+  <link rel="icon" type="image/png" href="https://blogger.googleusercontent.com/img/a/AVvXsEjuquj9lFaN9zfg8H5FofNIUKAHWWRiOUbDhHragpU14TfF6RYKxb5w62mfAClxDkDrzCMAilRatibcoWFbuqMnXMBh30p_sfbxp4D2gUny70NbjyHLrs42VXeBB4Qtc8NovIS_DqIU5iq3dMMx1TuNZkW70MeW8Ryemwk_tDv6iKZi9ngKfaskUG1yCWo=s1600"/>
+  <style>
+    :root {
+      --bg: #060606;
+      --panel: #111111;
+      --text: #f5f5f5;
+      --muted: #b9b9b9;
+      --accent: #ff7a00;
+      --accent-2: #ff9a3d;
+      --border: #2b2b2b;
+      --code: #050505;
+      --success: #24b36b;
+      --danger: #ed5b5b;
+      --blue: #4ca6ff;
+      --shadow: 0 12px 30px rgba(0,0,0,.35);
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+      background: linear-gradient(180deg, #050505 0%, #0a0a0a 100%);
+      color: var(--text);
+      line-height: 1.6;
+    }
+    a { color: #ffb067; }
+    .container { width: min(1100px, calc(100% - 32px)); margin: 0 auto; }
+    header {
+      padding: 48px 0 28px;
+      border-bottom: 1px solid rgba(255,255,255,.06);
+      background:
+        radial-gradient(circle at top right, rgba(255,122,0,.16), transparent 30%),
+        radial-gradient(circle at top left, rgba(255,154,61,.10), transparent 20%),
+        linear-gradient(180deg, #080808 0%, #101010 100%);
+    }
+    .header-inner { display: flex; gap: 18px; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; }
+    .header-brand { display: flex; gap: 18px; align-items: center; flex: 1 1 720px; }
+    .channel-logo {
+      display: inline-flex; align-items: center; justify-content: center;
+      border-radius: 18px; overflow: hidden;
+      border: 1px solid rgba(255,255,255,.08); box-shadow: var(--shadow);
+      background: rgba(255,255,255,.03); flex: 0 0 auto;
+    }
+    .channel-logo img { display: block; width: 200px; height: auto; object-fit: contain; }
+    h1 { font-size: clamp(1.8rem, 3vw, 3rem); margin: 0; line-height: 1.15; color: var(--accent); }
+    .brand { margin-top: 8px; font-weight: 700; letter-spacing: .4px; color: var(--accent-2); }
+    .subtitle { color: var(--muted); margin: 10px 0 0; max-width: 850px; }
+    main { padding: 28px 0 64px; }
+    .layout { display: grid; grid-template-columns: 260px 1fr; gap: 24px; align-items: start; }
+    .toc {
+      position: sticky; top: 20px; width: 260px;
+      max-height: calc(100vh - 40px); overflow-y: auto;
+      background: rgba(17,17,17,.92); border: 1px solid var(--border);
+      border-radius: 18px; padding: 18px; box-shadow: var(--shadow); margin: 0;
+    }
+    .toc h2 { margin: 0 0 12px; font-size: 1rem; color: var(--accent); }
+    .toc a {
+      display: block; color: var(--muted); text-decoration: none;
+      padding: 8px 10px; border-radius: 10px;
+      transition: background .15s ease, color .15s ease; font-size: .93rem;
+    }
+    .toc a:hover { color: var(--text); background: rgba(255,122,0,.08); }
+    .content { display: grid; gap: 18px; min-width: 0; }
+    .card {
+      background: linear-gradient(180deg, rgba(17,17,17,.97), rgba(12,12,12,.97));
+      border: 1px solid var(--border); border-radius: 22px; padding: 24px; box-shadow: var(--shadow);
+    }
+    .card h2 { margin-top: 0; font-size: 1.5rem; color: var(--accent); }
+    .card h3 { margin-bottom: 10px; margin-top: 22px; font-size: 1.08rem; color: #ffd1a8; }
+    .muted { color: var(--muted); }
+    ul, ol { margin-top: 10px; padding-left: 20px; }
+    li + li { margin-top: 6px; }
+    p, .note, .ok, .warning, .info { text-align: justify; }
+    .note, .ok, .warning, .info { border-radius: 14px; padding: 14px 16px; margin-top: 14px; }
+    .note { background: rgba(255,122,0,.08); border: 1px solid rgba(255,122,0,.22); color: #ffe2c4; }
+    .ok { background: rgba(36,179,107,.10); border: 1px solid rgba(36,179,107,.28); color: #d8ffe8; }
+    .warning { background: rgba(237,91,91,.10); border: 1px solid rgba(237,91,91,.30); color: #ffd1d1; }
+    .info { background: rgba(76,166,255,.09); border: 1px solid rgba(76,166,255,.26); color: #d5eaff; }
+    .cmd { margin-top: 14px; border: 1px solid var(--border); background: var(--code); border-radius: 16px; overflow: hidden; }
+    .cmd-head {
+      display: flex; justify-content: space-between; align-items: center; gap: 12px;
+      padding: 10px 12px; background: rgba(255,255,255,.03); border-bottom: 1px solid rgba(255,255,255,.06);
+    }
+    .cmd-title { font-size: .92rem; color: var(--muted); font-weight: 600; }
+    .copy-btn {
+      border: 1px solid #6a3408; background: linear-gradient(180deg, #ff7a00, #d76200);
+      color: #111; border-radius: 10px; padding: 8px 10px; cursor: pointer;
+      font-size: .9rem; font-weight: 800; transition: .15s ease;
+    }
+    .copy-btn:hover { filter: brightness(1.06); }
+    .copy-btn.copied { background: rgba(36,179,107,.18); border-color: rgba(36,179,107,.45); color: #d7ffe8; }
+    pre {
+      margin: 0; padding: 16px; overflow-x: auto; white-space: pre-wrap; word-break: break-word;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      font-size: .94rem; color: #ffbf85;
+    }
+    code.inline {
+      background: rgba(255,255,255,.06); padding: 2px 8px; border-radius: 8px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: .92em; color: #ffd2aa;
+    }
+    table { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: .95rem; }
+    th, td { border: 1px solid var(--border); padding: 10px 12px; text-align: left; vertical-align: top; }
+    th { background: rgba(255,255,255,.04); color: #ffd1a8; }
+    .table-wrap { overflow-x: auto; }
+    footer { margin-top: 24px; color: var(--muted); text-align: center; font-size: .95rem; }
+    @media (max-width: 920px) {
+      .layout { grid-template-columns: 1fr; }
+      .toc { position: static; width: 100%; max-height: none; }
+    }
+  </style>
+</head>
+<body>
+<header>
+  <div class="container header-inner">
+    <div class="header-brand">
+      <a class="channel-logo" href="https://www.youtube.com/c/ClockworkComputerIP" target="_blank" rel="noopener noreferrer" aria-label="Clockwork Computer">
+        <img src="https://blogger.googleusercontent.com/img/a/AVvXsEjuquj9lFaN9zfg8H5FofNIUKAHWWRiOUbDhHragpU14TfF6RYKxb5w62mfAClxDkDrzCMAilRatibcoWFbuqMnXMBh30p_sfbxp4D2gUny70NbjyHLrs42VXeBB4Qtc8NovIS_DqIU5iq3dMMx1TuNZkW70MeW8Ryemwk_tDv6iKZi9ngKfaskUG1yCWo=s1600" alt="Clockwork Computer"/>
+      </a>
+      <div>
+        <h1>Copias inmutables anti-ransomware: MinIO como S3 propio y Kopia en Linux y Windows</h1>
+        <div class="brand">Almacenamiento de objetos autoalojado con Object Lock en modo Compliance y agentes de copia en dos sistemas operativos</div>
+        <p class="subtitle">Guía técnica para levantar un almacenamiento compatible con S3 mediante MinIO y Docker Compose, servirlo por HTTPS con un proxy inverso, crear un depósito con bloqueo de objetos que impide el borrado incluso al administrador, y respaldar contra él un Ubuntu Server y un Windows 11 con Kopia, incluyendo copias programadas, un simulacro de ransomware y la restauración completa.</p>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main>
+  <div class="container layout">
+    <aside class="toc">
+      <h2>Contenido</h2>
+      <a href="#introduccion">1. Introducción</a>
+      <a href="#variables">2. Variables de esta guía</a>
+      <a href="#arquitectura">3. Arquitectura y flujo</a>
+      <a href="#requisitos">4. Requisitos</a>
+      <a href="#paso-stack">5. Levantar MinIO con Docker</a>
+      <a href="#paso-proxy">6. Proxy inverso con HTTPS propio</a>
+      <a href="#paso-arranque">7. Arrancar el stack y verificar</a>
+      <a href="#paso-mc">8. La consola web y el cliente mc</a>
+      <a href="#paso-bucket">9. Crear el depósito inmutable</a>
+      <a href="#paso-credenciales">10. Credenciales para los agentes</a>
+      <a href="#paso-kopia-linux">11. Kopia en Ubuntu Server</a>
+      <a href="#paso-programar">12. Programar las copias</a>
+      <a href="#paso-simulacro">13. Simulacro de ransomware</a>
+      <a href="#paso-restaurar">14. Restauración</a>
+      <a href="#paso-mantenimiento">15. Vigencia de los bloqueos</a>
+      <a href="#paso-kopia-windows">16. Kopia en Windows 11</a>
+      <a href="#puertos">17. Tabla de puertos y componentes</a>
+      <a href="#errores">18. Errores comunes</a>
+      <a href="#ampliacion">19. Notas de ampliación</a>
+    </aside>
+
+    <div class="content">
+
+      <section class="card" id="introduccion">
+        <h2>1. Introducción</h2>
+        <p>Una copia de seguridad solo vale lo que vale su capacidad de sobrevivir al incidente que pretende cubrir. El ransomware moderno lo sabe: antes de cifrar los datos busca los respaldos, y si el agente de copia tiene permiso para borrar en el destino, ese permiso es exactamente el que se utiliza para destruirlos. De poco sirve entonces una copia diaria impecable si el atacante puede eliminarla con las mismas credenciales que la crearon.</p>
+        <p>La respuesta a ese problema se llama <strong>inmutabilidad</strong>, y en el mundo del almacenamiento de objetos tiene un nombre concreto: <strong>Object Lock</strong>. Es un mecanismo <strong>WORM</strong> (<em>Write Once, Read Many</em>): una vez escrito, un objeto no se puede modificar ni borrar hasta que expire el plazo de retención fijado, y esa regla la impone el propio almacenamiento, no la aplicación que escribe. Esta guía monta ese almacenamiento con <strong>MinIO</strong>, un servidor de objetos compatible con la API de S3 que se despliega con Docker, y respalda contra él dos equipos reales con <strong>Kopia</strong>, un motor de copias con cifrado extremo a extremo, deduplicación y soporte nativo de Object Lock.</p>
+        <div class="info">Esta práctica es la materialización de la regla <strong>3-2-1-1-0</strong>, la evolución del clásico 3-2-1: tres copias de los datos, en dos soportes distintos, una de ellas fuera del emplazamiento, <strong>una inmutable o desconectada</strong> —esa es la que se construye aquí— y cero errores en las pruebas de restauración, que es por lo que la guía no termina al hacer la copia sino al recuperarla.</div>
+        <div class="note">Dos decisiones condicionan el montaje y conviene entenderlas desde el principio. La primera: el bloqueo de objetos <strong>solo puede activarse al crear el depósito</strong>, nunca después sobre uno que ya contiene datos, así que hay que planificarlo antes de escribir la primera copia. La segunda: el modo de retención elegido aquí es <strong>Compliance</strong>, el estricto, en el que ni siquiera la cuenta administradora del propio MinIO puede borrar un objeto protegido. Es lo que hace la demostración contundente, y también lo que obliga a dimensionar bien el plazo antes de empezar.</div>
+      </section>
+
+<section class="card" id="variables">
+        <h2>2. Variables de esta guía</h2>
+        <p>Todos los bloques usan los siguientes marcadores en <strong>MAYÚSCULAS</strong>. Sustitúyelos por los valores reales del entorno donde se aplique esta guía.</p>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Marcador</th><th>Qué es</th><th>Dónde se obtiene</th></tr></thead>
+            <tbody>
+              <tr><td><code class="inline">IP_HOST_DOCKER</code></td><td>IP del servidor Docker por la <strong>red LAN</strong>, que es por donde los equipos a respaldar alcanzan el almacenamiento</td><td>La interfaz LAN de ese host (<code class="inline">ip a</code>)</td></tr>
+              <tr><td><code class="inline">IP_HOST_DOCKER_2</code></td><td>Segunda IP del servidor, la de la <strong>red WAN</strong> o de administración, desde la que se accede a la consola con el navegador</td><td>La segunda interfaz de ese host (<code class="inline">ip a</code>). Si el servidor solo tiene una IP, este marcador se ignora</td></tr>
+              <tr><td><code class="inline">MINIO_ROOT_USER</code></td><td>Usuario administrador de MinIO</td><td>Se define en <code class="inline">/docker/minio/.env</code> (sección 5)</td></tr>
+              <tr><td><code class="inline">MINIO_ROOT_PASSWORD</code></td><td>Contraseña del administrador de MinIO, mínimo 8 caracteres</td><td>Se define en <code class="inline">/docker/minio/.env</code> (sección 5)</td></tr>
+              <tr><td><code class="inline">KOPIA_ACCESS_KEY</code></td><td>Clave de acceso dedicada que usarán los agentes de copia, distinta de la del administrador</td><td>Se crea en la sección 10</td></tr>
+              <tr><td><code class="inline">KOPIA_SECRET_KEY</code></td><td>Clave secreta asociada a la anterior</td><td>Se crea en la sección 10</td></tr>
+              <tr><td><code class="inline">KOPIA_REPO_PASSWORD</code></td><td>Contraseña de cifrado del repositorio Kopia. <strong>Sin ella los datos no se recuperan</strong>, ni siquiera teniendo acceso completo al almacenamiento</td><td>La eliges tú en la sección 11</td></tr>
+              <tr><td><code class="inline">USUARIO_SERVIDOR</code></td><td>Usuario con acceso SSH al servidor Docker, para traerse el certificado al equipo Windows</td><td>El que uses habitualmente para administrar ese servidor</td></tr>
+              <tr><td><code class="inline">ID_DE_LA_COPIA</code></td><td>Identificador de una copia concreta, necesario para restaurarla</td><td>Lo devuelve <code class="inline">kopia snapshot list</code> (sección 14)</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="warning"><code class="inline">KOPIA_REPO_PASSWORD</code> no es una contraseña más. Kopia cifra los datos <strong>en el cliente</strong> antes de subirlos, de modo que el servidor de almacenamiento nunca ve el contenido en claro; ese es justamente su punto fuerte. La consecuencia es directa: si se pierde esa contraseña, el repositorio es irrecuperable por diseño y no hay procedimiento de rescate. Guárdala fuera de los equipos que estás respaldando, por ejemplo en el gestor de contraseñas del propio laboratorio.</div>
+        <div class="note">Esta guía publica el servicio en los puertos <strong>8447</strong> (API S3) y <strong>8448</strong> (consola web). Si en el mismo servidor ya tienes otros stacks ocupando puertos, compruébalo antes con <code class="inline">ss -tlnp | grep 8447</code> y elige otros libres si hiciera falta, cambiándolos en las secciones 5, 6, 7, 8, 11 y 16.</div>
+      </section>
+
+<section class="card" id="arquitectura">
+        <h2>3. Arquitectura y flujo</h2>
+        <p>Dos contenedores en el servidor central, y un agente de copia nativo instalado en cada equipo a respaldar. Igual que con los agentes de inventario, Kopia no vive en un contenedor: se instala sobre el sistema operativo de cada máquina, que es como se hace en un despliegue real.</p>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Resumen visual</div>
+            <button class="copy-btn" data-copy-target="cmd-arch">Copiar</button>
+          </div>
+          <pre id="cmd-arch">   [UBUNTU SERVER]                    [WINDOWS 11]
+        kopia                             kopia
+          |                                  |
+          |     copia cifrada por HTTPS      |
+          |     (el agente inicia la conexion)
+          +------------------+---------------+
+                             |
+                          red LAN
+                             |
+                             v
+      +--------------------------------------------+
+      |            SERVIDOR DOCKER                 |
+      |   LAN: IP_HOST_DOCKER                      |
+      |   WAN: IP_HOST_DOCKER_2                    |
+      |                                            |
+      |   [minio-proxy]  :8447 (S3)  :8448 (web)   |
+      |          |                                 |
+      |          v                                 |
+      |   [minio]  :9000 (API S3)  :9001 (consola) |
+      |          |                                 |
+      |          v                                 |
+      |   volumen minio-data                       |
+      |   deposito "backups"                       |
+      |   Object Lock = COMPLIANCE 30d             |
+      +--------------------------------------------+</pre>
+        </div>
+        <div class="info">El sentido de la conexión importa: <strong>es el agente quien contacta al servidor</strong> para depositar su copia. Ningún equipo respaldado necesita abrir puertos de entrada, y toda la superficie expuesta queda concentrada en un único punto, igual que en el modelo de inventario o de monitorización por checks activos.</div>
+        <div class="note">El servidor tiene dos interfaces y eso es deliberado: los agentes llegan por la <strong>LAN</strong> y la administración se hace desde la <strong>WAN</strong>. Docker publica los puertos en todas las interfaces a la vez sin configuración adicional, pero el certificado solo será válido para las direcciones que se le indiquen al generarlo, así que ambas deben constar en él (sección 6).</div>
+      </section>
+
+<section class="card" id="requisitos">
+        <h2>4. Requisitos</h2>
+        <ul>
+          <li>Un host Linux con <strong>Docker Engine</strong> y el plugin <strong>Docker Compose</strong> (<code class="inline">docker compose</code>, sin guion) ya instalados, y preferiblemente con dos interfaces de red.</li>
+          <li>Un <strong>Ubuntu Server</strong> y un <strong>Windows 11</strong> en la misma red, que serán los equipos respaldados.</li>
+          <li>Salida a Internet desde los tres equipos, para descargar las imágenes de Docker y los paquetes de Kopia.</li>
+          <li>Espacio libre en el servidor para el volumen de copias. Ten presente que con Object Lock <strong>nada se borra antes de tiempo</strong>, así que el consumo solo crece durante el periodo de retención.</li>
+          <li>Hora sincronizada en los tres equipos. La retención se calcula sobre fechas, y un reloj desviado desajusta la protección.</li>
+        </ul>
+      </section>
+
+<section class="card" id="paso-stack">
+        <h2>5. Levantar MinIO con Docker</h2>
+        <p>Misma organización de siempre: cada stack en su carpeta dentro de <code class="inline">/docker</code>, y las credenciales en un <code class="inline">.env</code> aparte, nunca escritas dentro del <code class="inline">docker-compose.yml</code>.</p>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Crear la carpeta del stack</div>
+            <button class="copy-btn" data-copy-target="cmd-1">Copiar</button>
+          </div>
+          <pre id="cmd-1">sudo mkdir -p /docker/minio && cd /docker/minio</pre>
+        </div>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Crear .env</div>
+            <button class="copy-btn" data-copy-target="cmd-2">Copiar</button>
+          </div>
+          <pre id="cmd-2">sudo nano .env</pre>
+        </div>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">.env</div>
+            <button class="copy-btn" data-copy-target="cmd-3">Copiar</button>
+          </div>
+          <pre id="cmd-3">MINIO_ROOT_USER=clockworkadmin
+MINIO_ROOT_PASSWORD=minio_root_pwd</pre>
+        </div>
+        <div class="note">Estos valores sirven para un entorno de pruebas; en una instalación real conviene generar la contraseña de forma aleatoria. MinIO exige un mínimo de 8 caracteres y se niega a arrancar si no se cumple. Buena costumbre en cualquier caso: <code class="inline">sudo chmod 600 .env</code> para que solo root pueda leer el archivo.</div>
+        <p>Ahora el archivo del stack, en la misma carpeta:</p>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Crear docker-compose.yml</div>
+            <button class="copy-btn" data-copy-target="cmd-4">Copiar</button>
+          </div>
+          <pre id="cmd-4">sudo nano docker-compose.yml</pre>
+        </div>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">docker-compose.yml</div>
+            <button class="copy-btn" data-copy-target="cmd-5">Copiar</button>
+          </div>
+          <pre id="cmd-5">services:
+  minio:
+    image: minio/minio:latest
+    container_name: minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      TZ: Europe/Madrid
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 15s
+    restart: unless-stopped
+
+  proxy:
+    image: nginx:alpine
+    container_name: minio-proxy
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./proxy-selfsigned.crt:/etc/nginx/certs/proxy-selfsigned.crt:ro
+      - ./proxy-selfsigned.key:/etc/nginx/certs/proxy-selfsigned.key:ro
+    ports:
+      - "8447:8447"
+      - "8448:8448"
+    depends_on:
+      minio:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  minio-data:</pre>
+        </div>
+        <div class="note">MinIO separa dos servicios en puertos distintos dentro del contenedor: el <strong>9000</strong> atiende la API de S3, que es por donde hablan los agentes, y el <strong>9001</strong> sirve la consola web. Por eso el proxy publica dos puertos y no uno: son dos servicios diferentes, y mezclarlos en un único puerto es una fuente habitual de comportamientos raros.</div>
+        <div class="warning">Puede que en otras guías veas una variable <code class="inline">MINIO_BROWSER_REDIRECT_URL</code> para indicarle a la consola cuál es su dirección pública detrás de un proxy inverso. <strong>Aquí no se usa a propósito:</strong> MinIO valida esa variable al arrancar y <strong>solo admite un nombre de host, nunca una dirección IP</strong>. Si se la pasas con una IP, el contenedor no arranca y se queda en un bucle de reinicio con el mensaje <code class="inline">FATAL Invalid MINIO_BROWSER_REDIRECT_URL value in environment variable: invalid hostname</code>. Como todo este montaje trabaja por IP, la variable sencillamente se omite: la consola funciona igual a través del proxy.</div>
+        <div class="info">Si en tu entorno tienes un nombre DNS propio para el servidor —por ejemplo <code class="inline">minio.clockwork.lan</code>— sí puedes añadirla con ese nombre, y entonces ese mismo nombre debe constar también en el <code class="inline">subjectAltName</code> del certificado, con el prefijo <code class="inline">DNS:</code> en lugar de <code class="inline">IP:</code> (sección 6).</div>
+        <div class="note">El volumen <code class="inline">minio-data</code> monta <code class="inline">/data</code>, que es donde MinIO guarda tanto los objetos como sus metadatos y las versiones. Persistir esa ruta en un volumen con nombre es lo que marca la diferencia entre poder recrear el contenedor sin consecuencias y perder todas las copias al hacerlo.</div>
+      </section>
+
+<section class="card" id="paso-proxy">
+        <h2>6. Configurar el proxy inverso con HTTPS propio</h2>
+        <p>Genera un certificado autofirmado con clave EC, válido para <strong>las dos direcciones</strong> del servidor: la de la LAN por la que llegan los agentes y la de la WAN desde la que administras.</p>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Generar el certificado autofirmado</div>
+            <button class="copy-btn" data-copy-target="cmd-6">Copiar</button>
+          </div>
+          <pre id="cmd-6">cd /docker/minio
+sudo openssl ecparam -name prime256v1 -genkey -noout -out proxy-selfsigned.key
+sudo openssl req -new -x509 -key proxy-selfsigned.key -out proxy-selfsigned.crt -days 825 \
+  -subj "/CN=IP_HOST_DOCKER" \
+  -addext "subjectAltName=IP:IP_HOST_DOCKER,IP:IP_HOST_DOCKER_2"</pre>
+        </div>
+        <div class="warning"><strong>Decide esto antes de continuar.</strong> Los agentes van a confiar en este certificado tras instalarlo en su almacén del sistema (secciones 11 y 16). Si lo regeneras más adelante, todos los clientes dejarán de conectar hasta actualizarlo uno por uno. Emite ahora el certificado definitivo, con todas las direcciones necesarias en <code class="inline">subjectAltName</code>, y no vuelvas a tocarlo.</div>
+        <p>Ahora la configuración de Nginx, con un bloque por cada servicio:</p>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Crear nginx.conf</div>
+            <button class="copy-btn" data-copy-target="cmd-7">Copiar</button>
+          </div>
+          <pre id="cmd-7">sudo nano nginx.conf</pre>
+        </div>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">nginx.conf</div>
+            <button class="copy-btn" data-copy-target="cmd-8">Copiar</button>
+          </div>
+          <pre id="cmd-8">resolver 127.0.0.11 valid=10s;
+
+# ---------- API S3: por aqui hablan los agentes de copia ----------
+server {
+    listen 8447 ssl;
+    server_name IP_HOST_DOCKER;
+
+    ssl_certificate     /etc/nginx/certs/proxy-selfsigned.crt;
+    ssl_certificate_key /etc/nginx/certs/proxy-selfsigned.key;
+
+    # Sin limite de tamano: los bloques de una copia superan el limite por defecto
+    client_max_body_size 0;
+    ignore_invalid_headers off;
+    proxy_buffering off;
+    proxy_request_buffering off;
+    chunked_transfer_encoding off;
+
+    location / {
+        set $upstream_minio http://minio:9000;
+        proxy_pass $upstream_minio;
+
+        # La firma de S3 incluye la cabecera Host: debe llegar intacta
+        proxy_set_header Host $http_host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        proxy_http_version 1.1;
+        proxy_connect_timeout 300;
+        proxy_send_timeout 300;
+        proxy_read_timeout 300;
+    }
+}
+
+# ---------- Consola web de administracion ----------
+server {
+    listen 8448 ssl;
+    server_name IP_HOST_DOCKER_2;
+
+    ssl_certificate     /etc/nginx/certs/proxy-selfsigned.crt;
+    ssl_certificate_key /etc/nginx/certs/proxy-selfsigned.key;
+
+    location / {
+        set $upstream_console http://minio:9001;
+        proxy_pass $upstream_console;
+
+        proxy_set_header Host $http_host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        # La consola usa WebSockets para el estado en tiempo real
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        chunked_transfer_encoding off;
+    }
+}</pre>
+        </div>
+        <div class="warning">De todo este archivo, la línea más importante es <code class="inline">proxy_set_header Host $http_host;</code>. El protocolo S3 firma cada petición con la <strong>Signature V4</strong>, y esa firma incluye la cabecera <code class="inline">Host</code> tal y como la envió el cliente. Si el proxy la reescribe —por ejemplo con el habitual <code class="inline">$host</code>, que descarta el puerto—, la firma que calcula el servidor deja de coincidir con la del cliente y toda petición se rechaza con <code class="inline">SignatureDoesNotMatch</code>. Es un error desconcertante porque parece un problema de credenciales cuando en realidad las credenciales son correctas.</div>
+        <div class="note"><code class="inline">client_max_body_size 0</code> desactiva el límite de tamaño de subida. El valor por defecto de Nginx es 1 MB, muy por debajo de los bloques que sube Kopia, así que sin esta línea las copias fallan con <code class="inline">413 Request Entity Too Large</code> en cuanto el primer bloque supera ese umbral. Junto a ella, <code class="inline">proxy_request_buffering off</code> evita que Nginx acumule en disco cada bloque antes de reenviarlo.</div>
+        <div class="note">El <code class="inline">resolver 127.0.0.11</code> (el DNS interno de Docker) junto con <code class="inline">set $upstream_minio; proxy_pass $upstream_minio;</code> no es cosmético: sin la variable, Nginx intenta resolver el nombre <code class="inline">minio</code> una sola vez al arrancar, y si en ese instante el contenedor todavía no está listo, se niega a arrancar con un error de <code class="inline">host not found in upstream</code>. Con la variable, la resolución se hace en cada petición.</div>
+      </section>
+
+<section class="card" id="paso-arranque">
+        <h2>7. Arrancar el stack y verificar</h2>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Arrancar los contenedores</div>
+            <button class="copy-btn" data-copy-target="cmd-9">Copiar</button>
+          </div>
+          <pre id="cmd-9">cd /docker/minio
+docker compose up -d
+docker compose ps</pre>
+        </div>
+        <p>Comprueba el registro de MinIO, donde debe aparecer que la API y la consola están escuchando:</p>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Log de MinIO</div>
+            <button class="copy-btn" data-copy-target="cmd-10">Copiar</button>
+          </div>
+          <pre id="cmd-10">docker logs -f minio</pre>
+        </div>
+        <p>Sal con <code class="inline">Ctrl+C</code> y comprueba que el proxy responde por las dos interfaces:</p>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Probar la API S3 desde el propio host</div>
+            <button class="copy-btn" data-copy-target="cmd-11">Copiar</button>
+          </div>
+          <pre id="cmd-11">curl -kI https://IP_HOST_DOCKER:8447/minio/health/live
+curl -kI https://IP_HOST_DOCKER_2:8447/minio/health/live</pre>
+        </div>
+        <div class="ok">Una respuesta <code class="inline">HTTP/1.1 200 OK</code> en ambas confirma que el TLS funciona, que Nginx alcanza el contenedor y que el puerto está publicado correctamente en las dos interfaces. Si una responde y la otra no, el problema es de red o de enrutado, no del despliegue.</div>
+      </section>
+
+<section class="card" id="paso-mc">
+        <h2>8. La consola web y el cliente mc</h2>
+        <p>Abre en el navegador, desde la red de administración:</p>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">URL de la consola</div>
+            <button class="copy-btn" data-copy-target="cmd-12">Copiar</button>
+          </div>
+          <pre id="cmd-12">https://IP_HOST_DOCKER_2:8448</pre>
+        </div>
+        <div class="note">El navegador mostrará un aviso de conexión no privada. Es esperado: el certificado es autofirmado, no lo ha emitido una autoridad pública reconocida. Pulsa <strong>"Avanzado"</strong> y continúa. Entra con <code class="inline">MINIO_ROOT_USER</code> y <code class="inline">MINIO_ROOT_PASSWORD</code>.</div>
+        <div class="warning"><strong>No esperes encontrar un panel de administración completo.</strong> En 2025 MinIO retiró de la edición <em>Community</em> prácticamente todas las funciones administrativas de su consola web —gestión de cuentas y políticas, configuración, ciclo de vida y replicación—, dejando poco más que un explorador de objetos. Lo verás en la propia interfaz: aparece el rótulo <strong>Community Edition</strong> bajo el logotipo y el menú lateral se reduce a <code class="inline">Object Browser</code>. La propia MinIO remite a los usuarios de esta edición al cliente de línea de comandos <code class="inline">mc</code> para todo lo demás, y reserva la consola completa para su producto de pago. No es un fallo de tu instalación: es así desde entonces.</div>
+        <div class="warning">Sí queda un botón <strong>Create Bucket</strong>, y ahí está la trampa: el formulario que abre pide <strong>únicamente el nombre</strong>. En la consola antigua ese mismo diálogo ofrecía interruptores para versionado, cuota y <em>Object Locking</em>; ahora no. Un depósito creado desde la interfaz web nace por tanto <strong>sin bloqueo de objetos</strong>, y como el bloqueo solo puede activarse en el momento de la creación, ese depósito no sirve para esta práctica y habría que borrarlo y empezar de nuevo. Por eso el depósito se crea desde <code class="inline">mc</code> en la sección siguiente, y no desde el navegador.</div>
+        <div class="info">Para el resto de la práctica no supone ningún inconveniente: la consola web sigue siendo útil para <em>ver</em> los objetos, sus versiones y sus fechas de retención, que es justo la parte visualmente interesante de la demostración.</div>
+
+        <h3>Instalar el cliente mc en el servidor Docker</h3>
+        <p>El cliente se instala en el <strong>host donde corre Docker</strong>, que es la máquina desde la que se administra el almacenamiento y donde ya está el certificado generado en la sección 6. Los equipos que se respaldan no lo necesitan: allí solo va Kopia.</p>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Descargar e instalar mc</div>
+            <button class="copy-btn" data-copy-target="cmd-13">Copiar</button>
+          </div>
+          <pre id="cmd-13">cd /tmp
+curl -LO https://dl.min.io/client/mc/release/linux-amd64/mc
+ls -lh mc
+file mc</pre>
+        </div>
+        <div class="warning">La opción <code class="inline">-L</code> no es opcional. La dirección de descarga responde con una redirección hacia el servidor de distribución real, y <code class="inline">curl</code> <strong>no sigue redirecciones por defecto</strong>: sin esa opción se descarga el cuerpo de la redirección —un fichero de texto de apenas un centenar de bytes— con el nombre <code class="inline">mc</code>. Al no ser un ejecutable, el sistema intenta interpretarlo como un guion de consola y devuelve errores desconcertantes del tipo <code class="inline">mc: line 32: a: No such file or directory</code>, que no tienen nada que ver con MinIO. Por eso se comprueba el fichero antes de instalarlo.</div>
+        <div class="ok">Antes de continuar, <code class="inline">ls -lh</code> debe mostrar un fichero de <strong>decenas de megabytes</strong> y <code class="inline">file</code> debe identificarlo como <code class="inline">ELF 64-bit LSB executable</code>. Si ves unos pocos bytes o la palabra <code class="inline">HTML</code>, la descarga no ha traído el binario y no tiene sentido seguir.</div>
+        <p>Con el fichero verificado, ya se puede instalar:</p>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Instalar el binario</div>
+            <button class="copy-btn" data-copy-target="cmd-13b">Copiar</button>
+          </div>
+          <pre id="cmd-13b">chmod +x mc
+sudo mv mc /usr/local/bin/
+mc --version</pre>
+        </div>
+        <p>Antes de crear el alias, enseña a <code class="inline">mc</code> a confiar en el certificado autofirmado copiándolo a su almacén propio. Es más limpio que ir arrastrando la opción <code class="inline">--insecure</code> en cada comando:</p>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Confiar en el certificado</div>
+            <button class="copy-btn" data-copy-target="cmd-14">Copiar</button>
+          </div>
+          <pre id="cmd-14">mkdir -p ~/.mc/certs/CAs
+sudo cp /docker/minio/proxy-selfsigned.crt ~/.mc/certs/CAs/minio-clockwork.crt
+sudo chown $USER: ~/.mc/certs/CAs/minio-clockwork.crt</pre>
+        </div>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Crear el alias del servidor</div>
+            <button class="copy-btn" data-copy-target="cmd-15">Copiar</button>
+          </div>
+          <pre id="cmd-15">mc alias set clockwork https://IP_HOST_DOCKER:8447 MINIO_ROOT_USER MINIO_ROOT_PASSWORD
+mc admin info clockwork</pre>
+        </div>
+        <div class="ok">Si <code class="inline">mc admin info</code> devuelve el estado del servidor, la cadena completa funciona: TLS válido, cabecera <code class="inline">Host</code> intacta y credenciales correctas. Este comando es la mejor prueba de humo antes de seguir.</div>
+      </section>
+
+<section class="card" id="paso-bucket">
+        <h2>9. Crear el depósito inmutable</h2>
+        <p>Aquí está el corazón de la práctica. El depósito se crea con el bloqueo de objetos activado desde el primer momento, y acto seguido se le fija una retención por defecto en modo <strong>Compliance</strong>. Se hace desde <code class="inline">mc</code>, en el servidor Docker:</p>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Crear el depósito con Object Lock</div>
+            <button class="copy-btn" data-copy-target="cmd-16">Copiar</button>
+          </div>
+          <pre id="cmd-16">mc mb --with-lock clockwork/backups</pre>
+        </div>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Fijar la retención por defecto</div>
+            <button class="copy-btn" data-copy-target="cmd-17">Copiar</button>
+          </div>
+          <pre id="cmd-17">mc retention set --default COMPLIANCE 30d clockwork/backups</pre>
+        </div>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Comprobar el bloqueo y el versionado</div>
+            <button class="copy-btn" data-copy-target="cmd-18">Copiar</button>
+          </div>
+          <pre id="cmd-18">mc retention info --default clockwork/backups
+mc version info clockwork/backups</pre>
+        </div>
+        <div class="ok">La retención debe aparecer como <code class="inline">COMPLIANCE</code> con validez de 30 días, y el versionado como <strong>habilitado</strong>. El versionado no se activa a mano: <strong>el bloqueo de objetos lo enciende automáticamente y ya no puede desactivarse</strong>, porque sin versiones no habría forma de conservar el estado anterior de un objeto sobrescrito.</div>
+
+        <h3>Governance y Compliance: la diferencia que lo cambia todo</h3>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>&nbsp;</th><th>Governance</th><th>Compliance (el usado aquí)</th></tr></thead>
+            <tbody>
+              <tr><td>Quién puede borrar antes de tiempo</td><td>Un usuario con el permiso <code class="inline">s3:BypassGovernanceRetention</code></td><td><strong>Nadie</strong>, ni el administrador del propio MinIO</td></tr>
+              <tr><td>Se puede acortar el plazo <strong>de un objeto ya escrito</strong></td><td>Sí, con el permiso de excepción</td><td>No. Solo se puede <strong>ampliar</strong></td></tr>
+              <tr><td>Protege frente a credenciales robadas</td><td>Solo si la cuenta robada no tiene la excepción</td><td>Sí, en cualquier caso</td></tr>
+              <tr><td>Para qué sirve</td><td>Evitar borrados accidentales</td><td>Cumplimiento normativo y defensa real ante ransomware</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="warning">Elegir Compliance tiene una contrapartida que hay que asumir con los ojos abiertos: durante esos 30 días <strong>no vas a poder borrar nada</strong>, ni siquiera lo que hayas subido por error, ni con la cuenta administradora, ni recreando el contenedor. La única salida sería destruir el volumen entero desde el sistema anfitrión. En un laboratorio conviene empezar con un plazo corto —<code class="inline">3d</code> en lugar de <code class="inline">30d</code>— hasta tener el montaje rodado, y subirlo después.</div>
+        <div class="note">Un plazo de retención no es una política de conservación de copias. La retención dice <em>cuánto tiempo un objeto es indestructible</em>; cuántas copias se conservan y durante cuánto lo decide Kopia con sus propias políticas. Ambas cosas deben estar coordinadas, y de eso trata la sección 15.</div>
+        <div class="info">Conviene tener claro desde ya, porque reaparece en el simulacro de la sección 13, que lo que se acaba de configurar es la retención <strong>por defecto del depósito</strong>: una plantilla que se aplica a cada objeto en el instante de escribirlo. Modificarla más adelante <strong>no afecta a lo ya almacenado</strong>, porque cada versión de objeto conserva grabada su propia fecha de vencimiento. Esa fecha individual es la protección de verdad, y en modo Compliance no hay forma de acortarla.</div>
+      </section>
+
+<section class="card" id="paso-credenciales">
+        <h2>10. Credenciales dedicadas para los agentes</h2>
+        <p>Los agentes no deben usar la cuenta administradora. Se crea un usuario propio y se le concede acceso <strong>únicamente</strong> al depósito de copias, siguiendo el principio de mínimo privilegio:</p>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Crear el usuario de los agentes</div>
+            <button class="copy-btn" data-copy-target="cmd-19">Copiar</button>
+          </div>
+          <pre id="cmd-19">mc admin user add clockwork KOPIA_ACCESS_KEY KOPIA_SECRET_KEY</pre>
+        </div>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Crear el fichero de política</div>
+            <button class="copy-btn" data-copy-target="cmd-20">Copiar</button>
+          </div>
+          <pre id="cmd-20">sudo nano /docker/minio/kopia-policy.json</pre>
+        </div>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">kopia-policy.json</div>
+            <button class="copy-btn" data-copy-target="cmd-21">Copiar</button>
+          </div>
+          <pre id="cmd-21">{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "s3:ListBucket",
+        "s3:ListBucketVersions",
+        "s3:GetBucketLocation",
+        "s3:GetBucketObjectLockConfiguration",
+        "s3:GetObject",
+        "s3:GetObjectVersion",
+        "s3:PutObject",
+        "s3:PutObjectRetention",
+        "s3:GetObjectRetention",
+        "s3:DeleteObject"
+      ],
+      "Resource": [
+        "arn:aws:s3:::backups",
+        "arn:aws:s3:::backups/*"
+      ]
+    }
+  ]
+}</pre>
+        </div>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Aplicar la política al usuario</div>
+            <button class="copy-btn" data-copy-target="cmd-22">Copiar</button>
+          </div>
+          <pre id="cmd-22">mc admin policy create clockwork kopia-backups /docker/minio/kopia-policy.json
+mc admin policy attach clockwork kopia-backups --user KOPIA_ACCESS_KEY</pre>
+        </div>
+        <div class="info">Fíjate en lo que <strong>no</strong> está en la política: no aparece <code class="inline">s3:BypassGovernanceRetention</code> ni <code class="inline">s3:DeleteBucket</code>. El agente puede escribir sus copias y hacer su mantenimiento, pero no puede saltarse retenciones ni destruir el depósito. En modo Compliance la primera ni siquiera existiría como opción, pero conviene que la política lo diga explícitamente: si algún día bajas a Governance, esa línea es la que marca la diferencia.</div>
+        <div class="note"><code class="inline">s3:DeleteObject</code> sí es necesario, y no contradice la inmutabilidad. Kopia necesita ese permiso para su mantenimiento interno, pero en un depósito con versionado y bloqueo una petición de borrado <strong>no destruye nada</strong>: se limita a crear un marcador de borrado sobre la versión actual, mientras el dato original sigue guardado e intacto. Esta distinción es la clave de la sección 13 y conviene tenerla presente desde ya.</div>
+      </section>
+
+<section class="card" id="paso-kopia-linux">
+        <h2>11. Kopia en Ubuntu Server</h2>
+        <p>Kopia se instala desde su repositorio oficial de paquetes. Registra primero la clave de firma y el origen:</p>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Añadir el repositorio de Kopia</div>
+            <button class="copy-btn" data-copy-target="cmd-23">Copiar</button>
+          </div>
+          <pre id="cmd-23">sudo mkdir -p /etc/apt/keyrings
+curl -s https://kopia.io/signing-key | sudo gpg --dearmor -o /etc/apt/keyrings/kopia-keyring.gpg
+echo "deb [signed-by=/etc/apt/keyrings/kopia-keyring.gpg] http://packages.kopia.io/apt/ stable main" | sudo tee /etc/apt/sources.list.d/kopia.list
+sudo apt update</pre>
+        </div>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Instalar Kopia</div>
+            <button class="copy-btn" data-copy-target="cmd-24">Copiar</button>
+          </div>
+          <pre id="cmd-24">sudo apt install kopia -y
+kopia --version</pre>
+        </div>
+
+        <h3>Confiar en el certificado del servidor</h3>
+        <p>Kopia usa el almacén de certificados del sistema. En lugar de copiar el fichero a mano desde el servidor, se puede pedir directamente al propio servicio y añadirlo al almacén:</p>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Descargar el certificado y confiar en él</div>
+            <button class="copy-btn" data-copy-target="cmd-25">Copiar</button>
+          </div>
+          <pre id="cmd-25">openssl s_client -connect IP_HOST_DOCKER:8447 -showcerts &lt;/dev/null 2&gt;/dev/null \
+  | openssl x509 -outform PEM \
+  | sudo tee /usr/local/share/ca-certificates/minio-clockwork.crt
+
+sudo update-ca-certificates</pre>
+        </div>
+        <div class="ok">La salida debe indicar que se ha añadido un certificado (<code class="inline">1 added</code>). A partir de ese momento cualquier herramienta del sistema que use el almacén estándar —Kopia incluido— confía en el servidor sin necesidad de desactivar comprobaciones.</div>
+        <div class="note">La alternativa rápida es el parámetro <code class="inline">--disable-tls-verification</code> en los comandos de Kopia, que desactiva por completo la validación del certificado. Sirve para salir del paso en una prueba, pero deja al agente enviando sus copias a cualquiera que suplante la dirección del servidor, así que no debería quedarse así. Es el mismo criterio que se aplica a cualquier agente que valide un certificado privado.</div>
+
+        <h3>Crear los datos de prueba</h3>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Carpeta y ficheros de prueba</div>
+            <button class="copy-btn" data-copy-target="cmd-26">Copiar</button>
+          </div>
+          <pre id="cmd-26">sudo mkdir -p /datos/pruebas
+echo "Informe trimestral - Clockwork Computer" | sudo tee /datos/pruebas/informe.txt
+echo "Listado de clientes confidencial" | sudo tee /datos/pruebas/clientes.txt
+sudo dd if=/dev/urandom of=/datos/pruebas/base-datos.bin bs=1M count=20
+ls -lh /datos/pruebas</pre>
+        </div>
+
+        <h3>Crear el repositorio con retención</h3>
+        <p>Este es el comando que enlaza Kopia con el bloqueo de objetos de MinIO. Los parámetros <code class="inline">--retention-mode</code> y <code class="inline">--retention-period</code> son los que hacen que cada bloque subido nazca ya protegido:</p>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Crear el repositorio Kopia sobre MinIO</div>
+            <button class="copy-btn" data-copy-target="cmd-27">Copiar</button>
+          </div>
+          <pre id="cmd-27">sudo kopia repository create s3 \
+  --bucket=backups \
+  --endpoint=IP_HOST_DOCKER:8447 \
+  --access-key=KOPIA_ACCESS_KEY \
+  --secret-access-key=KOPIA_SECRET_KEY \
+  --region=us-east-1 \
+  --retention-mode=COMPLIANCE \
+  --retention-period=30d \
+  --password=KOPIA_REPO_PASSWORD</pre>
+        </div>
+        <div class="warning">El valor de <code class="inline">--endpoint</code> se escribe <strong>sin</strong> <code class="inline">https://</code>: solo dirección y puerto. Kopia usa TLS por defecto y añade el esquema por su cuenta; si se incluye, el comando falla con un error de resolución que despista bastante.</div>
+        <div class="info"><strong>Sobre la región, que es la pregunta que todo el mundo hace:</strong> <code class="inline">us-east-1</code> no significa que nada viaje a Estados Unidos ni tiene la menor implicación geográfica. Los datos van únicamente al servidor de esta misma red y no salen de ahí. La región es un artefacto del protocolo: la <strong>firma Signature V4</strong> de S3 incorpora el nombre de la región al derivar la clave con la que se firma cada petición, de modo que el cliente está obligado a enviar <em>alguna</em>, y <code class="inline">us-east-1</code> es el valor que todos usan por convenio cuando no hay ninguna configurada. Un MinIO sin región definida acepta la que le llegue sin comprobarla, así que en la práctica funciona como una etiqueta.</div>
+        <div class="note">Se puede personalizar —en un despliegue español encajaría <code class="inline">eu-south-2</code>, que es el código de la región de Madrid— definiéndola en el servidor y usando ese mismo valor en el <code class="inline">--region</code> de todos los clientes. Pero <strong>ambos lados deben coincidir exactamente</strong>: si no lo hacen, las peticiones se rechazan con un <code class="inline">AuthorizationHeaderMalformed</code> porque la firma se calcula con una clave distinta. Como no aporta nada funcional y añade una forma más de romper el montaje, lo razonable es dejar <code class="inline">us-east-1</code> y explicar por qué.</div>
+        <div class="ok">La salida confirma el cifrado que se va a usar (<code class="inline">AES256-GCM-HMAC-SHA256</code>), la política de conservación por defecto y, al final, quién queda como <strong>propietario del mantenimiento</strong>, que será este mismo equipo. Anota ese dato: es la pieza de la que depende que los bloqueos se sigan renovando, y se explica en la sección 15.</div>
+
+        <h3>Validar el proveedor de almacenamiento</h3>
+        <p>El propio Kopia sugiere al terminar una comprobación que conviene no saltarse. No se limita a probar que hay conexión: escribe bloques reales y verifica que el almacenamiento se comporta como Kopia necesita —creaciones condicionales, listados coherentes, lecturas parciales y acceso concurrente—, que es justo donde suelen fallar las implementaciones de S3 de terceros:</p>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Validar la compatibilidad del almacenamiento</div>
+            <button class="copy-btn" data-copy-target="cmd-27b">Copiar</button>
+          </div>
+          <pre id="cmd-27b">sudo kopia repository validate-provider</pre>
+        </div>
+        <div class="ok">Tarda alrededor de un minuto, porque incluye una prueba de concurrencia de 30 segundos, y debe terminar con un escueto <code class="inline">All good.</code> seguido de la limpieza de los datos temporales. Con eso queda demostrado que MinIO detrás del proxy inverso cumple todo lo que Kopia le va a exigir, y cualquier problema posterior ya no será del almacenamiento. Es una comprobación excelente para dejar grabada, porque valida de una sola vez el certificado, la cabecera <code class="inline">Host</code>, el límite de subida de Nginx y los tiempos de espera.</div>
+
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Activar la renovación automática de los bloqueos</div>
+            <button class="copy-btn" data-copy-target="cmd-28">Copiar</button>
+          </div>
+          <pre id="cmd-28">sudo kopia maintenance set --extend-object-locks true
+sudo kopia maintenance set --full-interval=24h
+sudo kopia maintenance info</pre>
+        </div>
+        <div class="info">Estos dos ajustes son imprescindibles y se explican en detalle en la sección 15. En resumen: el bloqueo de cada objeto tiene fecha de caducidad, y es el mantenimiento periódico de Kopia el que va renovando la de los bloques que siguen siendo necesarios. Sin <code class="inline">--extend-object-locks</code> la protección se evapora al cumplirse el plazo. El intervalo de 24 horas coincide con el valor que Kopia trae de fábrica, pero se fija de forma explícita a propósito: es un parámetro del que depende la protección y conviene que quede declarado, no heredado.</div>
+        <div class="note">En un servidor conviene además desactivar la comprobación periódica de actualizaciones que Kopia hace contra GitHub, tanto por no generar tráfico saliente innecesario como por no depender de él: basta con definir la variable de entorno <code class="inline">KOPIA_CHECK_FOR_UPDATES=false</code>, que en la sección 12 ya queda recogida en el fichero de entorno del servicio.</div>
+
+        <h3>Primera copia</h3>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Crear la copia y listarla</div>
+            <button class="copy-btn" data-copy-target="cmd-29">Copiar</button>
+          </div>
+          <pre id="cmd-29">sudo kopia snapshot create /datos/pruebas
+sudo kopia snapshot list</pre>
+        </div>
+        <div class="ok">La copia aparece con su identificador, fecha, tamaño y número de ficheros. Desde la consola web de MinIO, en <code class="inline">backups</code>, verás aparecer las carpetas internas de Kopia (<code class="inline">p</code>, <code class="inline">q</code>, <code class="inline">x</code>, <code class="inline">kopia.repository</code>): los datos ya están arriba, cifrados y con su bloqueo puesto.</div>
+        <p>Conviene rematar comprobando que la protección quedó grabada en el repositorio, y no solo en la línea de comandos que lo creó:</p>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Confirmar la retención del repositorio</div>
+            <button class="copy-btn" data-copy-target="cmd-29b">Copiar</button>
+          </div>
+          <pre id="cmd-29b">sudo kopia repository status</pre>
+        </div>
+        <div class="ok">Al final de la salida deben aparecer <code class="inline">Blob retention mode: COMPLIANCE</code> y <code class="inline">Blob retention period: 720h0m0s</code>. Esas 720 horas son los 30 días expresados en la unidad que usa Kopia internamente, así que si ves ese par de líneas, cada bloque que suba el agente nacerá protegido. Si faltasen, el repositorio se creó sin retención y habría que rehacerlo.</div>
+        <div class="note">Al repetir la copia sin cambiar nada verás en el listado un mensaje del tipo <code class="inline">+ 2 identical snapshots until ...</code>. No son copias duplicadas ocupando espacio: Kopia detecta que el contenido es idéntico y agrupa esas entradas, guardando los datos una sola vez. Es la deduplicación haciendo su trabajo, y viene bien enseñarlo para que no parezca que cada ejecución multiplica el consumo.</div>
+      </section>
+
+<section class="card" id="paso-programar">
+        <h2>12. Programar las copias en Ubuntu Server</h2>
+        <p>Una copia manual demuestra que el montaje funciona; lo que protege de verdad es la que se ejecuta sola todos los días, sin que nadie se acuerde de lanzarla. En el Ubuntu Server se resuelve con las herramientas nativas del sistema: un servicio y un temporizador de <strong>systemd</strong>, que sustituyen con ventaja al viejo <code class="inline">cron</code> porque dejan registro consultable de cada ejecución y sobreviven a los apagados.</p>
+
+        <h3>El temporizador de systemd</h3>
+        <p>Primero, el fichero con la contraseña del repositorio, con permisos restringidos para que solo root pueda leerlo:</p>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Fichero de entorno</div>
+            <button class="copy-btn" data-copy-target="cmd-34">Copiar</button>
+          </div>
+          <pre id="cmd-34">sudo mkdir -p /etc/kopia
+sudo tee /etc/kopia/kopia.env &gt;/dev/null &lt;&lt;'EOF'
+KOPIA_PASSWORD=KOPIA_REPO_PASSWORD
+KOPIA_CHECK_FOR_UPDATES=false
+EOF
+sudo chmod 600 /etc/kopia/kopia.env</pre>
+        </div>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Crear el servicio</div>
+            <button class="copy-btn" data-copy-target="cmd-35">Copiar</button>
+          </div>
+          <pre id="cmd-35">sudo nano /etc/systemd/system/kopia-backup.service</pre>
+        </div>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">kopia-backup.service</div>
+            <button class="copy-btn" data-copy-target="cmd-36">Copiar</button>
+          </div>
+          <pre id="cmd-36">[Unit]
+Description=Copia de seguridad con Kopia hacia MinIO
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+EnvironmentFile=/etc/kopia/kopia.env
+Environment=HOME=/root
+ExecStart=/usr/bin/kopia --config-file=/root/.config/kopia/repository.config snapshot create /datos/pruebas
+ExecStartPost=/usr/bin/kopia --config-file=/root/.config/kopia/repository.config maintenance run --full</pre>
+        </div>
+        <div class="warning">Las dos líneas que evitan el fallo más habitual de este paso son <code class="inline">Environment=HOME=/root</code> y el <code class="inline">--config-file</code> explícito. El motivo: la configuración de Kopia vive en <code class="inline">$HOME/.config/kopia/repository.config</code>, y <strong>systemd no define <code class="inline">$HOME</code> en los servicios del sistema</strong> aunque se ejecuten como root. Sin ellas, la copia funciona a mano con <code class="inline">sudo</code> pero el servicio falla con <code class="inline">open repository: repository is not connected</code>, que hace pensar en un problema de red o de credenciales cuando en realidad Kopia sencillamente no encuentra su propio fichero de configuración. Definir <code class="inline">HOME</code> importa además por la caché, que también cuelga de ahí.</div>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Crear el temporizador</div>
+            <button class="copy-btn" data-copy-target="cmd-37">Copiar</button>
+          </div>
+          <pre id="cmd-37">sudo nano /etc/systemd/system/kopia-backup.timer</pre>
+        </div>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">kopia-backup.timer</div>
+            <button class="copy-btn" data-copy-target="cmd-38">Copiar</button>
+          </div>
+          <pre id="cmd-38">[Unit]
+Description=Copia diaria con Kopia
+
+[Timer]
+OnCalendar=*-*-* 02:00:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target</pre>
+        </div>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Activar y comprobar</div>
+            <button class="copy-btn" data-copy-target="cmd-39">Copiar</button>
+          </div>
+          <pre id="cmd-39">sudo systemctl daemon-reload
+sudo systemctl enable --now kopia-backup.timer
+systemctl list-timers kopia-backup.timer
+sudo systemctl start kopia-backup.service
+journalctl -u kopia-backup.service -n 30 --no-pager</pre>
+        </div>
+        <div class="note"><code class="inline">Persistent=true</code> es un detalle que marca la diferencia en equipos que no están encendidos las 24 horas: si el servidor estaba apagado a las 02:00, la copia se lanza en cuanto arranca en lugar de perderse hasta el día siguiente. El último comando ejecuta el servicio a mano para validarlo sin esperar a la hora programada.</div>
+      </section>
+
+<section class="card" id="paso-simulacro">
+        <h2>13. Simulacro de ransomware</h2>
+        <p>Con las copias en su sitio, toca comprobar que la inmutabilidad no es una casilla marcada en una configuración sino una defensa real. El simulacro tiene tres fases, en orden de agresividad creciente.</p>
+
+        <h3>Fase 1: el ransomware ataca los datos originales</h3>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Cifrar y destruir los ficheros originales (Ubuntu)</div>
+            <button class="copy-btn" data-copy-target="cmd-42">Copiar</button>
+          </div>
+          <pre id="cmd-42">sudo bash -c 'for f in /datos/pruebas/*; do \
+  openssl enc -aes-256-cbc -pbkdf2 -in "$f" -out "$f.locked" -k "rescate123" && rm -f "$f"; \
+done'
+ls -l /datos/pruebas</pre>
+        </div>
+        <div class="ok">Los ficheros originales han desaparecido y en su lugar quedan versiones cifradas con extensión <code class="inline">.locked</code>. Es exactamente el estado en el que un usuario descubre que ha sido víctima de un ataque.</div>
+
+        <h3>Fase 2: el atacante intenta borrar las copias</h3>
+        <p>El siguiente paso de cualquier ransomware serio es ir a por el respaldo, usando las credenciales que encuentre en el equipo comprometido. Y ahí está la gracia de hacerlo <strong>desde el propio equipo atacado</strong>, no desde el servidor: es donde estarían realmente esas credenciales, dentro de la configuración del agente de copia. Como <code class="inline">mc</code> se instaló en el servidor Docker, hay que ponerlo también aquí:</p>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Instalar mc en el equipo comprometido</div>
+            <button class="copy-btn" data-copy-target="cmd-42b">Copiar</button>
+          </div>
+          <pre id="cmd-42b">cd /tmp
+curl -LO https://dl.min.io/client/mc/release/linux-amd64/mc
+file mc
+chmod +x mc
+sudo mv mc /usr/local/bin/
+mc --version</pre>
+        </div>
+        <div class="note">No hace falta volver a tocar el certificado: en la sección 11 ya se añadió al almacén del sistema con <code class="inline">update-ca-certificates</code>, y <code class="inline">mc</code> lo respeta. Y recuerda el <code class="inline">-L</code> del <code class="inline">curl</code>, por el mismo motivo que en la sección 8.</div>
+        <div class="warning">La dirección del alias debe ser <strong>la misma por la que este equipo alcanza el servidor</strong>, es decir la que se usó en <code class="inline">--endpoint</code> al crear el repositorio, no la de administración. Si el servidor tiene dos interfaces y aquí pones la equivocada, la conexión no llegará —o llegará por una ruta que no toca— y parecerá un fallo de la práctica cuando solo es un error de direccionamiento.</div>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">El atacante se conecta con las credenciales robadas</div>
+            <button class="copy-btn" data-copy-target="cmd-43">Copiar</button>
+          </div>
+          <pre id="cmd-43">mc alias set atacante https://IP_HOST_DOCKER:8447 KOPIA_ACCESS_KEY KOPIA_SECRET_KEY
+mc ls atacante/backups/</pre>
+        </div>
+        <div class="info">Si prefieres simplificar y no instalar nada en el equipo atacado, todos los comandos de esta fase funcionan igual desde el servidor Docker, donde <code class="inline">mc</code> ya está. El resultado técnico es idéntico; solo se pierde algo de verosimilitud en el relato, porque el ataque real parte del equipo comprometido y no del servidor de copias.</div>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Intento de borrado convencional</div>
+            <button class="copy-btn" data-copy-target="cmd-44">Copiar</button>
+          </div>
+          <pre id="cmd-44">mc rm --recursive --force atacante/backups/
+mc ls atacante/backups/</pre>
+        </div>
+        <div class="warning"><strong>Atención al resultado, porque es contraintuitivo y es el momento más interesante de la práctica:</strong> el comando <em>parece</em> haber funcionado y el listado posterior aparece completamente vacío. El atacante celebraría. Pero en un depósito con versionado, una petición de borrado no destruye el dato: solo coloca un <strong>marcador de borrado</strong> sobre él, que lo oculta del listado normal dejándolo intacto por debajo.</div>
+        <div class="info">Y no hay que deducirlo: la propia herramienta lo confiesa línea por línea. Cada objeto genera un mensaje <code class="inline">Created delete marker ... (versionId=...)</code> en lugar de un borrado. Se reconocen ahí, además, las piezas internas del repositorio de Kopia: <code class="inline">kopia.repository</code> con los metadatos, <code class="inline">kopia.blobcfg</code> y <code class="inline">kopia.maintenance</code> con su configuración, y los bloques de datos e índices con prefijos <code class="inline">p</code>, <code class="inline">q</code> y <code class="inline">xn0_</code>. Todo cifrado: ni los nombres revelan qué se ha copiado.</div>
+        <div class="note">A partir de este momento el agente del equipo atacado tampoco ve su repositorio: si pruebas un <code class="inline">kopia snapshot list</code> fallará, porque para él los objetos han desaparecido. Es justo la sensación que tendría el administrador al descubrir el incidente, y por eso la restauración de la sección 14 empieza retirando estos marcadores.</div>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Comprobar que los datos siguen ahí</div>
+            <button class="copy-btn" data-copy-target="cmd-45">Copiar</button>
+          </div>
+          <pre id="cmd-45">mc ls --versions atacante/backups/</pre>
+        </div>
+        <div class="ok">Todas las versiones aparecen listadas, con su tamaño y su fecha. No se ha perdido absolutamente nada: solo se ha añadido una capa de marcadores por encima.</div>
+        <p>Un atacante con conocimientos lo sabría e iría a por las versiones. Aquí es donde entra el bloqueo:</p>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Intento de borrado definitivo de las versiones</div>
+            <button class="copy-btn" data-copy-target="cmd-46">Copiar</button>
+          </div>
+          <pre id="cmd-46">mc rm --recursive --force --versions atacante/backups/</pre>
+        </div>
+        <div class="warning"><strong>La salida de este comando engaña, y conviene leerla despacio antes de dar nada por perdido.</strong> Aparecerá una larga lista de líneas <code class="inline">Removed ...</code> que parece indicar que el ataque está teniendo éxito, y solo al final un único error. No cunda el pánico: lo que se ha borrado no son los datos.</div>
+        <p>La prueba está en los identificadores de versión. Si comparas las líneas <code class="inline">Removed</code> con los <code class="inline">Created delete marker</code> del paso anterior, verás que <strong>coinciden uno a uno</strong>: lo que el comando ha eliminado son los propios marcadores de borrado, que no llevan retención porque no contienen datos. Y borrar un marcador no destruye nada; al contrario, <em>devuelve la visibilidad</em> al objeto que ocultaba. El resto de líneas corresponde a blobs temporales que dejó la validación del proveedor de la sección 11, que tampoco estaban protegidos.</p>
+        <div class="ok">El desenlace es el único error del final, y es exactamente el que buscábamos: <code class="inline">Object, '..." is WORM protected and cannot be overwritten</code>. En cuanto el comando llega a la primera versión <strong>real</strong> de un dato —fíjate en que su identificador de versión ya <strong>no</strong> coincide con ningún marcador—, MinIO lo rechaza y la operación se detiene. <strong>Los datos son indestructibles y el ataque ha fracasado.</strong></div>
+        <div class="note">Detalle que conviene anticipar en cámara: <code class="inline">mc</code> <strong>aborta en el primer objeto protegido</strong> en lugar de continuar y devolver un error por cada uno. Por eso se ve una sola línea de error y no un muro de rechazos. Y como efecto colateral curioso, al haber eliminado los marcadores, el depósito vuelve a mostrar su contenido en un listado normal: el atacante, intentando afinar, ha deshecho sin querer su propio borrado.</div>
+
+        <h3>Fase 3: el atacante consigue las credenciales de administrador</h3>
+        <p>Vamos al peor escenario posible dentro del almacenamiento: que el atacante llegue a la cuenta administradora de MinIO. Se usa el alias <code class="inline">clockwork</code>, el de la cuenta root.</p>
+        <div class="warning">Los alias de <code class="inline">mc</code> son <strong>locales a cada equipo</strong>: viven en <code class="inline">~/.mc/config.json</code>. El alias <code class="inline">clockwork</code> se creó en la sección 8 <em>en el servidor Docker</em>, así que en el equipo atacado no existe. Si lanzas ahí estos comandos sin más, <code class="inline">mc</code> no reconoce <code class="inline">clockwork</code> como un alias, lo interpreta como una <strong>ruta del sistema de ficheros local</strong> y devuelve errores tan desconcertantes como <code class="inline">Requested path /tmp/clockwork/backups not found</code> o <code class="inline">SetObjectLockConfig is not supported for 'filesystem'</code>. No es un fallo del bloqueo: es que está mirando en el disco local.</div>
+        <p>Hay dos formas de resolverlo, y ambas valen. La primera es ejecutar esta fase <strong>desde el servidor Docker</strong>, donde el alias ya existe. La segunda, más coherente con el relato —el atacante ha escalado privilegios y ahora tiene las credenciales del administrador—, es darlo de alta también en el equipo atacado:</p>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Dar de alta el alias de administrador en el equipo atacado</div>
+            <button class="copy-btn" data-copy-target="cmd-46b">Copiar</button>
+          </div>
+          <pre id="cmd-46b">mc alias set clockwork https://IP_HOST_DOCKER:8447 MINIO_ROOT_USER MINIO_ROOT_PASSWORD
+mc ls clockwork/backups/</pre>
+        </div>
+        <p>Con el alias resuelto, los intentos con la cuenta administradora:</p>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Intentos con la cuenta administradora</div>
+            <button class="copy-btn" data-copy-target="cmd-47">Copiar</button>
+          </div>
+          <pre id="cmd-47">mc rm --recursive --force --versions clockwork/backups/
+mc rb --force clockwork/backups</pre>
+        </div>
+        <div class="ok">Los dos fallan, y con el mismo motivo: <code class="inline">is WORM protected and cannot be overwritten</code>. El modo <strong>Compliance</strong> no admite excepciones ni siquiera para la cuenta administradora, así que no se pueden borrar las versiones protegidas y tampoco eliminar el depósito mientras las contenga. Esta es exactamente la propiedad que convierte una copia en una copia inmutable.</div>
+
+        <h3>Lo que el administrador sí puede hacer, y por qué no le sirve de nada</h3>
+        <p>Queda un último intento, el más sutil: si no puede borrar, que rebaje el plazo de retención y espere a que caduque. Este comando <strong>sí se ejecuta correctamente</strong>:</p>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Rebajar la retención por defecto del depósito</div>
+            <button class="copy-btn" data-copy-target="cmd-47c">Copiar</button>
+          </div>
+          <pre id="cmd-47c">mc retention set --default COMPLIANCE 1d clockwork/backups</pre>
+        </div>
+        <div class="warning">Aquí hay una distinción que se confunde constantemente y que conviene explicar con cuidado, porque de ella depende entender qué protege realmente el bloqueo. Lo que acaba de cambiarse es la <strong>retención por defecto del depósito</strong>, que no es más que la plantilla que se aplica a los objetos <em>en el momento de escribirlos</em>. Es modificable, sí. Pero la protección real no vive ahí: vive en <strong>cada versión de objeto ya escrita</strong>, que lleva grabada su propia fecha de vencimiento, y esa —en modo Compliance— no se puede acortar ni cambiar de modo. Solo ampliar.</div>
+        <p>La demostración es inmediata: pregunta por el valor por defecto del depósito y por el de un objeto concreto ya almacenado, y compáralos:</p>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Comparar el defecto del depósito con la retención real de un objeto</div>
+            <button class="copy-btn" data-copy-target="cmd-47d">Copiar</button>
+          </div>
+          <pre id="cmd-47d">mc retention info --default clockwork/backups
+mc retention info clockwork/backups/kopia.repository</pre>
+        </div>
+        <div class="ok">El depósito dirá ahora <strong>1 día</strong>, pero el objeto seguirá mostrando su vencimiento original a <strong>30 días vista</strong>. El atacante ha conseguido debilitar lo que se escriba <em>a partir de ahora</em>, y absolutamente nada de lo que ya estaba. Las copias existentes siguen siendo indestructibles durante todo su plazo.</div>
+        <div class="info">Y en este montaje hay además una segunda barrera: Kopia no depende del valor por defecto del depósito, porque fija la retención <strong>objeto a objeto</strong> con el plazo guardado en su propia configuración de repositorio (el <code class="inline">--retention-period</code> de la sección 11). Aunque alguien rebaje el defecto del depósito, las copias que siga haciendo el agente nacerán igualmente con sus 30 días. Son dos capas independientes, y hace falta comprometer las dos para debilitar la protección futura.</div>
+        <div class="warning"><strong>No olvides deshacer este cambio antes de continuar</strong>, o el depósito se quedará con una retención por defecto de un solo día: <code class="inline">mc retention set --default COMPLIANCE 30d clockwork/backups</code>.</div>
+        <div class="warning">Y aquí la parte honesta, que conviene decir en voz alta: esto protege frente a un atacante que llega por la <strong>API de S3</strong>, que es el vector real del ransomware y el robo de credenciales. No protege frente a quien comprometa el <strong>sistema anfitrión</strong> donde corre MinIO, porque desde ahí se puede destruir el volumen de Docker por debajo, sin pasar por la API ni por sus reglas. Por eso en un despliegue real el almacenamiento de copias vive en una máquina separada y endurecida, con acceso administrativo restringido, y a ser posible replicado a un tercer sitio.</div>
+      </section>
+
+<section class="card" id="paso-restaurar">
+        <h2>14. Restauración</h2>
+        <h3>Primero: comprobar si hace falta deshacer algo</h3>
+        <p>La recuperación no empieza restaurando, sino mirando en qué estado quedó el repositorio. Dependiendo de hasta dónde llegara el atacante, el punto de partida es distinto, así que lo primero es preguntárselo al propio agente:</p>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Ver si el agente alcanza su repositorio</div>
+            <button class="copy-btn" data-copy-target="cmd-47b">Copiar</button>
+          </div>
+          <pre id="cmd-47b">sudo kopia repository status</pre>
+        </div>
+        <div class="info">Hay dos desenlaces posibles, y conviene entender por qué. Si el ataque se quedó en el <strong>borrado convencional</strong>, los marcadores siguen puestos, el repositorio está oculto y este comando falla: hay que retirarlos con el paso siguiente. Pero si el atacante llegó a intentar el <strong>borrado de versiones</strong>, se llevó por delante sus propios marcadores antes de chocar con el bloqueo, de modo que los objetos volvieron a ser visibles solos y este comando responde con normalidad. En ese caso <strong>no hay nada que deshacer</strong> y se puede saltar directamente a la restauración.</div>
+        <div class="ok">La salida es además una buena diapositiva: confirma <code class="inline">Blob retention mode: COMPLIANCE</code> y <code class="inline">Blob retention period: 720h0m0s</code> —las 720 horas son los 30 días—, es decir que el agente sigue escribiendo con protección activa incluso después del incidente.</div>
+
+        <h3>Si el repositorio sigue oculto: retirar los marcadores</h3>
+        <p>Solo en el primer caso. Los datos nunca se fueron, únicamente quedaron tapados, y <code class="inline">mc</code> lo revierte deshaciendo la última operación sobre los objetos versionados:</p>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Deshacer el borrado del atacante</div>
+            <button class="copy-btn" data-copy-target="cmd-48">Copiar</button>
+          </div>
+          <pre id="cmd-48">mc undo --recursive --force clockwork/backups/
+mc ls clockwork/backups/</pre>
+        </div>
+        <div class="ok">El listado normal vuelve a mostrar el contenido del repositorio. Los marcadores han desaparecido y los objetos originales vuelven a ser la versión actual. Ningún dato tuvo que recuperarse de ningún sitio: nunca se fue.</div>
+        <div class="note">Si en su lugar recibes <code class="inline">Undo command works only with S3 versioned-enabled buckets</code> junto a una ruta del sistema de ficheros local, no es que falte el versionado: es que el alias no existe en ese equipo y <code class="inline">mc</code> está mirando en el disco. Revisa el aviso sobre alias de la sección 13.</div>
+        <p>Ahora la restauración propiamente dicha. Localiza la copia y recupérala en una carpeta nueva, para poder comparar antes de sobrescribir nada:</p>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Listar las copias disponibles (Ubuntu)</div>
+            <button class="copy-btn" data-copy-target="cmd-49">Copiar</button>
+          </div>
+          <pre id="cmd-49">sudo kopia repository status
+sudo kopia snapshot list /datos/pruebas
+sudo kopia snapshot list --all</pre>
+        </div>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Restaurar en una carpeta nueva</div>
+            <button class="copy-btn" data-copy-target="cmd-50">Copiar</button>
+          </div>
+          <pre id="cmd-50">sudo kopia snapshot restore ID_DE_LA_COPIA /datos/restaurado
+ls -lh /datos/restaurado
+cat /datos/restaurado/informe.txt</pre>
+        </div>
+        <div class="ok">Los ficheros originales vuelven a estar ahí, en claro y con su contenido intacto, mientras que en <code class="inline">/datos/pruebas</code> siguen los <code class="inline">.locked</code> del ataque. La restauración de extremo a extremo está demostrada: <strong>ese es el cero de la regla 3-2-1-1-0</strong>.</div>
+        <div class="note">Sustituye <code class="inline">ID_DE_LA_COPIA</code> por el identificador que devuelve <code class="inline">snapshot list</code> (una cadena hexadecimal larga). Si prefieres explorar antes de restaurar, <code class="inline">sudo kopia mount all /mnt/kopia</code> monta todas las copias como un sistema de ficheros de solo lectura y permite navegarlas con <code class="inline">ls</code> y <code class="inline">cp</code> como si fueran carpetas normales.</div>
+      </section>
+
+<section class="card" id="paso-mantenimiento">
+        <h2>15. Vigencia de los bloqueos y mantenimiento</h2>
+        <p>Este es el punto que más instalaciones tiene mal configuradas, y el que decide si la protección sigue viva dentro de seis meses o se apagó sin que nadie se diera cuenta.</p>
+        <p>El bloqueo de un objeto <strong>no es perpetuo</strong>: tiene una fecha de expiración, la que se fijó al subirlo. Pasada esa fecha, el objeto vuelve a ser borrable. Como una copia útil necesita seguir protegida indefinidamente mientras se conserve, Kopia va <strong>renovando</strong> la fecha de los bloques que siguen formando parte de alguna copia activa. Esa renovación ocurre durante el <strong>mantenimiento completo</strong>, y solo si está activada la opción correspondiente:</p>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Revisar la configuración de mantenimiento</div>
+            <button class="copy-btn" data-copy-target="cmd-52">Copiar</button>
+          </div>
+          <pre id="cmd-52">sudo kopia maintenance info</pre>
+        </div>
+        <div class="ok">Esta salida es la mejor prueba de que la protección está viva, y merece una pausa en cámara porque en ella se ve todo el mecanismo funcionando. Hay tres cosas que mirar: la línea <code class="inline">Object Lock Extension: enabled</code>, que confirma que la renovación está activada; el <code class="inline">Owner</code>, que identifica al equipo responsable de ejecutarla; y sobre todo el histórico de la tarea <code class="inline">extend-blob-retention-time</code>, donde cada ejecución deja constancia del trabajo real con mensajes del tipo <code class="inline">Blob retention extension found 15 blobs and extended for 15 blobs, retention period 720h0m0s</code>. Ese contador creciendo copia tras copia es la inmutabilidad renovándose sola.</div>
+        <div class="note">En ese mismo histórico aparecen las demás tareas del mantenimiento, y ayudan a explicar qué hace Kopia por dentro: <code class="inline">snapshot-gc</code> distingue los contenidos en uso de los huérfanos, <code class="inline">cleanup-logs</code> aplica la retención a los registros, y las tareas de épocas (<code class="inline">advance-epoch</code>, <code class="inline">compact-single-epoch</code>) mantienen compactado el índice. Todas deben aparecer como <code class="inline">SUCCESS</code>.</div>
+        <div class="warning"><strong>La regla de oro:</strong> el intervalo de mantenimiento completo debe ser <strong>menor</strong> que el periodo de retención, con margen de sobra —al menos un día menos—. Con retención de 30 días y mantenimiento cada 24 horas, como se configuró en la sección 11, hay margen de sobra. Si el mantenimiento dejara de ejecutarse durante más de 30 días —porque el equipo estuvo apagado, porque falló el temporizador o porque el propietario del mantenimiento cambió—, los bloqueos caducarían y las copias volverían a ser borrables sin ningún aviso.</div>
+        <div class="note">Kopia designa a un único cliente como <strong>propietario del mantenimiento</strong> para que dos equipos no lo ejecuten a la vez. En este montaje lo es el Ubuntu Server, que fue quien creó el repositorio. Compruébalo con <code class="inline">kopia maintenance info</code>: si algún día ese equipo desaparece, hay que traspasar la propiedad con <code class="inline">kopia maintenance set --owner=usuario@equipo</code> o el mantenimiento sencillamente dejará de ejecutarse, en silencio.</div>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Forzar un mantenimiento completo</div>
+            <button class="copy-btn" data-copy-target="cmd-53">Copiar</button>
+          </div>
+          <pre id="cmd-53">sudo kopia maintenance run --full</pre>
+        </div>
+
+        <h3>El riesgo del depósito lleno</h3>
+        <div class="warning">La inmutabilidad tiene un efecto secundario que conviene prever: si nada se puede borrar, nada libera espacio antes de tiempo. Un atacante con las credenciales del agente no puede destruir tus copias, pero <strong>sí puede subir basura</strong> hasta llenar el almacenamiento y dejarlo inservible, sin que puedas limpiarla hasta que expire su retención. La mitigación es poner una cuota al depósito para que ese ataque tenga un techo:</div>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Limitar el tamaño del depósito</div>
+            <button class="copy-btn" data-copy-target="cmd-54">Copiar</button>
+          </div>
+          <pre id="cmd-54">mc quota set clockwork/backups --size 100gi
+mc quota info clockwork/backups</pre>
+        </div>
+
+        <h3>Política de conservación de copias</h3>
+        <p>Independientemente de la retención del almacenamiento, Kopia decide cuántas copias conserva. Ya viene con unos valores por defecto que la propia creación del repositorio mostró en pantalla —10 últimas, 48 horarias, 7 diarias, 4 semanales, 24 mensuales y 3 anuales—, generosos y pensados para conservar mucho historial. Conviene revisarlos y ajustarlos de forma consciente, sobre todo si el espacio es limitado y no se puede liberar antes de que expire el bloqueo:</p>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Definir cuántas copias se conservan</div>
+            <button class="copy-btn" data-copy-target="cmd-55">Copiar</button>
+          </div>
+          <pre id="cmd-55">sudo kopia policy set --global \
+  --keep-latest=10 \
+  --keep-daily=14 \
+  --keep-weekly=4 \
+  --keep-monthly=6
+
+sudo kopia policy show --global</pre>
+        </div>
+        <div class="info">Conviene no confundir los dos plazos, porque suenan parecidos y hacen cosas distintas. La <strong>retención de S3</strong> dice cuánto tiempo un bloque es <em>indestructible</em>; la <strong>política de Kopia</strong> dice cuántas copias siguen siendo <em>necesarias</em>. Cuando Kopia descarta una copia antigua, sus bloques dejan de renovarse y acaban expirando por sí solos, momento en el que el espacio se libera. Los dos mecanismos trabajan juntos: uno protege, el otro recicla.</div>
+      </section>
+
+<section class="card" id="paso-kopia-windows">
+        <h2>16. Kopia en Windows 11</h2>
+        <p>Con el ciclo completo demostrado en Linux —copia, programación, ataque y recuperación—, toca comprobar que el mismo repositorio da servicio a un sistema operativo distinto sin cambiar nada del servidor. Este apartado repite el recorrido entero en un Windows 11: instalación del agente, confianza en el certificado, conexión al repositorio <strong>ya existente</strong>, copia programada y restauración, incluida la de los datos que respaldó la otra máquina.</p>
+        <p>La instalación se resuelve con el gestor de paquetes integrado. Ejecuta PowerShell <strong>como administrador</strong>:</p>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Instalar Kopia</div>
+            <button class="copy-btn" data-copy-target="cmd-30">Copiar</button>
+          </div>
+          <pre id="cmd-30">winget install Kopia.KopiaCLI --accept-package-agreements --accept-source-agreements
+kopia --version</pre>
+        </div>
+        <div class="note">Si <code class="inline">kopia</code> no se reconoce inmediatamente después de instalar, cierra y vuelve a abrir PowerShell: la variable <code class="inline">PATH</code> se actualiza al iniciar una sesión nueva. También existe el paquete <code class="inline">Kopia.KopiaUI</code>, que añade una interfaz gráfica de escritorio sobre el mismo motor, útil si prefieres enseñar el proceso visualmente en lugar de por línea de comandos.</div>
+
+        <h3>Confiar en el certificado del servidor</h3>
+        <p>En Linux el certificado se descargaba del propio servicio con <code class="inline">openssl</code>; en Windows es más cómodo traerlo por <strong>SCP</strong>, porque Windows 10 y 11 incluyen el cliente de OpenSSH de serie y <code class="inline">scp</code> funciona directamente desde PowerShell sin instalar nada. Pedirá la contraseña del usuario del servidor:</p>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Traer el certificado desde el servidor</div>
+            <button class="copy-btn" data-copy-target="cmd-30b">Copiar</button>
+          </div>
+          <pre id="cmd-30b">scp USUARIO_SERVIDOR@IP_HOST_DOCKER:/docker/minio/proxy-selfsigned.crt "$env:USERPROFILE\Downloads\proxy-selfsigned.crt"</pre>
+        </div>
+        <div class="note">Si responde <code class="inline">Permission denied</code> al leer el fichero, es porque el certificado pertenece a root y el usuario con el que entras no puede leerlo. Se resuelve dejando una copia accesible en el servidor antes de repetir el <code class="inline">scp</code>: <code class="inline">sudo cp /docker/minio/proxy-selfsigned.crt ~ &amp;&amp; sudo chown $USER: ~/proxy-selfsigned.crt</code>, y apuntando entonces a <code class="inline">~/proxy-selfsigned.crt</code>. Ten en cuenta también que muchos servidores tienen deshabilitado el acceso SSH directo como root, así que usa tu usuario habitual.</div>
+        <p>Antes de instalarlo, conviene mirar qué se ha traído. Este paso confirma de un vistazo que el fichero es el certificado correcto y no otra cosa:</p>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Comprobar el certificado descargado</div>
+            <button class="copy-btn" data-copy-target="cmd-30c">Copiar</button>
+          </div>
+          <pre id="cmd-30c">Get-PfxCertificate -FilePath "$env:USERPROFILE\Downloads\proxy-selfsigned.crt" | Format-List Subject, Issuer, NotAfter, Thumbprint</pre>
+        </div>
+        <div class="ok">El <code class="inline">Subject</code> y el <code class="inline">Issuer</code> deben coincidir —es autofirmado, así que se emite a sí mismo— y mostrar la IP del servidor. La <code class="inline">NotAfter</code> debe estar a algo más de dos años vista, que son los 825 días con los que se generó.</div>
+        <p>Ya se puede añadir al almacén de entidades de certificación de confianza del equipo:</p>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Importar el certificado</div>
+            <button class="copy-btn" data-copy-target="cmd-31">Copiar</button>
+          </div>
+          <pre id="cmd-31">Import-Certificate -FilePath "$env:USERPROFILE\Downloads\proxy-selfsigned.crt" -CertStoreLocation Cert:\LocalMachine\Root</pre>
+        </div>
+        <div class="warning">Tiene que ir a <code class="inline">LocalMachine\Root</code> y no a <code class="inline">CurrentUser</code>, porque más adelante la tarea programada puede ejecutarse en un contexto distinto al de tu sesión interactiva. Importarlo a nivel de equipo evita un fallo que solo aparecería de madrugada, cuando la tarea se lanza sola. Y por ese mismo motivo, esta consola de PowerShell debe estar abierta <strong>como administrador</strong>: escribir en el almacén del equipo requiere elevación, y sin ella el comando falla con un acceso denegado.</div>
+
+        <h3>Conectar al repositorio existente</h3>
+        <div class="warning">Aquí se usa <code class="inline">connect</code>, <strong>no</strong> <code class="inline">create</code>. El repositorio ya existe: lo creó el Ubuntu Server en la sección 11, y volver a crearlo sobre el mismo depósito daría error o, peor, dejaría dos estructuras conviviendo. Los parámetros de retención tampoco se repiten: quedaron grabados en el repositorio y los hereda cualquier cliente que se conecte.</div>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Conectar Windows al repositorio</div>
+            <button class="copy-btn" data-copy-target="cmd-32">Copiar</button>
+          </div>
+          <pre id="cmd-32">kopia repository connect s3 --bucket=backups --endpoint=IP_HOST_DOCKER:8447 --access-key=KOPIA_ACCESS_KEY --secret-access-key=KOPIA_SECRET_KEY --region=us-east-1 --password=KOPIA_REPO_PASSWORD</pre>
+        </div>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Datos de prueba y primera copia</div>
+            <button class="copy-btn" data-copy-target="cmd-33">Copiar</button>
+          </div>
+          <pre id="cmd-33">New-Item -ItemType Directory -Force -Path C:\datos\pruebas
+"Contrato de mantenimiento - Clockwork Computer" | Out-File C:\datos\pruebas\contrato.txt
+"Presupuesto 2026" | Out-File C:\datos\pruebas\presupuesto.txt
+kopia snapshot create C:\datos\pruebas
+kopia snapshot list</pre>
+        </div>
+        <div class="warning">El listado anterior muestra <strong>únicamente la copia de este equipo</strong>, y conviene entender por qué antes de pensar que algo ha fallado: <code class="inline">kopia snapshot list</code> filtra por defecto por el usuario y la máquina actuales. Las copias del Ubuntu Server están en el mismo repositorio, pero no se muestran salvo que se pidan expresamente.</div>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Ver las copias de todos los equipos</div>
+            <button class="copy-btn" data-copy-target="cmd-33b">Copiar</button>
+          </div>
+          <pre id="cmd-33b">kopia snapshot list --all</pre>
+        </div>
+        <div class="ok">Ahora sí aparecen las copias de <strong>los dos equipos</strong>, identificadas con el formato <code class="inline">usuario@maquina:ruta</code>, conviviendo en el mismo repositorio. Kopia deduplica entre ellas: si ambos equipos guardaran el mismo fichero, se almacenaría una sola vez, aunque procedan de sistemas operativos distintos.</div>
+
+        <h3>Programar la copia diaria con el Programador de tareas</h3>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Registrar la tarea diaria</div>
+            <button class="copy-btn" data-copy-target="cmd-40">Copiar</button>
+          </div>
+          <pre id="cmd-40">$kopia = (Get-Command kopia).Source
+
+$accion = New-ScheduledTaskAction -Execute $kopia -Argument "snapshot create C:\datos\pruebas"
+$disparo = New-ScheduledTaskTrigger -Daily -At 02:00
+$opciones = New-ScheduledTaskSettingsSet -StartWhenAvailable -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries
+
+Register-ScheduledTask -TaskName "Kopia - Copia diaria" -Action $accion -Trigger $disparo -Settings $opciones -User $env:USERNAME -RunLevel Highest</pre>
+        </div>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Probar la tarea sin esperar</div>
+            <button class="copy-btn" data-copy-target="cmd-41">Copiar</button>
+          </div>
+          <pre id="cmd-41">Start-ScheduledTask -TaskName "Kopia - Copia diaria"
+Get-ScheduledTaskInfo -TaskName "Kopia - Copia diaria"</pre>
+        </div>
+        <div class="warning">La configuración de Kopia en Windows es <strong>por usuario</strong>: vive en el perfil de quien ejecutó <code class="inline">repository connect</code>. Por eso la tarea se registra con <code class="inline">-User $env:USERNAME</code> y no como <code class="inline">SYSTEM</code>. Si la registras como SYSTEM sin más, se ejecutará sin encontrar ninguna conexión al repositorio y fallará con un escueto <code class="inline">repository is not connected</code>. Si necesitas que corra sin sesión iniciada, hay que conectar el repositorio también en el contexto de esa cuenta.</div>
+        <div class="info">Un último ajuste recomendable en Windows: activar las <strong>instantáneas de volumen (VSS)</strong> para que Kopia pueda copiar ficheros que estén abiertos por otras aplicaciones. Se hace con <code class="inline">kopia policy set --enable-volume-shadow-copy=when-available C:\datos\pruebas</code> y requiere ejecutar con privilegios elevados.</div>
+
+        <h3>Restaurar en Windows y desde Windows</h3>
+        <p>El procedimiento es idéntico al de Linux: se localiza la copia por su identificador y se recupera en una carpeta nueva.</p>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Restaurar desde Windows</div>
+            <button class="copy-btn" data-copy-target="cmd-51">Copiar</button>
+          </div>
+          <pre id="cmd-51">kopia snapshot list C:\datos\pruebas
+kopia snapshot restore ID_DE_LA_COPIA C:\datos\restaurado
+Get-ChildItem C:\datos\restaurado</pre>
+        </div>
+        <div class="info">Merece la pena enseñar también la restauración cruzada: desde el equipo Windows se pueden listar y restaurar las copias del Ubuntu Server, porque comparten repositorio y contraseña de cifrado. Hay que pedirlas con <code class="inline">kopia snapshot list --all</code>, ya que por defecto cada equipo solo ve las suyas, y después restaurar por identificador con normalidad. Es una demostración muy visual de que la copia sobrevive incluso a la pérdida total del equipo de origen, que es el escenario que de verdad importa.</div>
+      </section>
+
+<section class="card" id="puertos">
+        <h2>17. Tabla de puertos y componentes</h2>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Puerto</th><th>Componente</th><th>Sentido de la conexión</th><th>Para qué sirve</th></tr></thead>
+            <tbody>
+              <tr><td>8447/tcp</td><td>minio-proxy (Nginx)</td><td>Agentes &rarr; contenedor</td><td>API compatible con S3: por aquí suben y bajan las copias, por HTTPS</td></tr>
+              <tr><td>8448/tcp</td><td>minio-proxy (Nginx)</td><td>Navegador &rarr; contenedor</td><td>Consola web de MinIO, para consultar objetos y versiones</td></tr>
+              <tr><td>&mdash;</td><td>minio :9000 (Docker, interno)</td><td>proxy &rarr; minio</td><td>API S3 real; no publica ningún puerto al host</td></tr>
+              <tr><td>&mdash;</td><td>minio :9001 (Docker, interno)</td><td>proxy &rarr; minio</td><td>Consola web real; no publica ningún puerto al host</td></tr>
+              <tr><td>&mdash;</td><td>Kopia en cada endpoint</td><td>Agente &rarr; servidor</td><td>No escucha en ningún puerto: solo abre conexiones salientes</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="info">Una ventaja discreta pero real de este modelo: Kopia <strong>no abre ningún puerto de escucha</strong> en los equipos respaldados. A diferencia de los agentes de inventario o de monitorización, aquí no hay ni siquiera un puerto local que asegurar en el endpoint.</div>
+      </section>
+
+<section class="card" id="errores">
+        <h2>18. Errores comunes y cómo resolverlos</h2>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Problema</th><th>Causa probable</th><th>Solución</th></tr></thead>
+            <tbody>
+              <tr>
+                <td>Todas las peticiones fallan con <code class="inline">SignatureDoesNotMatch</code> aunque las credenciales sean correctas</td>
+                <td>El proxy está reescribiendo la cabecera <code class="inline">Host</code>, que forma parte de la firma S3</td>
+                <td>Usar <code class="inline">proxy_set_header Host $http_host;</code> y no <code class="inline">$host</code> ni <code class="inline">$host:$server_port</code> (sección 6)</td>
+              </tr>
+              <tr>
+                <td>Las peticiones se rechazan con <code class="inline">AuthorizationHeaderMalformed</code> tras cambiar la región</td>
+                <td>La región configurada en el servidor y la que envía el cliente no coinciden, y la firma se deriva con ella</td>
+                <td>Usar el mismo valor en ambos lados, o volver a <code class="inline">us-east-1</code> en el <code class="inline">--region</code> y dejar el servidor sin región definida (sección 11)</td>
+              </tr>
+              <tr>
+                <td>La copia empieza y se corta con <code class="inline">413 Request Entity Too Large</code></td>
+                <td>Los bloques que sube Kopia superan el límite por defecto de Nginx, que es de 1 MB</td>
+                <td>Confirmar <code class="inline">client_max_body_size 0;</code> en el bloque del puerto 8447 (sección 6)</td>
+              </tr>
+              <tr>
+                <td>Kopia falla con <code class="inline">x509: certificate signed by unknown authority</code></td>
+                <td>El certificado autofirmado no está en el almacén de confianza del cliente</td>
+                <td>Añadirlo con <code class="inline">update-ca-certificates</code> en Linux o <code class="inline">Import-Certificate</code> en Windows (secciones 11 y 16)</td>
+              </tr>
+              <tr>
+                <td>Al crear el repositorio, error de resolución de nombre en el <em>endpoint</em></td>
+                <td>Se ha escrito <code class="inline">--endpoint=https://IP:8447</code> con el esquema incluido</td>
+                <td>Indicar solo dirección y puerto: <code class="inline">--endpoint=IP_HOST_DOCKER:8447</code> (sección 11)</td>
+              </tr>
+              <tr>
+                <td>No se puede activar el bloqueo sobre un depósito que ya existe</td>
+                <td>Object Lock solo se habilita en el momento de crear el depósito</td>
+                <td>Crear uno nuevo con <code class="inline">mc mb --with-lock</code> y migrar las copias (sección 9)</td>
+              </tr>
+              <tr>
+                <td>El depósito se creó desde el botón <em>Create Bucket</em> de la consola web y no admite retención</td>
+                <td>El formulario de la edición Community solo pide el nombre y crea el depósito sin bloqueo de objetos</td>
+                <td>Borrarlo y volver a crearlo con <code class="inline">mc mb --with-lock</code>, que es la única vía que activa el bloqueo (secciones 8 y 9)</td>
+              </tr>
+              <tr>
+                <td><code class="inline">mc rm</code> parece borrar las copias sin ningún error</td>
+                <td>Comportamiento normal del versionado: solo se han creado marcadores de borrado, el dato sigue intacto</td>
+                <td>Verificarlo con <code class="inline">mc ls --versions</code> y revertirlo con <code class="inline">mc undo</code> (secciones 13 y 14)</td>
+              </tr>
+              <tr>
+                <td>Tras instalar <code class="inline">mc</code>, cualquier comando responde <code class="inline">mc: line 32: a: No such file or directory</code></td>
+                <td>La descarga se hizo sin <code class="inline">-L</code>: lo que se guardó como <code class="inline">mc</code> es el cuerpo de una redirección, no el binario</td>
+                <td>Borrarlo con <code class="inline">sudo rm /usr/local/bin/mc</code> y repetir la descarga con <code class="inline">curl -LO</code>, verificándola con <code class="inline">file mc</code> (sección 8)</td>
+              </tr>
+              <tr>
+                <td><code class="inline">mc admin policy create</code> no se reconoce como subcomando</td>
+                <td>Versión antigua del cliente, que usaba otra nomenclatura</td>
+                <td>Actualizar <code class="inline">mc</code>, o usar <code class="inline">mc admin policy add</code> y <code class="inline">mc admin policy set</code> en su lugar</td>
+              </tr>
+              <tr>
+                <td>La consola web no ofrece gestión de usuarios, políticas ni depósitos</td>
+                <td>MinIO retiró esas funciones de la edición Community en 2025</td>
+                <td>Administrar con <code class="inline">mc</code>, que es la vía soportada para esta edición (sección 8)</td>
+              </tr>
+              <tr>
+                <td><code class="inline">mc</code> responde <code class="inline">Requested path /tmp/ALIAS/... not found</code> o <code class="inline">... is not supported for 'filesystem'</code></td>
+                <td>Ese alias no existe en el equipo desde el que lanzas el comando: los alias son locales, viven en <code class="inline">~/.mc/config.json</code>. Al no reconocerlo, <code class="inline">mc</code> lo trata como una ruta del disco local</td>
+                <td>Dar de alta el alias en ese equipo con <code class="inline">mc alias set</code>, o ejecutar el comando desde el servidor donde ya existe (secciones 8 y 13)</td>
+              </tr>
+              <tr>
+                <td>Un equipo no ve las copias del otro aunque compartan repositorio</td>
+                <td>Comportamiento normal: <code class="inline">kopia snapshot list</code> filtra por el usuario y la máquina actuales</td>
+                <td>Añadir <code class="inline">--all</code> para ver las copias de todos los equipos (secciones 14 y 16)</td>
+              </tr>
+              <tr>
+                <td>La copia funciona a mano con <code class="inline">sudo</code> pero el servicio de systemd falla con <code class="inline">open repository: repository is not connected</code></td>
+                <td>systemd no define <code class="inline">$HOME</code> en los servicios del sistema, así que Kopia no encuentra su configuración en <code class="inline">/root/.config/kopia/</code></td>
+                <td>Añadir <code class="inline">Environment=HOME=/root</code> y el parámetro <code class="inline">--config-file</code> a la unidad (sección 12)</td>
+              </tr>
+              <tr>
+                <td>La tarea programada de Windows falla con <code class="inline">repository is not connected</code></td>
+                <td>La tarea corre bajo una cuenta distinta a la que conectó el repositorio, y la configuración de Kopia es por usuario</td>
+                <td>Registrar la tarea con la misma cuenta, o conectar el repositorio en el contexto de la cuenta que la ejecuta (sección 16)</td>
+              </tr>
+              <tr>
+                <td>Pasado un tiempo, los objetos vuelven a poder borrarse</td>
+                <td>El mantenimiento completo no se está ejecutando y los bloqueos han caducado sin renovarse</td>
+                <td>Revisar <code class="inline">kopia maintenance info</code>, el propietario del mantenimiento y el temporizador (sección 15)</td>
+              </tr>
+              <tr>
+                <td>El almacenamiento se llena y no se puede liberar espacio</td>
+                <td>Con Object Lock nada se borra antes de expirar la retención</td>
+                <td>Poner cuota al depósito y ajustar retención y política de conservación (sección 15)</td>
+              </tr>
+              <tr>
+                <td>El contenedor <code class="inline">minio</code> no arranca y se queda en <code class="inline">Restarting (1)</code>, con <code class="inline">FATAL Invalid MINIO_BROWSER_REDIRECT_URL value in environment variable: invalid hostname</code></td>
+                <td>Se ha definido <code class="inline">MINIO_BROWSER_REDIRECT_URL</code> con una dirección IP. Esa variable solo admite nombres de host</td>
+                <td>Quitarla del <code class="inline">docker-compose.yml</code>, o sustituir la IP por un nombre DNS que además conste en el certificado (sección 5)</td>
+              </tr>
+              <tr>
+                <td>El contenedor <code class="inline">minio</code> arranca y muere al instante por credenciales</td>
+                <td>La contraseña de <code class="inline">MINIO_ROOT_PASSWORD</code> tiene menos de 8 caracteres, o el <code class="inline">.env</code> no se está leyendo</td>
+                <td>Comprobar los valores ya resueltos con <code class="inline">docker compose config</code> y revisar el <code class="inline">.env</code> (sección 5)</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+<section class="card" id="ampliacion">
+        <h2>19. Notas de ampliación</h2>
+        <p>El montaje de esta guía cubre lo necesario para tener copias inmutables funcionando y verificadas en dos sistemas operativos. Para un uso continuado conviene ampliar con:</p>
+        <ul>
+          <li><strong>Un segundo destino fuera del emplazamiento</strong>, que es lo que completa la regla 3-2-1-1-0. Kopia admite varios repositorios, y MinIO puede replicar un depósito hacia otra instalación en otra ubicación.</li>
+          <li><strong>Alertas de copia fallida</strong>, porque el peor fallo de un sistema de respaldo es el que no avisa. Kopia puede lanzar acciones tras cada ejecución, y un temporizador que falla es un evento que el sistema de monitorización debería recoger.</li>
+          <li><strong>Integración con el SIEM</strong>, enviando el resultado de cada copia y los intentos de borrado rechazados por MinIO. Un <code class="inline">rm</code> denegado sobre el depósito de copias es, en sí mismo, un indicador de compromiso de primer nivel.</li>
+          <li><strong>Apertura automática de tickets</strong> en la mesa de ayuda cuando una copia falle dos días seguidos, para que el aviso no se quede en un correo que nadie lee.</li>
+          <li><strong>Cifrado y custodia de la contraseña del repositorio</strong> en un gestor de contraseñas propio, fuera de los equipos respaldados. Sin ella no hay restauración posible, y guardarla en la máquina que se respalda es un contrasentido.</li>
+          <li><strong>Endurecimiento del servidor de copias</strong>, que a estas alturas es el activo más valioso de la infraestructura: acceso administrativo restringido, sin servicios adicionales, y a poder ser en una red separada del resto.</li>
+          <li><strong>Pruebas de restauración periódicas y documentadas</strong>. Una copia que nunca se ha restaurado es una hipótesis, no una copia de seguridad.</li>
+        </ul>
+      </section>
+
+      <footer>
+        <p style="margin: 0 0 6px;">Guía técnica para autoalojar un almacenamiento compatible con S3 mediante MinIO y Docker Compose, protegerlo con Object Lock en modo Compliance, y respaldar equipos Linux y Windows con Kopia mediante copias inmutables resistentes al ransomware.</p>
+        <p style="margin: 0; opacity: .75;">&copy; <span id="anio-actual">2026</span> Clockwork Computer. Todos los derechos reservados. Contenido educativo de libre consulta; su reproducción total o parcial en otros sitios requiere autorización previa.</p>
+      </footer>
+    </div>
+  </div>
+</main>
+
+<script>
+  async function copyText(text, button) {
+    try {
+      await navigator.clipboard.writeText(text);
+      const original = button.textContent;
+      button.textContent = 'Copiado';
+      button.classList.add('copied');
+      setTimeout(() => {
+        button.textContent = original;
+        button.classList.remove('copied');
+      }, 1400);
+    } catch (err) {
+      alert('No se pudo copiar automáticamente.');
+    }
+  }
+
+  document.querySelectorAll('.copy-btn').forEach(button => {
+    button.addEventListener('click', () => {
+      const targetId = button.getAttribute('data-copy-target');
+      const target = document.getElementById(targetId);
+      if (!target) return;
+      copyText(target.innerText.trim(), button);
+    });
+  });
+
+  const anioEl = document.getElementById('anio-actual');
+  if (anioEl) anioEl.textContent = new Date().getFullYear();
+</script>
+</body>
+</html>
