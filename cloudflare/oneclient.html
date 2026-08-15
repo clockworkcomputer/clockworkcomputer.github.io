@@ -1,0 +1,686 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Cloudflare One en Windows 11: control del tráfico corporativo con políticas DNS, de red y HTTP</title>
+  <link rel="icon" type="image/png" href="https://blogger.googleusercontent.com/img/a/AVvXsEjuquj9lFaN9zfg8H5FofNIUKAHWWRiOUbDhHragpU14TfF6RYKxb5w62mfAClxDkDrzCMAilRatibcoWFbuqMnXMBh30p_sfbxp4D2gUny70NbjyHLrs42VXeBB4Qtc8NovIS_DqIU5iq3dMMx1TuNZkW70MeW8Ryemwk_tDv6iKZi9ngKfaskUG1yCWo=s1600"/>
+  <style>
+    :root {
+      --bg: #060606;
+      --panel: #111111;
+      --text: #f5f5f5;
+      --muted: #b9b9b9;
+      --accent: #ff7a00;
+      --accent-2: #ff9a3d;
+      --border: #2b2b2b;
+      --code: #050505;
+      --success: #24b36b;
+      --danger: #ed5b5b;
+      --blue: #4ca6ff;
+      --shadow: 0 12px 30px rgba(0,0,0,.35);
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+      background: linear-gradient(180deg, #050505 0%, #0a0a0a 100%);
+      color: var(--text);
+      line-height: 1.6;
+    }
+    a { color: #ffb067; }
+    .container { width: min(1100px, calc(100% - 32px)); margin: 0 auto; }
+    header {
+      padding: 48px 0 28px;
+      border-bottom: 1px solid rgba(255,255,255,.06);
+      background:
+        radial-gradient(circle at top right, rgba(255,122,0,.16), transparent 30%),
+        radial-gradient(circle at top left, rgba(255,154,61,.10), transparent 20%),
+        linear-gradient(180deg, #080808 0%, #101010 100%);
+    }
+    .header-inner { display: flex; gap: 18px; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; }
+    .header-brand { display: flex; gap: 18px; align-items: center; flex: 1 1 720px; }
+    .channel-logo {
+      display: inline-flex; align-items: center; justify-content: center;
+      border-radius: 18px; overflow: hidden;
+      border: 1px solid rgba(255,255,255,.08); box-shadow: var(--shadow);
+      background: rgba(255,255,255,.03); flex: 0 0 auto;
+    }
+    .channel-logo img { display: block; width: 200px; height: auto; object-fit: contain; }
+    h1 { font-size: clamp(1.8rem, 3vw, 3rem); margin: 0; line-height: 1.15; color: var(--accent); }
+    .brand { margin-top: 8px; font-weight: 700; letter-spacing: .4px; color: var(--accent-2); }
+    .subtitle { color: var(--muted); margin: 10px 0 0; max-width: 850px; }
+    main { padding: 28px 0 64px; }
+    .layout { display: grid; grid-template-columns: 260px 1fr; gap: 24px; align-items: start; }
+    .toc {
+      position: sticky; top: 20px; width: 260px;
+      max-height: calc(100vh - 40px); overflow-y: auto;
+      background: rgba(17,17,17,.92); border: 1px solid var(--border);
+      border-radius: 18px; padding: 18px; box-shadow: var(--shadow); margin: 0;
+    }
+    .toc h2 { margin: 0 0 12px; font-size: 1rem; color: var(--accent); }
+    .toc a {
+      display: block; color: var(--muted); text-decoration: none;
+      padding: 8px 10px; border-radius: 10px;
+      transition: background .15s ease, color .15s ease; font-size: .93rem;
+    }
+    .toc a:hover { color: var(--text); background: rgba(255,122,0,.08); }
+    .content { display: grid; gap: 18px; min-width: 0; }
+    .card {
+      background: linear-gradient(180deg, rgba(17,17,17,.97), rgba(12,12,12,.97));
+      border: 1px solid var(--border); border-radius: 22px; padding: 24px; box-shadow: var(--shadow);
+    }
+    .card h2 { margin-top: 0; font-size: 1.5rem; color: var(--accent); }
+    .card h3 { margin-bottom: 10px; margin-top: 22px; font-size: 1.08rem; color: #ffd1a8; }
+    .muted { color: var(--muted); }
+    ul, ol { margin-top: 10px; padding-left: 20px; }
+    li + li { margin-top: 6px; }
+    p, .note, .ok, .warning, .info { text-align: justify; }
+    .note, .ok, .warning, .info { border-radius: 14px; padding: 14px 16px; margin-top: 14px; }
+    .note { background: rgba(255,122,0,.08); border: 1px solid rgba(255,122,0,.22); color: #ffe2c4; }
+    .ok { background: rgba(36,179,107,.10); border: 1px solid rgba(36,179,107,.28); color: #d8ffe8; }
+    .warning { background: rgba(237,91,91,.10); border: 1px solid rgba(237,91,91,.30); color: #ffd1d1; }
+    .info { background: rgba(76,166,255,.09); border: 1px solid rgba(76,166,255,.26); color: #d5eaff; }
+    .cmd { margin-top: 14px; border: 1px solid var(--border); background: var(--code); border-radius: 16px; overflow: hidden; }
+    .cmd-head {
+      display: flex; justify-content: space-between; align-items: center; gap: 12px;
+      padding: 10px 12px; background: rgba(255,255,255,.03); border-bottom: 1px solid rgba(255,255,255,.06);
+    }
+    .cmd-title { font-size: .92rem; color: var(--muted); font-weight: 600; }
+    .copy-btn {
+      border: 1px solid #6a3408; background: linear-gradient(180deg, #ff7a00, #d76200);
+      color: #111; border-radius: 10px; padding: 8px 10px; cursor: pointer;
+      font-size: .9rem; font-weight: 800; transition: .15s ease;
+    }
+    .copy-btn:hover { filter: brightness(1.06); }
+    .copy-btn.copied { background: rgba(36,179,107,.18); border-color: rgba(36,179,107,.45); color: #d7ffe8; }
+    pre {
+      margin: 0; padding: 16px; overflow-x: auto; white-space: pre-wrap; word-break: break-word;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      font-size: .94rem; color: #ffbf85;
+    }
+    code.inline {
+      background: rgba(255,255,255,.06); padding: 2px 8px; border-radius: 8px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: .92em; color: #ffd2aa;
+    }
+    table { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: .95rem; }
+    th, td { border: 1px solid var(--border); padding: 10px 12px; text-align: left; vertical-align: top; }
+    th { background: rgba(255,255,255,.04); color: #ffd1a8; }
+    .table-wrap { overflow-x: auto; }
+    footer { margin-top: 24px; color: var(--muted); text-align: center; font-size: .95rem; }
+    @media (max-width: 920px) {
+      .layout { grid-template-columns: 1fr; }
+      .toc { position: static; width: 100%; max-height: none; }
+    }
+  </style>
+</head>
+<body>
+<header>
+  <div class="container header-inner">
+    <div class="header-brand">
+      <a class="channel-logo" href="https://www.youtube.com/c/ClockworkComputerIP" target="_blank" rel="noopener noreferrer" aria-label="Clockwork Computer">
+        <img src="https://blogger.googleusercontent.com/img/a/AVvXsEjuquj9lFaN9zfg8H5FofNIUKAHWWRiOUbDhHragpU14TfF6RYKxb5w62mfAClxDkDrzCMAilRatibcoWFbuqMnXMBh30p_sfbxp4D2gUny70NbjyHLrs42VXeBB4Qtc8NovIS_DqIU5iq3dMMx1TuNZkW70MeW8Ryemwk_tDv6iKZi9ngKfaskUG1yCWo=s1600" alt="Clockwork Computer"/>
+      </a>
+      <div>
+        <h1>Cloudflare One en Windows 11: control del tráfico corporativo con políticas DNS, de red y HTTP</h1>
+        <div class="brand">Agente en el endpoint, inspección TLS y las tres capas de filtrado explicadas, con el bloqueo selectivo de la IA generativa como caso práctico</div>
+        <p class="subtitle">Guía técnica para desplegar el cliente de Cloudflare One sobre un equipo Windows 11, registrarlo en una organización de Zero Trust y encaminar su tráfico hacia Cloudflare Gateway, entendiendo qué hace cada una de las tres capas de políticas, en qué orden se aplican y por qué la inspección HTTPS es imprescindible para controlar aplicaciones web modernas.</p>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main>
+  <div class="container layout">
+    <aside class="toc">
+      <h2>Contenido</h2>
+      <a href="#introduccion">1. Introducción</a>
+      <a href="#variables">2. Variables de esta guía</a>
+      <a href="#arquitectura">3. Arquitectura y flujo</a>
+      <a href="#requisitos">4. Requisitos</a>
+      <a href="#paso-organizacion">5. Preparar la organización</a>
+      <a href="#paso-cliente">6. Instalar el cliente en Windows 11</a>
+      <a href="#paso-protocolo">7. MASQUE frente a WireGuard</a>
+      <a href="#capas">8. Las tres capas de políticas</a>
+      <a href="#orden">9. Orden de aplicación</a>
+      <a href="#paso-tls">10. Inspección HTTPS y certificado</a>
+      <a href="#paso-dns">11. Políticas DNS</a>
+      <a href="#paso-red">12. Políticas de red</a>
+      <a href="#paso-http">13. Políticas HTTP</a>
+      <a href="#paso-ia">14. Bloquear la IA salvo la aprobada</a>
+      <a href="#paso-granular">15. Del bloqueo al control granular</a>
+      <a href="#paso-verificar">16. Verificación</a>
+      <a href="#puertos">17. Puertos y componentes</a>
+      <a href="#errores">18. Errores comunes</a>
+      <a href="#ampliacion">19. Notas de ampliación</a>
+    </aside>
+
+    <div class="content">
+
+      <section class="card" id="introduccion">
+        <h2>1. Introducción</h2>
+        <p>El control del tráfico corporativo se ha resuelto durante décadas colocando un cortafuegos o un proxy en la salida de la oficina. Ese modelo funciona mientras los equipos están dentro de la oficina, y deja de funcionar en cuanto un portátil sale por la puerta: desde una red doméstica, un hotel o una cafetería, ese equipo navega sin ninguna de las políticas de la empresa. El planteamiento del <strong>perímetro definido por software</strong> invierte el orden: en lugar de llevar los equipos al filtro, se lleva el filtro a los equipos mediante un agente instalado en cada uno.</p>
+        <p>Esta guía implementa ese modelo con <strong>Cloudflare One</strong>. En el equipo se instala el <strong>Cloudflare One Client</strong> —el agente antes conocido como WARP—, que establece un túnel cifrado hacia la red de Cloudflare y hace que todo el tráfico del dispositivo atraviese <strong>Cloudflare Gateway</strong> con independencia de dónde esté conectado. Sobre ese punto de paso se definen políticas en tres capas distintas, y comprender qué puede hacer cada una es el objetivo central del documento.</p>
+        <div class="info">Conviene aclarar la nomenclatura desde el principio porque genera bastante confusión: <strong>Cloudflare One</strong> —también llamado Zero Trust— es la <em>plataforma</em> donde se definen las políticas desde el navegador, mientras que el <strong>Cloudflare One Client</strong> es el <em>agente</em> que se instala en cada equipo y hace que esas políticas se apliquen a su tráfico. La documentación oficial lo identifica como <em>Cloudflare One Client (anteriormente WARP)</em>, y los componentes internos del servicio conservan todavía la denominación antigua.</div>
+        <div class="note">El caso práctico elegido para demostrar las tres capas es el <strong>control de la inteligencia artificial generativa</strong>, un problema muy actual en cualquier organización: los empleados utilizan asistentes de IA con información corporativa sin que la empresa tenga visibilidad ni control sobre qué se está enviando. Es además un ejemplo especialmente didáctico, porque solo puede resolverse correctamente en la capa adecuada y falla de forma silenciosa si se intenta en la equivocada.</div>
+      </section>
+
+      <section class="card" id="variables">
+        <h2>2. Variables de esta guía</h2>
+        <p>Todos los bloques usan los siguientes marcadores en <strong>MAYÚSCULAS</strong>. Sustitúyelos por los valores reales del entorno donde se aplique esta guía.</p>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Marcador</th><th>Qué es</th><th>Dónde se obtiene</th></tr></thead>
+            <tbody>
+              <tr><td><code class="inline">NOMBRE_ORGANIZACION</code></td><td>Nombre de equipo de la organización, el identificador corto que se elige al crear la cuenta</td><td>Panel de Cloudflare One (sección 5)</td></tr>
+              <tr><td><code class="inline">DOMINIO_CORPORATIVO</code></td><td>Dominio de correo de la empresa, usado para autorizar qué usuarios pueden registrar dispositivos</td><td>El dominio de correo de la organización</td></tr>
+              <tr><td><code class="inline">URL_SOPORTE</code></td><td>Dirección interna de soporte que el agente muestra a los usuarios</td><td>La mesa de ayuda de la organización</td></tr>
+              <tr><td><code class="inline">FICHERO_INSTALADOR</code></td><td>Nombre exacto del paquete de instalación descargado, que incluye el número de versión</td><td>La página de descargas del cliente (sección 6)</td></tr>
+              <tr><td><code class="inline">APP_IA_APROBADA</code></td><td>Aplicación de inteligencia artificial autorizada por la organización, la única que quedará permitida</td><td>La decisión corporativa (sección 14)</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="note">El nombre de equipo es más importante de lo que parece: identifica a la organización en el registro de cada dispositivo y forma parte del dominio de acceso de la plataforma. Conviene elegirlo con criterio desde el principio, porque cambiarlo más adelante obliga a volver a registrar todos los equipos ya desplegados.</div>
+      </section>
+
+      <section class="card" id="arquitectura">
+        <h2>3. Arquitectura y flujo</h2>
+        <p>El agente instalado en el equipo captura todo el tráfico y lo envía por un túnel cifrado hasta el punto de presencia de Cloudflare más cercano. Allí se aplican las políticas en tres momentos distintos del recorrido, y solo lo que las supera continúa hacia su destino.</p>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Resumen visual</div>
+            <button class="copy-btn" data-copy-target="cmd-arch">Copiar</button>
+          </div>
+          <pre id="cmd-arch">      [ WINDOWS 11 - EQUIPO CORPORATIVO ]
+           Cloudflare One Client
+                     |
+                     |  tunel cifrado (MASQUE / HTTP3 sobre QUIC)
+                     |  funciona en cualquier red: oficina, casa, hotel
+                     v
+     +------------------------------------------------+
+     |            CLOUDFLARE GATEWAY                  |
+     |                                                 |
+     |   1. Politicas DNS   -> " a que dominio vas? "  |
+     |   2. Politicas de RED -> " a que IP y puerto? " |
+     |   3. Politicas HTTP  -> " que haces dentro? "   |
+     |                                                 |
+     |   inspeccion TLS  +  antivirus  +  DLP          |
+     +------------------------------------------------+
+                     |
+                     v
+                 Internet</pre>
+        </div>
+        <div class="info">La diferencia esencial con un cortafuegos perimetral clásico es que este punto de control <strong>viaja con el equipo</strong>. Un portátil conectado a la red de un hotel sigue aplicando exactamente las mismas políticas que en la oficina, sin necesidad de que el usuario active nada ni de encaminar el tráfico hacia la sede central. Para una plantilla con movilidad, esa propiedad es la que hace viable el control real.</div>
+        <div class="note">Que el tráfico atraviese la infraestructura del proveedor tiene una implicación que conviene asumir de forma consciente: la organización delega en él la capacidad de inspeccionar ese tráfico. Es la misma cesión que se hace con cualquier proxy corporativo, pero merece constar en el análisis de riesgos y, en muchos casos, en la información que se traslada a los empleados.</div>
+      </section>
+
+      <section class="card" id="requisitos">
+        <h2>4. Requisitos</h2>
+        <ul>
+          <li>Una cuenta de <strong>Cloudflare</strong> con una organización de Cloudflare One creada. El plan gratuito cubre un número reducido de usuarios y es suficiente para esta práctica.</li>
+          <li>Un equipo con <strong>Windows 11</strong> y permisos de administrador local para instalar el agente.</li>
+          <li>Un <strong>método de identidad</strong> configurado para autorizar el registro de dispositivos, ya sea un proveedor externo o el envío de un código de un solo uso al correo.</li>
+          <li>Salida a Internet desde el equipo, sin restricciones sobre los puertos que utiliza el túnel.</li>
+          <li>Para un despliegue real, una herramienta de <strong>gestión centralizada</strong> con la que distribuir el agente y el certificado raíz sin pasar equipo por equipo.</li>
+        </ul>
+      </section>
+
+      <section class="card" id="paso-organizacion">
+        <h2>5. Preparar la organización</h2>
+        <p>Antes de tocar el equipo hay que dejar preparada la organización, porque el agente pedirá el nombre de equipo durante el registro y comprobará que el usuario está autorizado.</p>
+        <ul>
+          <li>Acceder al panel de Cloudflare y entrar en la sección de <strong>Cloudflare One</strong>, también identificada como Zero Trust.</li>
+          <li>Definir el <strong>nombre de equipo</strong> de la organización si es la primera vez, anotándolo como <code class="inline">NOMBRE_ORGANIZACION</code>.</li>
+          <li>Configurar al menos un <strong>método de autenticación</strong>. Para una prueba, el código de un solo uso enviado por correo evita depender de un proveedor de identidad externo.</li>
+          <li>Crear una <strong>regla de registro de dispositivos</strong> que autorice a los usuarios cuyo correo pertenezca a <code class="inline">DOMINIO_CORPORATIVO</code>. Sin esta regla, ningún equipo consigue registrarse.</li>
+        </ul>
+        <div class="warning">La regla de registro es el requisito que más veces se olvida, y su síntoma despista: el agente se instala correctamente, abre el navegador para autenticarse, el usuario introduce sus credenciales sin ningún error, y aun así el dispositivo nunca llega a aparecer como registrado. No se trata de un problema de credenciales sino de autorización: el usuario existe, pero no está permitido que inscriba equipos.</div>
+        <div class="info">En un despliegue corporativo esta regla es también la primera línea de control de acceso, porque determina qué identidades pueden incorporar dispositivos a la organización. Conviene restringirla a lo estrictamente necesario —un dominio de correo concreto, un grupo del proveedor de identidad— en lugar de dejarla abierta.</div>
+      </section>
+
+      <section class="card" id="paso-cliente">
+        <h2>6. Instalar el cliente en Windows 11</h2>
+        <p>El agente se descarga desde la propia plataforma. La instalación interactiva sirve para una prueba, pero en un parque real interesa la instalación desatendida, que además permite dejar el equipo preconfigurado y evitar que el usuario tenga que introducir el nombre de la organización.</p>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Instalación desatendida con la organización preconfigurada</div>
+            <button class="copy-btn" data-copy-target="cmd-1">Copiar</button>
+          </div>
+          <pre id="cmd-1">msiexec /i "FICHERO_INSTALADOR" /qn ^
+  ORGANIZATION="NOMBRE_ORGANIZACION" ^
+  SERVICE_MODE="warp" ^
+  AUTO_CONNECT="1" ^
+  ONBOARDING="false" ^
+  SUPPORT_URL="URL_SOPORTE" ^
+  /l*v "%TEMP%\cloudflare-one-install.log"</pre>
+        </div>
+        <div class="info">Merece la pena entender qué hace cada parámetro, porque son los que convierten una instalación de escritorio en un despliegue corporativo. <code class="inline">ORGANIZATION</code> registra el equipo directamente en la organización sin preguntar nada al usuario. <code class="inline">SERVICE_MODE</code> con el valor <code class="inline">warp</code> selecciona el modo que encamina <strong>tanto el tráfico como las consultas de nombres</strong>, que es el único que permite aplicar las tres capas de políticas. <code class="inline">AUTO_CONNECT</code> hace que el agente vuelva a conectarse solo si alguien lo desactiva. <code class="inline">ONBOARDING</code> en falso suprime las pantallas de bienvenida.</div>
+        <div class="note">Existe un parámetro adicional, <code class="inline">SWITCH_LOCKED</code>, que impide al usuario desconectar el agente. En equipos corporativos gestionados es lo razonable, porque un control que el propio usuario puede apagar con dos clics no es un control. Conviene reservarlo para cuando el despliegue esté validado: si se activa antes de tiempo y algo falla, el equipo puede quedarse sin conectividad y sin forma sencilla de recuperarla.</div>
+        <p>Terminada la instalación, se comprueba el estado del agente desde la línea de comandos:</p>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Comprobar el estado del agente</div>
+            <button class="copy-btn" data-copy-target="cmd-2">Copiar</button>
+          </div>
+          <pre id="cmd-2">warp-cli --version
+warp-cli status
+warp-cli registration show</pre>
+        </div>
+        <div class="ok">El estado debe indicar que el agente está conectado, y el registro debe mostrar la organización correcta. Si aparece conectado pero sin organización, el equipo está usando el servicio público de Cloudflare en lugar del corporativo, y por tanto <strong>no se le está aplicando ninguna política</strong>: es una situación especialmente engañosa porque el usuario ve el agente activo y todo funciona con normalidad.</div>
+        <div class="note">Las herramientas de línea de comandos conservan la denominación anterior del producto, de modo que la orden sigue llamándose <code class="inline">warp-cli</code> pese al cambio de nombre comercial. Lo mismo ocurre con el nombre del servicio del sistema y con varias rutas de instalación.</div>
+      </section>
+
+      <section class="card" id="paso-protocolo">
+        <h2>7. MASQUE frente a WireGuard</h2>
+        <p>El agente puede establecer el túnel con dos protocolos distintos, y la elección tiene consecuencias prácticas que conviene conocer. La configuración se encuentra en el perfil de dispositivo dentro de la plataforma, no en el propio equipo.</p>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>&nbsp;</th><th>MASQUE</th><th>WireGuard</th></tr></thead>
+            <tbody>
+              <tr><td>Base técnica</td><td>HTTP/3 sobre QUIC</td><td>Protocolo WireGuard</td></tr>
+              <tr><td>Puerto principal</td><td>UDP 443</td><td>UDP 2408</td></tr>
+              <tr><td>Alternativas si se bloquea</td><td>Otros puertos e incluso TCP 443</td><td>UDP 500, 1701 y 4500</td></tr>
+              <tr><td>Cifrado</td><td>TLS 1.3 con <code class="inline">TLS_AES_256_GCM_SHA384</code></td><td><code class="inline">TLS_CHACHA20_POLY1305_SHA256</code></td></tr>
+              <tr><td>Conformidad FIPS 140-3</td><td>Sí</td><td>No</td></tr>
+              <tr><td>Redes restrictivas</td><td>Muy resistente</td><td>Puede quedar bloqueado</td></tr>
+              <tr><td>Movilidad y pérdida de paquetes</td><td>Mejor comportamiento</td><td>Bueno</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="ok">La opción por defecto es <strong>MASQUE</strong>, y para un parque de portátiles que cambia de red constantemente es la recomendable. El motivo es sencillo: al viajar sobre HTTP/3 y normalmente por el puerto UDP 443, su tráfico se parece mucho al de una navegación web cualquiera, de modo que las redes de hoteles, aeropuertos o clientes rara vez lo bloquean. Además dispone de alternativas de reserva, incluida una sobre TCP 443, que es prácticamente imposible de filtrar sin romper toda la navegación.</div>
+        <div class="note">WireGuard sigue siendo un protocolo excelente y muy eficiente, pero utiliza un puerto poco habitual que algunas redes restrictivas descartan, y su conjunto de algoritmos no está clasificado como conforme con FIPS 140-3. En organizaciones sujetas a esa normativa, ese detalle por sí solo decide la elección. La razón para mantener WireGuard sería tener una infraestructura ya validada sobre él o detectar algún problema concreto de compatibilidad con la alternativa.</div>
+      </section>
+
+      <section class="card" id="capas">
+        <h2>8. Las tres capas de políticas</h2>
+        <p>Este es el concepto central de la práctica. Cloudflare Gateway no aplica un único filtro sino tres, y cada uno actúa en un momento distinto de la conexión y ve una información diferente. Entender qué observa cada capa evita el error más común: intentar resolver en la capa equivocada un control que ahí es imposible.</p>
+
+        <h3>Políticas DNS: el dominio</h3>
+        <p>Actúan sobre la <strong>consulta de nombres</strong>, antes de que llegue a establecerse ninguna conexión. Cuando el equipo pregunta por la dirección de un dominio, Gateway puede sencillamente no responder con ella, de modo que la conexión nunca comienza.</p>
+        <div class="info">Es la capa más rápida y la más barata en recursos, y no necesita ningún tipo de descifrado porque la consulta de nombres no va cifrada respecto del propio resolutor. Su límite es evidente en cuanto se piensa: solo conoce el <em>nombre</em>. No distingue una página de otra dentro del mismo dominio, ni sabe qué se está haciendo dentro de la aplicación.</div>
+
+        <h3>Políticas de red: la conexión</h3>
+        <p>Actúan sobre los paquetes de transporte, examinando <strong>dirección de destino, puerto y protocolo</strong>. Es la capa adecuada para todo lo que no es navegación web: acceso remoto por consola, escritorio remoto, comparticiones de ficheros, bases de datos o cualquier servicio propio.</p>
+        <div class="info">Tampoco requiere descifrado, y permite decisiones del tipo "ningún equipo debe abrir conexiones de escritorio remoto hacia Internet" o "el tráfico hacia este rango de direcciones queda prohibido". No analiza el contenido: controla la conexión, no lo que viaja por ella.</div>
+
+        <h3>Políticas HTTP: el contenido</h3>
+        <p>Actúan sobre el tráfico web ya interpretado, y pueden examinar <strong>direcciones completas, cabeceras, ficheros subidos o descargados y el contenido de las peticiones</strong>. Es la única capa capaz de distinguir aplicaciones concretas, acciones dentro de ellas y datos sensibles.</p>
+        <div class="warning">Y es también la única que <strong>exige inspección TLS</strong>. Como prácticamente toda la web viaja cifrada, sin descifrado Gateway solo ve un flujo opaco hacia un servidor y no puede aplicar ninguna decisión basada en contenido. Este es el punto donde encalla la mayoría de configuraciones: las políticas se crean, quedan activas, y no bloquean nada porque el tráfico que pretenden controlar va por HTTPS.</div>
+
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>&nbsp;</th><th>DNS</th><th>Red</th><th>HTTP</th></tr></thead>
+            <tbody>
+              <tr><td>Qué observa</td><td>El nombre de dominio</td><td>Dirección, puerto y protocolo</td><td>Direcciones completas, ficheros y contenido</td></tr>
+              <tr><td>Momento</td><td>Antes de conectar</td><td>Al establecer la conexión</td><td>Con la conexión ya establecida</td></tr>
+              <tr><td>Necesita inspección TLS</td><td>No</td><td>No</td><td><strong>Sí</strong></td></tr>
+              <tr><td>Coste en recursos</td><td>Muy bajo</td><td>Bajo</td><td>Alto</td></tr>
+              <tr><td>Distingue rutas dentro de un sitio</td><td>No</td><td>No</td><td>Sí</td></tr>
+              <tr><td>Sirve para tráfico no web</td><td>Parcialmente</td><td>Sí</td><td>No</td></tr>
+              <tr><td>Uso recomendado</td><td>Malware, suplantación, contenido para adultos, dominios peligrosos</td><td>Puertos y servicios de administración, direcciones concretas</td><td>Aplicaciones, subidas y descargas, prevención de fuga de datos</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="ok">La conclusión práctica es que <strong>no son alternativas sino complementos</strong>. Una configuración corporativa sensata bloquea las amenazas conocidas en la capa de nombres, porque es la más eficiente y detiene el tráfico antes de que exista; endurece los servicios de administración en la capa de red; y reserva la capa de contenido para lo que de verdad requiere ver dentro del tráfico, que es donde está el control de aplicaciones y de datos.</div>
+      </section>
+
+      <section class="card" id="orden">
+        <h2>9. Orden de aplicación de las políticas</h2>
+        <p>Las tres capas no se evalúan simultáneamente sino en una secuencia fija, y ese orden explica muchos comportamientos que de otro modo parecen contradictorios.</p>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Secuencia de evaluación</div>
+            <button class="copy-btn" data-copy-target="cmd-3">Copiar</button>
+          </div>
+          <pre id="cmd-3">   El equipo intenta acceder a un servicio
+                    |
+                    v
+   1. Politicas DNS      --> si bloquea aqui, se acabo
+                    |
+                    v
+   2. Politicas de RED   --> si bloquea aqui, se acabo
+                    |
+                    v
+   3. Politicas HTTP     --> ultimo control
+        |
+        +-- Do Not Inspect   (se evaluan SIEMPRE primero)
+        +-- Aislamiento
+        +-- Permitir / Bloquear
+        +-- Inspeccion de contenido (DLP, antivirus)
+                    |
+                    v
+                Internet</pre>
+        </div>
+        <div class="warning">De esta secuencia se derivan dos consecuencias que conviene tener muy presentes. La primera: <strong>si una capa anterior bloquea, las posteriores no llegan a evaluarse</strong>, de modo que una política de contenido cuidadosamente construida puede no ejecutarse nunca porque un filtro de nombres más amplio ya cortó el tráfico. La segunda: dentro de cada capa, las políticas se recorren de arriba abajo y <strong>gana la primera que coincide</strong>, así que el orden en la lista no es cosmético sino funcional.</div>
+        <div class="warning">Hay además una excepción que rompe el orden y que da bastantes disgustos: las reglas de <strong>no inspeccionar</strong> se evalúan <em>antes que todas las demás políticas de contenido</em>, con independencia de la posición que ocupen en la lista. Si existe una de esas reglas demasiado amplia —por ejemplo, excluyendo de la inspección todo un conjunto de servicios en la nube—, ese tráfico se salta por completo el resto de controles de contenido aunque haya políticas de bloqueo por encima. Revisar esas exclusiones es obligatorio antes de dar por buena cualquier configuración.</div>
+        <div class="info">Las reglas de no inspeccionar existen por buenas razones: hay aplicaciones que utilizan fijación de certificados y dejan de funcionar si alguien se interpone en su cifrado. El criterio correcto es mantenerlas al mínimo imprescindible y documentar por qué está cada una, no acumularlas para resolver incidencias puntuales.</div>
+      </section>
+
+      <section class="card" id="paso-tls">
+        <h2>10. Inspección HTTPS y certificado raíz</h2>
+        <p>Para que las políticas de contenido puedan actuar sobre tráfico cifrado hay que activar la inspección TLS. El mecanismo consiste en que Gateway termina la conexión cifrada, examina su contenido conforme a las políticas y vuelve a cifrarla hacia el destino, presentando al equipo un certificado emitido por la autoridad de la organización.</p>
+        <ul>
+          <li>En la plataforma, dentro de la configuración de tráfico, localizar la sección de <strong>proxy e inspección</strong>.</li>
+          <li>Activar la opción de <strong>inspeccionar peticiones HTTPS mediante descifrado TLS</strong>.</li>
+          <li>Comprobar que el proxy está habilitado para los protocolos que se van a controlar.</li>
+        </ul>
+        <div class="warning">Activar la inspección sin haber desplegado antes el certificado raíz en los equipos deja la navegación inservible: cada sitio muestra un aviso de certificado no confiable, porque el equipo recibe un certificado emitido por una autoridad que desconoce. El orden correcto es siempre <strong>primero el certificado en los dispositivos, después la inspección en la plataforma</strong>, nunca al revés.</div>
+        <p>El certificado se descarga desde la propia plataforma y se instala en el almacén de entidades de certificación raíz de confianza del equipo:</p>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Instalar el certificado raíz en Windows</div>
+            <button class="copy-btn" data-copy-target="cmd-4">Copiar</button>
+          </div>
+          <pre id="cmd-4">Import-Certificate -FilePath "$env:USERPROFILE\Downloads\Cloudflare_CA.crt" -CertStoreLocation Cert:\LocalMachine\Root</pre>
+        </div>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Comprobar que el certificado está instalado</div>
+            <button class="copy-btn" data-copy-target="cmd-5">Copiar</button>
+          </div>
+          <pre id="cmd-5">Get-ChildItem Cert:\LocalMachine\Root |
+  Where-Object { $_.Subject -like "*Cloudflare*" } |
+  Select-Object Subject, NotAfter, Thumbprint</pre>
+        </div>
+        <div class="note">Debe instalarse en el almacén <strong>del equipo</strong> y no en el del usuario, para que lo utilicen también los servicios y las aplicaciones que no se ejecutan en la sesión interactiva. En un parque real esta distribución se realiza con la herramienta de gestión de dispositivos o mediante directivas de grupo, nunca de forma manual: hacerlo equipo por equipo no escala y garantiza que alguno se quede fuera.</div>
+        <div class="info">Algunas aplicaciones mantienen su propio almacén de certificados independiente del sistema, entre ellas ciertos navegadores y muchas herramientas de desarrollo. Si tras instalar el certificado una aplicación concreta sigue rechazando las conexiones, lo habitual es que esté usando su propio almacén y necesite el certificado también ahí, o bien que deba añadirse a las excepciones de inspección.</div>
+      </section>
+
+      <section class="card" id="paso-dns">
+        <h2>11. Políticas DNS</h2>
+        <p>Es la capa donde conviene concentrar los bloqueos amplios y bien definidos, porque detiene el tráfico antes de que llegue a existir y no consume prácticamente recursos. Las políticas se construyen combinando un selector, un operador y un valor, y una acción.</p>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Objetivo</th><th>Selector</th><th>Valor</th><th>Acción</th></tr></thead>
+            <tbody>
+              <tr><td>Programas maliciosos</td><td>Categorías de seguridad</td><td>Malware, Command and Control, Spyware</td><td>Bloquear</td></tr>
+              <tr><td>Suplantación de identidad</td><td>Categorías de seguridad</td><td>Phishing</td><td>Bloquear</td></tr>
+              <tr><td>Dominios recién creados</td><td>Categorías de seguridad</td><td>New Domains, Newly Seen Domains</td><td>Bloquear</td></tr>
+              <tr><td>Contenido inapropiado</td><td>Categorías de contenido</td><td>Adult Themes, Gambling</td><td>Bloquear</td></tr>
+              <tr><td>Minado de criptomonedas</td><td>Categorías de contenido</td><td>Cryptomining</td><td>Bloquear</td></tr>
+              <tr><td>Dominio concreto</td><td>Dominio</td><td>El nombre a bloquear</td><td>Bloquear</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="info">El bloqueo de <strong>dominios recién registrados</strong> es una de las medidas con mejor relación entre esfuerzo y resultado, y suele pasar desapercibida. Buena parte de las campañas de suplantación utilizan dominios creados pocas horas antes del envío, precisamente para que ninguna lista de reputación los haya clasificado todavía. Bloquear por antigüedad no depende de que alguien haya identificado la amenaza.</div>
+        <div class="note">Conviene tener presente que este filtrado se apoya en el resolutor del agente. Si una aplicación resuelve nombres por su cuenta usando mecanismos cifrados propios, puede eludir esta capa; es una de las razones por las que el control no debe descansar únicamente en ella y por las que interesa restringir esos mecanismos alternativos desde la capa de red.</div>
+      </section>
+
+      <section class="card" id="paso-red">
+        <h2>12. Políticas de red</h2>
+        <p>Esta capa es la que endurece el equipo frente a todo lo que no es navegación, y en un entorno corporativo su utilidad es más grande de lo que sugiere su simplicidad: la mayoría de los puestos de trabajo no necesitan iniciar hacia Internet ninguna conexión de administración, y sin embargo pueden hacerlo.</p>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Objetivo</th><th>Selector</th><th>Valor</th><th>Acción</th></tr></thead>
+            <tbody>
+              <tr><td>Impedir el acceso remoto por consola hacia Internet</td><td>Puerto de destino</td><td>22</td><td>Bloquear</td></tr>
+              <tr><td>Impedir el escritorio remoto hacia Internet</td><td>Puerto de destino</td><td>3389</td><td>Bloquear</td></tr>
+              <tr><td>Impedir la compartición de ficheros hacia Internet</td><td>Puerto de destino</td><td>445</td><td>Bloquear</td></tr>
+              <tr><td>Forzar el uso del resolutor corporativo</td><td>Puerto de destino</td><td>53</td><td>Bloquear</td></tr>
+              <tr><td>Bloquear un rango de direcciones</td><td>IP de destino</td><td>El rango a bloquear</td><td>Bloquear</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="ok">El bloqueo del puerto de resolución de nombres hacia el exterior es especialmente valioso porque cierra la vía de escape más habitual: sin él, cualquier aplicación —o cualquier usuario con conocimientos— puede configurar un resolutor externo y saltarse por completo las políticas de la capa de nombres. Cerrar esa salida es lo que convierte el filtrado por dominio en una medida efectiva y no en una recomendación.</div>
+        <div class="warning">Antes de bloquear un puerto conviene comprobar quién lo utiliza legítimamente en la organización. El acceso remoto por consola, por ejemplo, es imprescindible para los perfiles técnicos, de modo que la política razonable no suele ser un bloqueo general sino uno con excepción para el grupo que lo necesita. Aplicar estos bloqueos sin ese análisis previo genera incidencias inmediatas y desconfianza hacia el despliegue.</div>
+      </section>
+
+      <section class="card" id="paso-http">
+        <h2>13. Políticas HTTP</h2>
+        <p>Es la capa más potente y la única capaz de distinguir <em>qué</em> se está haciendo, no solo <em>dónde</em>. Requiere la inspección TLS de la sección 10 y consume más recursos, así que su uso adecuado es el control de aplicaciones y de datos, dejando los bloqueos amplios en las capas anteriores.</p>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Objetivo</th><th>Selector</th><th>Comentario</th></tr></thead>
+            <tbody>
+              <tr><td>Controlar una aplicación concreta</td><td>Aplicación</td><td>Reconoce el servicio aunque utilice varios dominios distintos</td></tr>
+              <tr><td>Controlar una familia de servicios</td><td>Tipo de aplicación</td><td>Agrupa aplicaciones por categoría y se actualiza con el catálogo del proveedor</td></tr>
+              <tr><td>Controlar una ruta concreta</td><td>Dirección completa</td><td>Permite distinguir secciones dentro de un mismo sitio</td></tr>
+              <tr><td>Limitar subidas de ficheros</td><td>Tipo de descarga o subida</td><td>Distingue el sentido de la transferencia</td></tr>
+              <tr><td>Evitar la fuga de información</td><td>Perfil de prevención de pérdida de datos</td><td>Examina el contenido en busca de patrones definidos</td></tr>
+              <tr><td>Detectar código malicioso</td><td>Antivirus</td><td>Analiza los ficheros transferidos</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="info">La diferencia entre seleccionar por <strong>aplicación</strong> y hacerlo por dominio es más relevante de lo que parece. Un servicio web moderno reparte su funcionamiento entre varios nombres —el portal, la interfaz de programación, el almacenamiento de ficheros, la red de distribución de contenidos—, de modo que bloquear el dominio principal deja abiertos los demás y produce comportamientos parciales muy difíciles de diagnosticar. El selector de aplicación agrupa todos esos nombres bajo una única entrada mantenida por el proveedor.</div>
+      </section>
+
+      <section class="card" id="paso-ia">
+        <h2>14. Bloquear la IA salvo la herramienta aprobada</h2>
+        <p>Este caso resume por qué merece la pena entender las tres capas. El objetivo corporativo típico no es prohibir la inteligencia artificial —eso solo consigue que se use desde el móvil personal, sin ninguna trazabilidad— sino <strong>canalizarla hacia una herramienta aprobada</strong> sobre la que sí existe control, contrato y responsabilidad.</p>
+        <div class="warning">Este control <strong>debe hacerse en la capa de contenido</strong>. Intentarlo solo en la capa de nombres tiene dos problemas: no distingue entre acciones dentro del servicio, y obliga a mantener a mano una lista de dominios que queda desactualizada cada pocas semanas, porque aparecen asistentes nuevos continuamente. El selector de aplicación se apoya en un catálogo mantenido por el proveedor y recoge los servicios nuevos sin intervención.</div>
+        <p>La configuración son dos políticas, y <strong>el orden entre ellas es lo que hace que funcione</strong>:</p>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Estructura de las dos políticas</div>
+            <button class="copy-btn" data-copy-target="cmd-6">Copiar</button>
+          </div>
+          <pre id="cmd-6">POLITICAS HTTP  (se evaluan de arriba abajo, gana la primera coincidencia)
+
+  1)  Permitir - IA aprobada
+      Aplicacion            es       APP_IA_APROBADA
+      Accion                         Permitir
+
+  2)  Bloquear - Resto de IA
+      Tipo de aplicacion    esta en  Artificial Intelligence
+      Accion                         Bloquear</pre>
+        </div>
+        <div class="ok">El mecanismo es directo: cuando un usuario abre la herramienta aprobada, coincide con la primera política, se permite y la evaluación se detiene sin llegar a la segunda. Cuando abre cualquier otro asistente, no coincide con la primera, cae en la segunda y queda bloqueado. Invertir el orden anula por completo la excepción, porque la herramienta aprobada también pertenece a la categoría y sería bloqueada antes de que la regla que la permite llegara a evaluarse.</div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Servicio</th><th>Resultado</th><th>Por qué</th></tr></thead>
+            <tbody>
+              <tr><td>La herramienta aprobada por la organización</td><td>Permitido</td><td>Coincide con la primera política</td></tr>
+              <tr><td>Cualquier otro asistente conversacional</td><td>Bloqueado</td><td>Pertenece a la categoría y no coincide con la excepción</td></tr>
+              <tr><td>Asistentes aparecidos después del despliegue</td><td>Bloqueado</td><td>El catálogo de la categoría se actualiza sin intervención</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="warning">Antes de dar por buena esta configuración hay que revisar las reglas de <strong>no inspeccionar</strong> descritas en la sección 9. Si existe una exclusión amplia que abarque el conjunto de servicios en el que se encuentra la herramienta aprobada, ese tráfico se saltará las políticas de contenido y el bloqueo no se aplicará como se espera. Es la causa más frecuente de que estas dos reglas parezcan no funcionar.</div>
+        <div class="info">Conviene acompañar el bloqueo de una <strong>página de aviso personalizada</strong> en lugar de dejar un error genérico. Explicar en ella qué herramienta está aprobada y por qué convierte una prohibición opaca —que el usuario intentará esquivar— en una indicación comprensible. La adopción de una política de este tipo depende tanto de la comunicación como de la técnica.</div>
+      </section>
+
+      <section class="card" id="paso-granular">
+        <h2>15. Del bloqueo al control granular</h2>
+        <p>Bloquear es la respuesta más sencilla, pero rara vez la mejor en una organización. El riesgo real de los asistentes de inteligencia artificial no es que se utilicen, sino <strong>qué información se introduce en ellos</strong>: código propietario, datos personales, documentos contractuales o credenciales. Ese matiz permite plantear políticas mucho más útiles que un simple corte.</p>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Modelo de control por capas sobre la herramienta aprobada</div>
+            <button class="copy-btn" data-copy-target="cmd-7">Copiar</button>
+          </div>
+          <pre id="cmd-7">   APP_IA_APROBADA
+        |
+        +-- uso general ....................... PERMITIR
+        +-- subida de ficheros ................ BLOQUEAR o REGISTRAR
+        +-- contenido con datos sensibles ..... BLOQUEAR  (prevencion de fuga de datos)
+
+   Resto de asistentes de IA ................. BLOQUEAR</pre>
+        </div>
+        <p>Las políticas de contenido permiten distinguir el sentido de la transferencia, de modo que se puede autorizar la consulta y bloquear la subida de documentos. Y los perfiles de prevención de pérdida de datos permiten ir un paso más allá, examinando lo que se envía en busca de patrones definidos por la organización.</p>
+        <div class="ok">El resultado es una postura defendible ante un comité de dirección: la empresa no prohíbe una tecnología que mejora la productividad, sino que la encauza hacia una herramienta contratada, impide que salgan documentos por ella y detecta los intentos de enviar información sensible. Prohibir sin alternativa, en cambio, empuja el uso hacia dispositivos personales, que es precisamente el escenario sin control ni trazabilidad que se quería evitar.</div>
+        <div class="note">Este mismo planteamiento se aplica a cualquier otra familia de servicios en la nube: almacenamiento, mensajería, transferencia de ficheros o repositorios de código. La pregunta útil no suele ser si se permite el servicio, sino qué acciones concretas dentro de él son aceptables y cuáles no.</div>
+      </section>
+
+      <section class="card" id="paso-verificar">
+        <h2>16. Verificación</h2>
+        <p>La verificación debe hacerse en el mismo orden en el que se aplican las políticas, porque así cada prueba descarta una causa distinta y el diagnóstico deja de ser adivinanza.</p>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Comprobar que el equipo pasa por el servicio</div>
+            <button class="copy-btn" data-copy-target="cmd-8">Copiar</button>
+          </div>
+          <pre id="cmd-8">warp-cli status
+warp-cli registration show
+Invoke-RestMethod -Uri "https://www.cloudflare.com/cdn-cgi/trace/"</pre>
+        </div>
+        <div class="ok">La última orden devuelve un resumen del estado de la conexión visto desde el otro extremo. El indicador de advertencia debe reflejar que el tráfico está pasando por el servicio corporativo; si indica lo contrario, el agente no está encaminando el tráfico y ninguna política se está aplicando, por mucho que aparezcan como activas en la plataforma.</div>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Comprobar la capa de nombres</div>
+            <button class="copy-btn" data-copy-target="cmd-9">Copiar</button>
+          </div>
+          <pre id="cmd-9">Resolve-DnsName -Name UN_DOMINIO_BLOQUEADO</pre>
+        </div>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Comprobar la capa de red</div>
+            <button class="copy-btn" data-copy-target="cmd-10">Copiar</button>
+          </div>
+          <pre id="cmd-10">Test-NetConnection -ComputerName UN_SERVIDOR_EXTERNO -Port 22
+Test-NetConnection -ComputerName UN_SERVIDOR_EXTERNO -Port 443</pre>
+        </div>
+        <div class="ok">La conexión al puerto de administración debe fallar y la de navegación debe funcionar. Esa pareja de resultados demuestra que la capa de red discrimina por puerto y no está simplemente cortando todo el tráfico.</div>
+        <div class="cmd">
+          <div class="cmd-head">
+            <div class="cmd-title">Comprobar el certificado que presenta el servicio</div>
+            <button class="copy-btn" data-copy-target="cmd-11">Copiar</button>
+          </div>
+          <pre id="cmd-11">$conexion = Test-NetConnection -ComputerName "www.example.com" -Port 443
+Invoke-WebRequest -Uri "https://www.example.com" -UseBasicParsing | Select-Object StatusCode</pre>
+        </div>
+        <div class="info">La comprobación definitiva de la inspección TLS se hace en el navegador: al abrir cualquier sitio seguro y examinar el certificado, la cadena de confianza debe terminar en la autoridad de la organización y no en la autoridad pública habitual del sitio. Ese detalle confirma que el tráfico está siendo descifrado y, por tanto, que las políticas de contenido pueden actuar.</div>
+        <div class="ok">La prueba final es funcional: abrir la herramienta de inteligencia artificial aprobada, que debe cargar con normalidad, y a continuación cualquier otro asistente, que debe mostrar la página de bloqueo. Los registros de la plataforma permiten confirmar qué política concreta ha intervenido en cada caso, que es la forma correcta de validar una configuración en lugar de deducirla del comportamiento.</div>
+      </section>
+
+      <section class="card" id="puertos">
+        <h2>17. Puertos y componentes</h2>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Puerto</th><th>Componente</th><th>Sentido</th><th>Para qué sirve</th></tr></thead>
+            <tbody>
+              <tr><td>UDP 443</td><td>Túnel MASQUE</td><td>Equipo &rarr; Cloudflare</td><td>Transporte principal del tráfico. Se confunde con navegación normal, difícil de bloquear</td></tr>
+              <tr><td>TCP 443</td><td>Alternativa del túnel</td><td>Equipo &rarr; Cloudflare</td><td>Reserva cuando la red bloquea el transporte por UDP</td></tr>
+              <tr><td>UDP 2408</td><td>Túnel WireGuard</td><td>Equipo &rarr; Cloudflare</td><td>Solo si se elige este protocolo. Algunas redes lo descartan</td></tr>
+              <tr><td>UDP 500, 1701, 4500</td><td>Alternativas de WireGuard</td><td>Equipo &rarr; Cloudflare</td><td>Puertos de reserva del protocolo alternativo</td></tr>
+              <tr><td>&mdash;</td><td>Cloudflare Gateway</td><td>Servicio en la nube</td><td>Donde se aplican las tres capas de políticas</td></tr>
+              <tr><td>&mdash;</td><td>Certificado raíz de la organización</td><td>Almacén del equipo</td><td>Requisito para que la inspección de contenido funcione sin avisos</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="note">En redes propias donde exista un cortafuegos perimetral restrictivo conviene permitir explícitamente la salida por estos puertos. Es un escenario habitual en entornos con filtrado de salida estricto, donde el agente se instala correctamente pero nunca llega a conectar.</div>
+      </section>
+
+      <section class="card" id="errores">
+        <h2>18. Errores comunes y cómo resolverlos</h2>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Problema</th><th>Causa probable</th><th>Solución</th></tr></thead>
+            <tbody>
+              <tr>
+                <td>Las políticas están activas pero no bloquean casi nada, y el panel avisa de que se aplican al tráfico sin cifrar pero no al cifrado</td>
+                <td>La inspección TLS no está activada, y prácticamente todos los servicios web viajan cifrados</td>
+                <td>Desplegar el certificado raíz en los equipos y activar después la inspección (sección 10)</td>
+              </tr>
+              <tr>
+                <td>Tras activar la inspección, todos los sitios muestran avisos de certificado no confiable</td>
+                <td>Se activó la inspección antes de distribuir el certificado raíz</td>
+                <td>Instalar el certificado en el almacén del equipo; el orden correcto es certificado primero, inspección después (sección 10)</td>
+              </tr>
+              <tr>
+                <td>El agente se instala y el usuario se autentica sin errores, pero el dispositivo nunca aparece registrado</td>
+                <td>No existe una regla de registro de dispositivos que autorice a ese usuario</td>
+                <td>Crear la regla que permita al dominio de correo corporativo inscribir equipos (sección 5)</td>
+              </tr>
+              <tr>
+                <td>El agente aparece conectado pero no se aplica ninguna política</td>
+                <td>El equipo está usando el servicio público en lugar del corporativo, por no haberse registrado en la organización</td>
+                <td>Comprobarlo con <code class="inline">warp-cli registration show</code> y reinstalar indicando la organización (sección 6)</td>
+              </tr>
+              <tr>
+                <td>Una política de contenido no se aplica pese a estar bien construida y por encima de las demás</td>
+                <td>Existe una regla de no inspeccionar que abarca ese tráfico, y esas reglas se evalúan antes que todas las demás</td>
+                <td>Revisar y acotar las exclusiones de inspección (sección 9)</td>
+              </tr>
+              <tr>
+                <td>Se crean varias políticas correctas pero solo actúa una de ellas</td>
+                <td>Dentro de cada capa gana la primera coincidencia y la evaluación se detiene ahí</td>
+                <td>Revisar el orden: las excepciones deben ir por encima de los bloqueos generales (secciones 9 y 14)</td>
+              </tr>
+              <tr>
+                <td>La excepción de la herramienta aprobada no funciona y queda bloqueada como el resto</td>
+                <td>La política de bloqueo general está por encima de la que permite la excepción</td>
+                <td>Colocar la política que permite en primer lugar (sección 14)</td>
+              </tr>
+              <tr>
+                <td>El bloqueo de una aplicación funciona a medias: unas funciones se cortan y otras siguen operativas</td>
+                <td>Se bloqueó un dominio concreto en lugar de la aplicación, y el servicio utiliza varios nombres distintos</td>
+                <td>Usar el selector de aplicación, que agrupa todos los nombres del servicio (sección 13)</td>
+              </tr>
+              <tr>
+                <td>Un usuario elude el filtrado de dominios configurando otro resolutor de nombres</td>
+                <td>La salida hacia resolutores externos no está restringida en la capa de red</td>
+                <td>Bloquear el puerto de resolución de nombres hacia el exterior (sección 12)</td>
+              </tr>
+              <tr>
+                <td>El agente no llega a conectar desde una red concreta</td>
+                <td>Esa red bloquea el puerto que utiliza el protocolo del túnel</td>
+                <td>Verificar que el perfil usa el protocolo por defecto, que resiste mejor las redes restrictivas (sección 7)</td>
+              </tr>
+              <tr>
+                <td>Una aplicación específica deja de funcionar tras activar la inspección</td>
+                <td>Utiliza fijación de certificados o mantiene un almacén de certificados propio</td>
+                <td>Añadir esa aplicación a las excepciones de inspección, acotándola lo máximo posible (secciones 9 y 10)</td>
+              </tr>
+              <tr>
+                <td>Bloquear un puerto en la capa de red deja sin trabajar a parte de la plantilla</td>
+                <td>La política se aplicó de forma general sin excepción para los perfiles que sí lo necesitan</td>
+                <td>Acotar la política por grupo de identidad en lugar de aplicarla a toda la organización (sección 12)</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="card" id="ampliacion">
+        <h2>19. Notas de ampliación</h2>
+        <p>El montaje de esta guía cubre el control del tráfico de salida de un equipo corporativo. Para un despliegue completo conviene ampliar con:</p>
+        <ul>
+          <li><strong>Distribución centralizada del agente y del certificado</strong> mediante la herramienta de gestión de dispositivos de la organización, que es lo único que hace viable el despliegue en un parque real y garantiza que ningún equipo se quede sin la configuración.</li>
+          <li><strong>Integración con el proveedor de identidad corporativo</strong>, de forma que las políticas puedan distinguir por usuario o por grupo en lugar de aplicarse por igual a todos, y que el registro de dispositivos herede las altas y bajas de personal.</li>
+          <li><strong>Perfiles de prevención de pérdida de datos</strong> ajustados a la información que realmente maneja la organización, en lugar de los patrones genéricos, que producen demasiados avisos irrelevantes y acaban ignorándose.</li>
+          <li><strong>Comprobación del estado del dispositivo</strong> antes de conceder acceso, verificando cifrado de disco, antivirus activo o versión mínima del sistema, de modo que un equipo desactualizado quede limitado automáticamente.</li>
+          <li><strong>Acceso a aplicaciones internas a través de la misma plataforma</strong>, sustituyendo la VPN tradicional por accesos publicados individualmente, con lo que un usuario deja de tener conectividad completa a la red interna por el hecho de estar conectado.</li>
+          <li><strong>Envío de los registros al sistema de monitorización</strong> de la organización, para conservar el histórico más allá de la retención de la plataforma y correlacionar estos eventos con los del resto de la infraestructura.</li>
+          <li><strong>Comunicación a la plantilla</strong> de qué se está inspeccionando y con qué finalidad, requisito habitual en la normativa de protección de datos y, en la práctica, la diferencia entre una medida aceptada y una que se intenta esquivar.</li>
+        </ul>
+      </section>
+
+      <footer>
+        <p style="margin: 0 0 6px;">Guía técnica para desplegar el cliente de Cloudflare One sobre Windows 11, encaminar el tráfico corporativo hacia Cloudflare Gateway y aplicar políticas de filtrado en las capas de nombres, red y contenido, con inspección TLS y control selectivo de aplicaciones de inteligencia artificial.</p>
+        <p style="margin: 0; opacity: .75;">&copy; <span id="anio-actual">2026</span> Clockwork Computer. Todos los derechos reservados. Contenido educativo de libre consulta; su reproducción total o parcial en otros sitios requiere autorización previa.</p>
+      </footer>
+    </div>
+  </div>
+</main>
+
+<script>
+  async function copyText(text, button) {
+    try {
+      await navigator.clipboard.writeText(text);
+      const original = button.textContent;
+      button.textContent = 'Copiado';
+      button.classList.add('copied');
+      setTimeout(() => {
+        button.textContent = original;
+        button.classList.remove('copied');
+      }, 1400);
+    } catch (err) {
+      alert('No se pudo copiar automáticamente.');
+    }
+  }
+
+  document.querySelectorAll('.copy-btn').forEach(button => {
+    button.addEventListener('click', () => {
+      const targetId = button.getAttribute('data-copy-target');
+      const target = document.getElementById(targetId);
+      if (!target) return;
+      copyText(target.innerText.trim(), button);
+    });
+  });
+
+  const anioEl = document.getElementById('anio-actual');
+  if (anioEl) anioEl.textContent = new Date().getFullYear();
+</script>
+</body>
+</html>
